@@ -26,7 +26,7 @@
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent"
-            app:layout_constraintBottom_toTopOf="@id/recyclerView">
+            app:layout_constraintBottom_toTopOf="@id/categoryScroll">
 
             <com.goodwy.messages.common.widget.QkTextView
                 android:id="@+id/toolbarTitle"
@@ -48,11 +48,110 @@
                 android:textColorHint="?android:attr/textColorTertiary"
                 app:textSize="primary"
                 tools:textSize="16sp" />
-            <!--перенес в код и в +id/toolbar
-            android:background="@drawable/rounded_rectangle_24dp"
-            android:backgroundTint="?attr/bubbleColor"-->
 
         </androidx.appcompat.widget.Toolbar>
+
+        <HorizontalScrollView
+            android:id="@+id/categoryScroll"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:clipToPadding="false"
+            android:paddingStart="12dp"
+            android:paddingEnd="12dp"
+            android:paddingTop="6dp"
+            android:paddingBottom="6dp"
+            android:scrollbars="none"
+            app:layout_constraintTop_toBottomOf="@id/toolbar"
+            app:layout_constraintBottom_toTopOf="@id/recyclerView"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent">
+
+            <LinearLayout
+                android:id="@+id/categoryContainer"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal">
+
+                <com.goodwy.messages.common.widget.QkTextView
+                    android:id="@+id/tabAll"
+                    style="@style/TextPrimary"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_margin="4dp"
+                    android:background="@drawable/rounded_rectangle_24dp"
+                    android:paddingStart="14dp"
+                    android:paddingEnd="14dp"
+                    android:paddingTop="6dp"
+                    android:paddingBottom="6dp"
+                    android:text="همه" />
+
+                <com.goodwy.messages.common.widget.QkTextView
+                    android:id="@+id/tabContacts"
+                    style="@style/TextPrimary"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_margin="4dp"
+                    android:background="@drawable/rounded_rectangle_24dp"
+                    android:paddingStart="14dp"
+                    android:paddingEnd="14dp"
+                    android:paddingTop="6dp"
+                    android:paddingBottom="6dp"
+                    android:text="مخاطبین" />
+
+                <com.goodwy.messages.common.widget.QkTextView
+                    android:id="@+id/tabUnknown"
+                    style="@style/TextPrimary"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_margin="4dp"
+                    android:background="@drawable/rounded_rectangle_24dp"
+                    android:paddingStart="14dp"
+                    android:paddingEnd="14dp"
+                    android:paddingTop="6dp"
+                    android:paddingBottom="6dp"
+                    android:text="شخصی ناشناس" />
+
+                <com.goodwy.messages.common.widget.QkTextView
+                    android:id="@+id/tabBank"
+                    style="@style/TextPrimary"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_margin="4dp"
+                    android:background="@drawable/rounded_rectangle_24dp"
+                    android:paddingStart="14dp"
+                    android:paddingEnd="14dp"
+                    android:paddingTop="6dp"
+                    android:paddingBottom="6dp"
+                    android:text="بانکی" />
+
+                <com.goodwy.messages.common.widget.QkTextView
+                    android:id="@+id/tabOtp"
+                    style="@style/TextPrimary"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_margin="4dp"
+                    android:background="@drawable/rounded_rectangle_24dp"
+                    android:paddingStart="14dp"
+                    android:paddingEnd="14dp"
+                    android:paddingTop="6dp"
+                    android:paddingBottom="6dp"
+                    android:text="رمز و کد" />
+
+                <com.goodwy.messages.common.widget.QkTextView
+                    android:id="@+id/tabOther"
+                    style="@style/TextPrimary"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_margin="4dp"
+                    android:background="@drawable/rounded_rectangle_24dp"
+                    android:paddingStart="14dp"
+                    android:paddingEnd="14dp"
+                    android:paddingTop="6dp"
+                    android:paddingBottom="6dp"
+                    android:text="متفرقه" />
+
+            </LinearLayout>
+        </HorizontalScrollView>
 
         <com.goodwy.messages.common.widget.QkTextView
             android:id="@+id/empty"
@@ -63,7 +162,7 @@
             android:gravity="center"
             android:padding="56dp"
             app:layout_constraintBottom_toTopOf="@id/bottom"
-            app:layout_constraintTop_toBottomOf="@id/toolbar"
+            app:layout_constraintTop_toBottomOf="@id/categoryScroll"
             tools:text="Your conversations will appear here"
             tools:visibility="invisible" />
 
@@ -77,7 +176,7 @@
             android:paddingBottom="8dp"
             app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
             app:layout_constraintBottom_toTopOf="@id/bottom"
-            app:layout_constraintTop_toBottomOf="@id/toolbar"
+            app:layout_constraintTop_toBottomOf="@id/categoryScroll"
             tools:listitem="@layout/conversation_list_item" />
 
         <ImageView
@@ -101,7 +200,7 @@
             android:background="@drawable/ab_shadow"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/toolbar" />
+            app:layout_constraintTop_toBottomOf="@id/categoryScroll" />
 
         <View
             android:id="@+id/bottom"
