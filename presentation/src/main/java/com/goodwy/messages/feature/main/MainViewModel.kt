@@ -21,6 +21,7 @@ import com.goodwy.messages.manager.BillingManager
 import com.goodwy.messages.manager.ChangelogManager
 import com.goodwy.messages.manager.PermissionManager
 import com.goodwy.messages.manager.RatingManager
+import com.goodwy.messages.model.Conversation
 import com.goodwy.messages.model.SyncLog
 import com.goodwy.messages.repository.ConversationRepository
 import com.goodwy.messages.repository.SyncRepository
@@ -31,11 +32,11 @@ import io.reactivex.android.schedulers.AndroidSchedulers
 import io.reactivex.rxkotlin.plusAssign
 import io.reactivex.rxkotlin.withLatestFrom
 import io.reactivex.schedulers.Schedulers
+import io.realm.Case
 import io.realm.Realm
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.GlobalScope
-import kotlinx.coroutines.launch
-import java.util.*
+import io.realm.RealmQuery
+import io.realm.RealmResults
+import io.realm.Sort
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 
@@ -62,6 +63,8 @@ class MainViewModel @Inject constructor(
     private val syncMessages: SyncMessages
 ) : QkViewModel<MainView, MainState>(MainState(page = Inbox(data = conversationRepo.getConversations()))) {
 
+    private var currentCategory: MessageCategory = MessageCategory.ALL
+
     init {
         disposables += deleteConversations
         disposables += markAllSeen
@@ -85,13 +88,10 @@ class MainViewModel @Inject constructor(
         disposables += ratingManager.shouldShowRating
                 .subscribe { show -> newState { copy(showRating = show) } }
 
-
         // Migrate the preferences from 2.7.3
         migratePreferences.execute(Unit)
 
-
-        // If we have all permissions and we've never run a sync, run a sync. This will be the case
-        // when upgrading from 2.7.3, or if the app's data was cleared
+        // If we have all permissions and we've never run a sync, run a sync.
         val lastSync = Realm.getDefaultInstance().use { realm -> realm.where(SyncLog::class.java)?.max("date") ?: 0 }
         if (lastSync == 0 && permissionManager.isDefaultSms() && permissionManager.hasReadSms() && permissionManager.hasContacts()) {
             syncMessages.execute(Unit)
@@ -109,6 +109,119 @@ class MainViewModel @Inject constructor(
         markAllSeen.execute(Unit)
     }
 
+    fun setCategory(category: MessageCategory) {
+        currentCategory = category
+        newState {
+            copy(page = Inbox(
+                data = getConversationsByCategory(category),
+                category = category
+            ))
+        }
+    }
+
+    private fun getConversationsByCategory(category: MessageCategory): RealmResults<Conversation> {
+        if (category == MessageCategory.ALL) {
+            return conversationRepo.getConversations()
+        }
+
+        val query = Realm.getDefaultInstance()
+                .where(Conversation::class.java)
+                .notEqualTo("id", 0L)
+                .equalTo("archived", false)
+                .equalTo("blocked", false)
+                .isNotEmpty("recipients")
+                .beginGroup()
+                .isNotNull("lastMessage")
+                .or()
+                .isNotEmpty("draft")
+                .endGroup()
+
+        when (category) {
+            MessageCategory.CONTACTS -> {
+                query.isNotNull("recipients.contact")
+            }
+            MessageCategory.OTP -> {
+                query.isNull("recipients.contact")
+                query.applyOtpFilter()
+            }
+            MessageCategory.UNKNOWN -> {
+                query.isNull("recipients.contact")
+                query.not().applyOtpFilter()
+                query.applyMobileNumberFilter()
+            }
+            MessageCategory.BANK -> {
+                query.isNull("recipients.contact")
+                query.not().applyOtpFilter()
+                query.not().applyMobileNumberFilter()
+                query.applyBankFilter()
+            }
+            MessageCategory.OTHER -> {
+                query.isNull("recipients.contact")
+                query.not().applyOtpFilter()
+                query.not().applyMobileNumberFilter()
+                query.not().applyBankFilter()
+            }
+            else -> Unit
+        }
+
+        return query.sort(
+                arrayOf("pinned", "draft", "lastMessage.date"),
+                arrayOf(Sort.DESCENDING, Sort.DESCENDING, Sort.DESCENDING)
+        ).findAllAsync()
+    }
+
+    private fun RealmQuery<Conversation>.applyMobileNumberFilter(): RealmQuery<Conversation> {
+        beginGroup()
+            .beginGroup()
+                .beginsWith("recipients.address", "09")
+                .or()
+                .beginsWith("recipients.address", "+989")
+                .or()
+                .beginsWith("recipients.address", "989")
+                .or()
+                .beginsWith("recipients.address", "00989")
+            .endGroup()
+            .not().beginsWith("recipients.address", "09000")
+            .not().beginsWith("recipients.address", "+989000")
+            .not().beginsWith("recipients.address", "989000")
+        .endGroup()
+        return this
+    }
+
+    private fun RealmQuery<Conversation>.applyOtpFilter(): RealmQuery<Conversation> {
+        val keywords = listOf(
+            "رمز پویا", "رمزدوم", "رمز دوم",
+            "کد تایید", "کد تأیید", "کد تاييد", "کدتاييد", "کدتایید",
+            "کد ورود", "کد فعال", "کد امنیتی", "کد شناسایی",
+            "verification", "otp", "security code"
+        )
+        beginGroup()
+        keywords.forEachIndexed { index, keyword ->
+            if (index > 0) or()
+            contains("lastMessage.body", keyword, Case.INSENSITIVE)
+        }
+        endGroup()
+        return this
+    }
+
+    private fun RealmQuery<Conversation>.applyBankFilter(): RealmQuery<Conversation> {
+        val keywords = listOf(
+            "بانک", "بانك", "واریز", "واريز", "برداشت",
+            "مانده", "موجودی", "موجودي", "حساب",
+            "شبا", "ساتنا", "پایا", "پايا", "تسهیلات", "تسهيلات",
+            "بلوبانک", "کارت به کارت", "كارت به كارت"
+        )
+        beginGroup()
+        keywords.forEachIndexed { index, keyword ->
+            if (index > 0) or()
+            contains("lastMessage.body", keyword, Case.INSENSITIVE)
+        }
+        or()
+        contains("recipients.address", "bank", Case.INSENSITIVE)
+        endGroup()
+        return this
+    }
+
     override fun bindView(view: MainView) {
         super.bindView(view)
 
@@ -124,7 +237,6 @@ class MainViewModel @Inject constructor(
                 .distinctUntilChanged()
                 .share()
 
-        // If the default SMS state or permission states change, update the ViewState
         permissions
                 .doOnNext { (defaultSms, smsPermission, contactPermission) ->
                     newState { copy(defaultSms = defaultSms, smsPermission = smsPermission, contactPermission = contactPermission) }
@@ -132,7 +244,6 @@ class MainViewModel @Inject constructor(
                 .autoDisposable(view.scope())
                 .subscribe()
 
-        // If we go from not having all permissions to having them, sync messages
         permissions
                 .skip(1)
                 .filter { it.first && it.second && it.third }
@@ -140,7 +251,6 @@ class MainViewModel @Inject constructor(
                 .autoDisposable(view.scope())
                 .subscribe { syncMessages.execute(Unit) }
 
-        // Launch screen from intent
         view.onNewIntentIntent
                 .autoDisposable(view.scope())
                 .subscribe { intent ->
@@ -149,21 +259,6 @@ class MainViewModel @Inject constructor(
                         "blocking" -> navigator.showBlockedConversations()
                     }
                 }
-
-        // Show changelog
-        /*if (changelogManager.didUpdate()) {
-            if (Locale.getDefault().language.startsWith("en")) {
-                GlobalScope.launch(Dispatchers.Main) {
-                    val changelog = changelogManager.getChangelog()
-                            changelogManager.markChangelogSeen()
-                            view.showChangelog(changelog)
-                }
-            } else {
-                changelogManager.markChangelogSeen()
-            }
-        } else {
-            changelogManager.markChangelogSeen()
-        }*/
 
         view.changelogMoreIntent
                 .autoDisposable(view.scope())
@@ -175,7 +270,7 @@ class MainViewModel @Inject constructor(
                 .map { query -> query.trim() }
                 .withLatestFrom(state) { query, state ->
                     if (query.isEmpty() && state.page is Searching) {
-                        newState { copy(page = Inbox(data = conversationRepo.getConversations())) }
+                        newState { copy(page = Inbox(data = getConversationsByCategory(currentCategory), category = currentCategory)) }
                     }
                     query
                 }
@@ -195,7 +290,6 @@ class MainViewModel @Inject constructor(
         view.activityResumedIntent
                 .filter { resumed -> !resumed }
                 .switchMap {
-                    // Take until the activity is resumed
                     prefs.keyChanges
                             .filter { key -> key.contains("theme") }
                             .map { true }
@@ -239,7 +333,7 @@ class MainViewModel @Inject constructor(
                             state.page is Inbox && state.page.selected > 0 -> view.clearSelection()
                             state.page is Archived && state.page.selected > 0 -> view.clearSelection()
                             state.page !is Inbox -> {
-                                newState { copy(page = Inbox(data = conversationRepo.getConversations())) }
+                                newState { copy(page = Inbox(data = getConversationsByCategory(currentCategory), category = currentCategory)) }
                             }
                             else -> newState { copy(hasError = true) }
                         }
@@ -257,7 +351,7 @@ class MainViewModel @Inject constructor(
                 .distinctUntilChanged()
                 .doOnNext { drawerItem ->
                     when (drawerItem) {
-                        NavItem.INBOX -> newState { copy(page = Inbox(data = conversationRepo.getConversations())) }
+                        NavItem.INBOX -> newState { copy(page = Inbox(data = getConversationsByCategory(currentCategory), category = currentCategory)) }
                         NavItem.ARCHIVED -> newState { copy(page = Archived(data = conversationRepo.getConversations(true))) }
                         else -> Unit
                     }
@@ -397,7 +491,6 @@ class MainViewModel @Inject constructor(
                 .autoDisposable(view.scope())
                 .subscribe()
 
-        // Delete the conversation
         view.confirmDeleteIntent
                 .autoDisposable(view.scope())
                 .subscribe { conversations ->
