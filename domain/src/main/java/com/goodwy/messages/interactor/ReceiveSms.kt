@@ -53,6 +53,10 @@ class ReceiveSms @Inject constructor(
                     // Add the message to the db
                     val message = messageRepo.insertReceivedSms(it.subId, address, body, time)
 
+                    // First create and update the conversation so it exists in Realm before blocking
+                    conversationRepo.getOrCreateConversation(message.threadId)
+                    conversationRepo.updateConversations(message.threadId)
+
                     when (action) {
                         is BlockingClient.Action.Block -> {
                             messageRepo.markRead(message.threadId)
@@ -63,9 +67,6 @@ class ReceiveSms @Inject constructor(
                     }
 
                     message
-                }
-                .doOnNext { message ->
-                    conversationRepo.updateConversations(message.threadId) // Update the conversation
                 }
                 .mapNotNull { message ->
                     conversationRepo.getOrCreateConversation(message.threadId) // Map message to conversation
