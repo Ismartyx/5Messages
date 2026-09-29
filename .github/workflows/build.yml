@@ -22,10 +22,19 @@ jobs:
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
-      - name: Build Debug APK
-        run: ./gradlew assembleDebug --stacktrace
+      - name: Build APK
+        run: ./gradlew assembleNoAnalyticsDebug --no-daemon > build_log.txt 2>&1
+
+      - name: Show Exact Error (If Failed)
+        if: failure()
+        run: |
+          echo "=== COMPILATION ERRORS ==="
+          grep -E "^e: |FAILURE:|What went wrong:|Execution failed|> " build_log.txt | tail -n 40 || true
+          echo "=== LAST 40 LINES ==="
+          tail -n 40 build_log.txt
 
       - name: Upload APK
+        if: success()
         uses: actions/upload-artifact@v4
         with:
           name: 5Messages-APK
