@@ -1,0 +1,39 @@
+name: Build APK
+
+on:
+  push:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK automatically
+        run: |
+          if grep -q "gradle-8" gradle/wrapper/gradle-wrapper.properties; then
+            echo "JAVA_HOME=$JAVA_HOME_17_X64" >> $GITHUB_ENV
+            echo "$JAVA_HOME_17_X64/bin" >> $GITHUB_PATH
+          elif grep -q "gradle-7" gradle/wrapper/gradle-wrapper.properties; then
+            echo "JAVA_HOME=$JAVA_HOME_11_X64" >> $GITHUB_ENV
+            echo "$JAVA_HOME_11_X64/bin" >> $GITHUB_PATH
+          else
+            echo "JAVA_HOME=$JAVA_HOME_11_X64" >> $GITHUB_ENV
+            echo "$JAVA_HOME_11_X64/bin" >> $GITHUB_PATH
+          fi
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+
+      - name: Build Debug APK
+        run: ./gradlew assembleDebug --stacktrace
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: 5Messages-APK
+          path: "**/*.apk"
