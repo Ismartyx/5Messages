@@ -371,10 +371,16 @@ class ConversationRepositoryImpl @Inject constructor(
     }
 
     override fun markBlocked(threadIds: List<Long>, blockingClient: Int, blockReason: String?) {
+        if (threadIds.isEmpty()) return
+
+        threadIds.forEach { threadId ->
+            getOrCreateConversation(threadId)
+        }
+
         Realm.getDefaultInstance().use { realm ->
+            realm.refresh()
             val conversations = realm.where(Conversation::class.java)
                     .anyOf("id", threadIds.toLongArray())
-                    .equalTo("blocked", false)
                     .findAll()
 
             realm.executeTransaction {
@@ -457,9 +463,10 @@ class ConversationRepositoryImpl @Inject constructor(
                     conversation.recipients.addAll(recipients)
                     conversation.lastMessage = lastMessage
                     realm.executeTransaction { it.insertOrUpdate(conversation) }
+                    val managedConversation = realm.where(Conversation::class.java).equalTo("id", threadId).findFirst()
                     realm.close()
 
-                    conversation
+                    managedConversation ?: conversation
                 }
     }
 
