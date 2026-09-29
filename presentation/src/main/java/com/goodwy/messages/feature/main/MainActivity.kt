@@ -109,6 +109,17 @@ class MainActivity : QkThemedActivity(), MainView {
     private val syncing by lazy { findViewById<View>(R.id.syncing) }
     private val backPressedSubject: Subject<NavItem> = PublishSubject.create()
 
+    private val categoryTabs by lazy {
+        mapOf(
+            tabAll to MessageCategory.ALL,
+            tabContacts to MessageCategory.CONTACTS,
+            tabUnknown to MessageCategory.UNKNOWN,
+            tabBank to MessageCategory.BANK,
+            tabOtp to MessageCategory.OTP,
+            tabOther to MessageCategory.OTHER
+        )
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         AndroidInjection.inject(this)
         super.onCreate(savedInstanceState)
@@ -136,6 +147,13 @@ class MainActivity : QkThemedActivity(), MainView {
         itemTouchCallback.adapter = conversationsAdapter
         conversationsAdapter.autoScrollToStart(recyclerView)
 
+        categoryTabs.forEach { (tabView, category) ->
+            tabView.setOnClickListener {
+                clearSelection()
+                viewModel.setCategory(category)
+            }
+        }
+
         // Don't allow clicks to pass through the drawer layout
         drawer.clicks().autoDisposable(scope()).subscribe()
 
@@ -143,7 +161,6 @@ class MainActivity : QkThemedActivity(), MainView {
         theme
                 .autoDisposable(scope())
                 .subscribe { theme ->
-                    // Set the color for the drawer icons
                     val states = arrayOf(
                             intArrayOf(android.R.attr.state_activated),
                             intArrayOf(-android.R.attr.state_activated))
@@ -155,7 +172,6 @@ class MainActivity : QkThemedActivity(), MainView {
                                 archivedIcon.imageTintList = tintList
                             }
 
-                    // Miscellaneous views
                     listOf(plusBadge1, plusBadge2).forEach { badge ->
                         badge.setBackgroundTint(theme.theme)
                         badge.setTextColor(theme.textPrimary)
@@ -165,12 +181,9 @@ class MainActivity : QkThemedActivity(), MainView {
                     plusIcon.setTint(theme.theme)
                     rateIcon.setTint(theme.theme)
                     compose.setBackgroundTint(theme.theme)
-
-                    // Set the FAB compose icon color
                     compose.setTint(theme.textPrimary)
                 }
 
-        // These theme attributes don't apply themselves on API 21
         if (Build.VERSION.SDK_INT <= 22) {
             toolbarSearch.setBackgroundTint(resolveThemeColor(R.attr.bubbleColor))
         }
@@ -213,6 +226,7 @@ class MainActivity : QkThemedActivity(), MainView {
 
         toolbarSearch.setVisible(state.page is Inbox && state.page.selected == 0 || state.page is Searching)
         toolbarTitle.setVisible(toolbarSearch.visibility != View.VISIBLE)
+        categoryScroll.setVisible(state.page is Inbox && state.page.selected == 0)
 
         toolbar.menu.findItem(R.id.archive)?.isVisible = state.page is Inbox && selectedConversations != 0
         toolbar.menu.findItem(R.id.unarchive)?.isVisible = state.page is Archived && selectedConversations != 0
@@ -225,42 +239,50 @@ class MainActivity : QkThemedActivity(), MainView {
         toolbar.menu.findItem(R.id.block)?.isVisible = selectedConversations != 0
 
         listOf(plusBadge1, plusBadge2).forEach { badge ->
-            badge.isVisible = /*drawerBadgesExperiment.variant && */!state.upgraded
+            badge.isVisible = !state.upgraded
         }
         plus.isVisible = state.upgraded
         plusBanner.isVisible = !state.upgraded
         rateLayout.setVisible(state.showRating)
 
         compose.setVisible(state.page is Inbox || state.page is Archived)
-        compose.animate().rotation(if (state.drawerOpen) 90f else 0f).start() // анимация
+        compose.animate().rotation(if (state.drawerOpen) 90f else 0f).start()
         conversationsAdapter.emptyView = empty.takeIf { state.page is Inbox || state.page is Archived }
         searchAdapter.emptyView = empty.takeIf { state.page is Searching }
 
         when (state.page) {
             is Inbox -> {
                 showBackButton(state.page.selected > 0)
-                // Добавил иконку и цвет
                 if (state.page.selected > 0) {
                     toolbar.setNavigationIcon(R.drawable.ic_arrow_back_24dp)
                     toolbar.navigationIcon?.setTint(resolveThemeColor(android.R.attr.textColorSecondary))
                     toolbar.setBackgroundResource(R.drawable.rounded_rectangle_transparent_24dp)
-                    compose.animate().rotation(90f).start()}
-                else {
+                    compose.animate().rotation(90f).start()
+                } else {
                     toolbar.setNavigationIcon(R.drawable.ic_menu_24dp)
                     toolbar.navigationIcon?.setTint(resolveThemeColor(android.R.attr.textColorSecondary))
                     toolbar.setBackgroundResource(R.drawable.rounded_rectangle_24dp)
                     toolbar.elevation = prefs.searchElevation.get().toFloat()
-                    compose.animate().rotation(0f).start()}
+                    compose.animate().rotation(0f).start()
+                }
                 title = getString(R.string.main_title_selected, state.page.selected)
                 if (recyclerView.adapter !== conversationsAdapter) recyclerView.adapter = conversationsAdapter
                 conversationsAdapter.updateData(state.page.data)
                 itemTouchHelper.attachToRecyclerView(recyclerView)
                 empty.setText(R.string.inbox_empty_text)
-           }
+
+                val activeTheme = colors.theme()
+                val inactiveBg = resolveThemeColor(R.attr.bubbleColor)
+                val inactiveText = resolveThemeColor(android.R.attr.textColorSecondary)
+                categoryTabs.forEach { (tabView, category) ->
+                    val isSelected = state.page.category == category
+                    tabView.setBackgroundTint(if (isSelected) activeTheme.theme else inactiveBg)
+                    tabView.setTextColor(if (isSelected) activeTheme.textPrimary else inactiveText)
+                }
+            }
 
             is Searching -> {
                 showBackButton(true)
-                // Добавил иконку и цвет
                 toolbar.setNavigationIcon(R.drawable.ic_arrow_back_24dp)
                 toolbar.navigationIcon?.setTint(resolveThemeColor(android.R.attr.textColorSecondary))
                 if (recyclerView.adapter !== searchAdapter) recyclerView.adapter = searchAdapter
@@ -271,15 +293,15 @@ class MainActivity : QkThemedActivity(), MainView {
 
             is Archived -> {
                 showBackButton(state.page.selected > 0)
-                // Добавил иконку и цвет
                 if (state.page.selected > 0) {
                     toolbar.setNavigationIcon(R.drawable.ic_arrow_back_24dp)
                     toolbar.navigationIcon?.setTint(resolveThemeColor(android.R.attr.textColorSecondary))
-                    compose.animate().rotation(90f).start()}
-                else {
+                    compose.animate().rotation(90f).start()
+                } else {
                     toolbar.setNavigationIcon(R.drawable.ic_menu_24dp)
                     toolbar.navigationIcon?.setTint(resolveThemeColor(android.R.attr.textColorSecondary))
-                    compose.animate().rotation(0f).start()}
+                    compose.animate().rotation(0f).start()
+                }
                 toolbar.setBackgroundResource(R.drawable.rounded_rectangle_transparent_24dp)
                 title = when (state.page.selected != 0) {
                     true -> getString(R.string.main_title_selected, state.page.selected)
