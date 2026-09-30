@@ -23,7 +23,23 @@ jobs:
         run: chmod +x gradlew
 
       - name: Build APK
-        run: ./gradlew assembleNoAnalyticsDebug --no-daemon > build_log.txt 2>&1
+        run: |
+          unset ANDROID_NDK_HOME
+          unset ANDROID_NDK_ROOT
+          unset ANDROID_NDK_LATEST_HOME
+          rm -rf "$ANDROID_HOME/ndk-bundle" "$ANDROID_SDK_ROOT/ndk-bundle" || true
+          cat << 'EOF' > init.gradle
+          allprojects {
+              afterEvaluate { project ->
+                  if (project.hasProperty('android')) {
+                      project.android.packagingOptions {
+                          doNotStrip "**/*.so"
+                      }
+                  }
+              }
+          }
+          EOF
+          ./gradlew assembleNoAnalyticsDebug --no-daemon --init-script init.gradle > build_log.txt 2>&1
 
       - name: Show Exact Error (If Failed)
         if: failure()
