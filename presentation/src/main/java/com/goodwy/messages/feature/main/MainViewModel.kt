@@ -81,51 +81,48 @@ class MainViewModel @Inject constructor(
         disposables += syncContacts
         disposables += syncMessages
 
-        // Force dark theme globally so chat screen and settings match FinanceApp dark style
-        if (prefs.nightMode.get() != 1) {
-            prefs.nightMode.set(1)
-            prefs.black.set(false)
-        }
-
-        // Load initial category (respecting custom saved tab order)
         val savedOrder = getSavedCategoryOrder()
         if (savedOrder.isNotEmpty()) {
             currentCategory = savedOrder.first()
         }
         refreshInboxCategory()
 
-        // Refresh category & unread badges on the main thread whenever Realm conversations change
         disposables += allInboxConversations.asObservable()
                 .observeOn(AndroidSchedulers.mainThread())
                 .filter { it.isLoaded && it.isValid }
                 .subscribe({ refreshInboxCategory() }, {})
 
-        // Show the syncing UI and refresh categories as soon as syncing completes
         disposables += syncRepository.syncProgress
                 .sample(16, TimeUnit.MILLISECONDS)
                 .distinctUntilChanged()
                 .observeOn(AndroidSchedulers.mainThread())
-                .subscribe { syncing ->
+                .subscribe({ syncing ->
                     newState { copy(syncing = syncing) }
                     if (syncing is SyncRepository.SyncProgress.Idle) {
                         refreshInboxCategory()
                     }
-                }
+                }, {})
 
         disposables += billingManager.upgradeStatus
-                .subscribe { upgraded -> newState { copy(upgraded = upgraded) } }
+                .subscribe({ upgraded -> newState { copy(upgraded = upgraded) } }, {})
 
         disposables += ratingManager.shouldShowRating
-                .subscribe { show -> newState { copy(showRating = show) } }
+                .subscribe({ show -> newState { copy(showRating = show) } }, {})
 
         migratePreferences.execute(Unit)
 
-        val hasAnyConversations = Realm.getDefaultInstance().use { realm ->
-            realm.where(Conversation::class.java).count() > 0L
-        }
-        val lastSync = Realm.getDefaultInstance().use { realm ->
-            realm.where(SyncLog::class.java)?.max("date")?.toLong() ?: 0L
-        }
+        val hasAnyConversations = try {
+            Realm.getDefaultInstance().use { realm ->
+                realm.where(Conversation::class.java).count() > 0L
+            }
+        } catch (e: Exception) { false }
+
+        val lastSync = try {
+            Realm.getDefaultInstance().use { realm ->
+                realm.where(SyncLog::class.java)?.max("date")?.toLong() ?: 0L
+            }
+        } catch (e: Exception) { 0L }
+
         if ((lastSync == 0L || !hasAnyConversations) && permissionManager.isDefaultSms() && permissionManager.hasReadSms() && permissionManager.hasContacts()) {
             syncMessages.execute(Unit)
         }
@@ -134,7 +131,7 @@ class MainViewModel @Inject constructor(
             disposables += contactAddedListener.listen()
                     .debounce(1, TimeUnit.SECONDS)
                     .subscribeOn(Schedulers.io())
-                    .subscribe { syncContacts.execute(Unit) }
+                    .subscribe({ syncContacts.execute(Unit) }, {})
         }
 
         ratingManager.addSession()
@@ -142,17 +139,23 @@ class MainViewModel @Inject constructor(
     }
 
     fun getSavedCategoryOrder(): List<MessageCategory> {
-        val raw = manualPrefs.getString("tab_order", null)
-        if (raw.isNullOrBlank()) return MessageCategory.values().toList()
-        val parsed = raw.split(",").mapNotNull { name ->
-            try { MessageCategory.valueOf(name) } catch (e: Exception) { null }
+        return try {
+            val raw = manualPrefs.getString("tab_order", null)
+            if (raw.isNullOrBlank()) return MessageCategory.values().toList()
+            val parsed = raw.split(",").mapNotNull { name ->
+                try { MessageCategory.valueOf(name) } catch (e: Exception) { null }
+            }
+            if (parsed.size == MessageCategory.values().size) parsed else MessageCategory.values().toList()
+        } catch (e: Exception) {
+            MessageCategory.values().toList()
         }
-        return if (parsed.size == MessageCategory.values().size) parsed else MessageCategory.values().toList()
     }
 
     fun saveCategoryOrder(order: List<MessageCategory>) {
-        manualPrefs.edit().putString("tab_order", order.joinToString(",") { it.name }).apply()
-        refreshInboxCategory()
+        try {
+            manualPrefs.edit().putString("tab_order", order.joinToString(",") { it.name }).apply()
+            refreshInboxCategory()
+        } catch (_: Exception) {}
     }
 
     fun setCategory(category: MessageCategory) {
@@ -161,29 +164,34 @@ class MainViewModel @Inject constructor(
     }
 
     fun setManualCategoryForConversations(threadIds: List<Long>, category: MessageCategory) {
-        val editor = manualPrefs.edit()
-        val realm = Realm.getDefaultInstance()
-        threadIds.forEach { threadId ->
-            editor.putString("thread_$threadId", category.name)
-            val conv = realm.where(Conversation::class.java).equalTo("id", threadId).findFirst()
-            val addr = conv?.recipients?.firstOrNull()?.address?.trim()
-            if (!addr.isNullOrEmpty()) {
-                editor.putString("addr_$addr", category.name)
+        try {
+            val editor = manualPrefs.edit()
+            Realm.getDefaultInstance().use { realm ->
+                threadIds.forEach { threadId ->
+                    editor.putString("thread_$threadId", category.name)
+                    val conv = realm.where(Conversation::class.java).equalTo("id", threadId).findFirst()
+                    val addr = conv?.recipients?.firstOrNull()?.address?.trim()
+                    if (!addr.isNullOrEmpty()) {
+                        editor.putString("addr_$addr", category.name)
+                    }
+                }
             }
-        }
-        editor.apply()
-        refreshInboxCategory()
+            editor.apply()
+            refreshInboxCategory()
+        } catch (_: Exception) {}
     }
 
     private fun refreshInboxCategory(forceInbox: Boolean = false) {
-        val (data, counts) = queryCategoryDataAndCounts(currentCategory)
-        newState {
-            when {
-                forceInbox -> copy(page = Inbox(data = data, category = currentCategory, unreadCounts = counts))
-                page is Inbox -> copy(page = page.copy(data = data, category = currentCategory, unreadCounts = counts))
-                else -> this
+        try {
+            val (data, counts) = queryCategoryDataAndCounts(currentCategory)
+            newState {
+                when {
+                    forceInbox -> copy(page = Inbox(data = data, category = currentCategory, unreadCounts = counts))
+                    page is Inbox -> copy(page = page.copy(data = data, category = currentCategory, unreadCounts = counts))
+                    else -> this
+                }
             }
-        }
+        } catch (_: Exception) {}
     }
 
     private fun queryCategoryDataAndCounts(selectedCategory: MessageCategory): Pair<RealmResults<Conversation>, Map<MessageCategory, Int>> {
@@ -234,7 +242,6 @@ class MainViewModel @Inject constructor(
     private fun classifyConversation(conv: Conversation): MessageCategory {
         val address = conv.recipients.firstOrNull()?.address?.trim() ?: ""
 
-        // 0. اولویت اول: اگر کاربر دستی دسته‌‌بندی این شماره یا مکالمه را انتخاب کرده باشد
         val manualByThread = manualPrefs.getString("thread_${conv.id}", null)
         if (manualByThread != null) {
             try { return MessageCategory.valueOf(manualByThread) } catch (_: Exception) {}
@@ -250,7 +257,6 @@ class MainViewModel @Inject constructor(
         val addrLower = address.toLowerCase(Locale.ROOT)
         val contactNameLower = (conv.recipients.firstOrNull()?.contact?.name ?: "").toLowerCase(Locale.ROOT)
 
-        // 1. رمزها و کدهای تایید (OTP)
         val otpKeywords = listOf(
                 "رمز پویا", "رمزدوم", "رمز دوم",
                 "کد تایید", "کد تأیید", "کد تاييد", "کدتاييد", "کدتایید",
@@ -261,7 +267,6 @@ class MainViewModel @Inject constructor(
             return MessageCategory.OTP
         }
 
-        // 2. پیام‌های بانکی (حتی اگر سرشماره بانک مثل B Resalat در مخاطبین ذخیره شده باشد)
         val bankKeywords = listOf(
                 "بانک", "بانك", "واریز", "واريز", "برداشت",
                 "مانده", "موجودی", "موجودي", "حساب",
@@ -276,16 +281,13 @@ class MainViewModel @Inject constructor(
             return MessageCategory.BANK
         }
 
-        // 3. مخاطبین شخصی ذخیره‌شده در گوشی
         val hasContact = conv.recipients.any { it.contact != null }
         if (hasContact) return MessageCategory.CONTACTS
 
-        // 4. شماره‌های موبایل شخصی ناشناس
         if (isPersonalMobileNumber(address)) {
             return MessageCategory.UNKNOWN
         }
 
-        // 5. متفرقه و سرشماره‌های تبلیغاتی/خدماتی
         return MessageCategory.OTHER
     }
 
