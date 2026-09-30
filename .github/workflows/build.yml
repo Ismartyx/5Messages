@@ -24,25 +24,23 @@ jobs:
           python3 - << 'PYEOF'
           import os, glob, re
 
-          # ۱. تغییر قطعی نام برنامه به Messages در تمامی فایل‌های strings.xml و AndroidManifest.xml
-          for s_file in glob.glob("**/src/main/res/values*/strings.xml", recursive=True):
+          # ۱. تغییر نام برنامه به Messages در تمامی فایل‌های strings.xml و build.gradle (بدون دستکاری AndroidManifest)
+          for s_file in glob.glob("**/src/**/res/values*/strings.xml", recursive=True):
               with open(s_file, "r") as f:
                   content = f.read()
               content = re.sub(r'(<string name="app_name"[^>]*>).*?(</string>)', r'\g<1>Messages\g<2>', content)
-              content = content.replace("4Messages", "Messages").replace("QKSMS", "Messages")
+              content = content.replace("4Messages", "Messages").replace("5Messages", "Messages").replace("QKSMS", "Messages")
               with open(s_file, "w") as f:
                   f.write(content)
 
-          manifest_file = "presentation/src/main/AndroidManifest.xml"
-          if os.path.exists(manifest_file):
-              with open(manifest_file, "r") as f:
-                  m = f.read()
-              m = re.sub(r'android:label="@string/[^"]+"', 'android:label="Messages"', m)
-              m = m.replace("4Messages", "Messages")
-              with open(manifest_file, "w") as f:
-                  f.write(m)
+          for g_file in glob.glob("**/*.gradle", recursive=True):
+              with open(g_file, "r") as f:
+                  g = f.read()
+              g = g.replace("4Messages", "Messages").replace("5Messages", "Messages").replace("QKSMS", "Messages")
+              with open(g_file, "w") as f:
+                  f.write(g)
 
-          # ۲. قرار دادن پیش‌فرض تم برنامه روی NIGHT_MODE_DARK در Preferences.kt (بدون ایجاد حلقه ری‌استارت)
+          # ۲. قرار دادن پیش‌فرض تم برنامه روی NIGHT_MODE_DARK در Preferences.kt
           prefs_file = "domain/src/main/java/com/goodwy/messages/util/Preferences.kt"
           if os.path.exists(prefs_file):
               with open(prefs_file, "r") as f:
@@ -52,7 +50,7 @@ jobs:
               with open(prefs_file, "w") as f:
                   f.write(p)
 
-          # ۳. اصلاح QkThemedActivity.kt تا در صفحه چت و تمام صفحات دیگر، ساعت و آنتن بالای صفحه همیشه سفید باشند و پس‌زمینه سرمه‌ای #0B1220 باشد
+          # ۳. اصلاح QkThemedActivity.kt تا در صفحه چت و تمام صفحات دیگر، ساعت و آنتن بالای صفحه همیشه سفید باشند
           themed_act = "presentation/src/main/java/com/goodwy/messages/common/base/QkThemedActivity.kt"
           if os.path.exists(themed_act):
               with open(themed_act, "r") as f:
@@ -62,7 +60,7 @@ jobs:
               with open(themed_act, "w") as f:
                   f.write(ta)
 
-          # ۴. تنظیم صحیح colors.xml (تم تاریک سرمه‌ای FinanceApp و جلوگیری از سفید شدن منوی پاپ‌آپ سه‌نقطه)
+          # ۴. تنظیم صحیح colors.xml (تم تاریک سرمه‌ای FinanceApp)
           colors_file = "presentation/src/main/res/values/colors.xml"
           if os.path.exists(colors_file):
               with open(colors_file, "r") as f:
@@ -72,7 +70,7 @@ jobs:
               with open(colors_file, "w") as f:
                   f.write(c)
 
-          # ۵. تبدیل تمام استایل‌های AppThemeLight به Theme.AppCompat (تاریک) در styles.xml تا منوی سه‌نقطه و دیالوگ‌ها تیره با متن سفید خوانا باشند
+          # ۵. تبدیل استایل‌ها به تم تاریک تا منوی سه‌نقطه و پنجره‌ها تیره با متن سفید خوانا باشند
           for style_file in glob.glob("presentation/src/main/res/values*/styles.xml"):
               with open(style_file, "r") as f:
                   s = f.read()
