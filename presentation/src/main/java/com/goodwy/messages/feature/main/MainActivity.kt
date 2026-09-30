@@ -5,6 +5,7 @@ import android.animation.ObjectAnimator
 import android.app.AlertDialog
 import android.content.Intent
 import android.content.res.ColorStateList
+import android.graphics.Typeface
 import android.os.Build
 import android.os.Bundle
 import android.view.Gravity
@@ -111,12 +112,11 @@ class MainActivity : QkThemedActivity(), MainView {
 
     private val categoryTabs by lazy {
         mapOf(
-            tabAll to MessageCategory.ALL,
-            tabContacts to MessageCategory.CONTACTS,
-            tabUnknown to MessageCategory.UNKNOWN,
-            tabBank to MessageCategory.BANK,
-            tabOtp to MessageCategory.OTP,
-            tabOther to MessageCategory.OTHER
+            tabContacts to Pair(MessageCategory.CONTACTS, "مخاطبین"),
+            tabUnknown to Pair(MessageCategory.UNKNOWN, "شخصی ناشناس"),
+            tabBank to Pair(MessageCategory.BANK, "بانکی"),
+            tabOtp to Pair(MessageCategory.OTP, "رمز و کد"),
+            tabOther to Pair(MessageCategory.OTHER, "متفرقه")
         )
     }
 
@@ -147,10 +147,10 @@ class MainActivity : QkThemedActivity(), MainView {
         itemTouchCallback.adapter = conversationsAdapter
         conversationsAdapter.autoScrollToStart(recyclerView)
 
-        categoryTabs.forEach { (tabView, category) ->
+        categoryTabs.forEach { (tabView, pair) ->
             tabView.setOnClickListener {
                 clearSelection()
-                viewModel.setCategory(category)
+                viewModel.setCategory(pair.first)
             }
         }
 
@@ -274,10 +274,24 @@ class MainActivity : QkThemedActivity(), MainView {
                 val activeTheme = colors.theme()
                 val inactiveBg = resolveThemeColor(R.attr.bubbleColor)
                 val inactiveText = resolveThemeColor(android.R.attr.textColorSecondary)
-                categoryTabs.forEach { (tabView, category) ->
+                val primaryText = resolveThemeColor(android.R.attr.textColorPrimary)
+
+                categoryTabs.forEach { (tabView, pair) ->
+                    val category = pair.first
+                    val label = pair.second
+                    val unreadCount = state.page.unreadCounts[category] ?: 0
                     val isSelected = state.page.category == category
+
+                    tabView.text = if (unreadCount > 0) "$label ($unreadCount)" else label
                     tabView.setBackgroundTint(if (isSelected) activeTheme.theme else inactiveBg)
-                    tabView.setTextColor(if (isSelected) activeTheme.textPrimary else inactiveText)
+                    tabView.setTextColor(
+                        when {
+                            isSelected -> activeTheme.textPrimary
+                            unreadCount > 0 -> primaryText
+                            else -> inactiveText
+                        }
+                    )
+                    tabView.setTypeface(null, if (unreadCount > 0 || isSelected) Typeface.BOLD else Typeface.NORMAL)
                 }
             }
 
