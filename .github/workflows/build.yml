@@ -21,59 +21,62 @@ jobs:
 
       - name: Customize App Name (Messages), Global FinanceApp Theme & Modern Icon
         run: |
-          # ۱. تغییر قطعی نام برنامه از 4Messages به Messages در تمامی فایل‌های xml و gradle
-          find . -type f \( -name "*.xml" -o -name "*.gradle" \) -exec sed -i 's/4Messages/Messages/g' {} +
-          find presentation/src/main/res -name "strings.xml" -exec sed -i 's|<string name="app_name">.*</string>|<string name="app_name">Messages</string>|g' {} +
-
-          # ۲. اعمال رنگ سرمه‌ای تیره FinanceApp (#0B1220 و #111827) به کل صفحات برنامه (صفحه چت، تنظیمات و...) و سفید کردن آیکون‌های نوار وضعیت
           python3 - << 'PYEOF'
           import os, glob, re
 
-          # جایگزینی رنگ پس‌زمینه تم تاریک در colors.xml تا صفحه چت و تمام صفحات دیگر سرمه‌ای تیره باشند
+          # ۱. تغییر ایمن نام برنامه به Messages فقط در تگ app_name و فایل manifest
+          for s_file in glob.glob("presentation/src/main/res/values*/strings.xml"):
+              with open(s_file, "r") as f:
+                  content = f.read()
+              content = re.sub(r'(<string name="app_name">).*?(</string>)', r'\g<1>Messages\g<2>', content)
+              with open(s_file, "w") as f:
+                  f.write(content)
+
+          manifest_file = "presentation/src/main/AndroidManifest.xml"
+          if os.path.exists(manifest_file):
+              with open(manifest_file, "r") as f:
+                  m = f.read()
+              m = m.replace("4Messages", "Messages")
+              with open(manifest_file, "w") as f:
+                  f.write(m)
+
+          # ۲. تبدیل رنگ‌های روشن و تاریک در colors.xml به سرمه‌ای تیره FinanceApp (#0B1220 و #111827)
+          # این کار باعث می‌شود کل برنامه (حتی صفحه چت) بدون نیاز به تغییر تنظیمات، سرمه‌ای تیره و متن‌ها سفید باشند!
           colors_file = "presentation/src/main/res/values/colors.xml"
           if os.path.exists(colors_file):
               with open(colors_file, "r") as f:
                   c = f.read()
+              c = re.sub(r'(<color name="backgroundLight">).*?(</color>)', r'\g<1>#0B1220\g<2>', c)
               c = re.sub(r'(<color name="backgroundDark">).*?(</color>)', r'\g<1>#0B1220\g<2>', c)
-              c = re.sub(r'(<color name="switchThumbEnabledDark">).*?(</color>)', r'\g<1>#0EA5E9\g<2>', c)
+              c = re.sub(r'(<color name="bubbleLight">).*?(</color>)', r'\g<1>#111827\g<2>', c)
               c = re.sub(r'(<color name="bubbleDark">).*?(</color>)', r'\g<1>#111827\g<2>', c)
+              c = re.sub(r'(<color name="textPrimary">).*?(</color>)', r'\g<1>#F9FAFB\g<2>', c)
+              c = re.sub(r'(<color name="textSecondary">).*?(</color>)', r'\g<1>#D1D5DB\g<2>', c)
+              c = re.sub(r'(<color name="textTertiary">).*?(</color>)', r'\g<1>#9CA3AF\g<2>', c)
               with open(colors_file, "w") as f:
                   f.write(c)
 
-          # حذف windowLightStatusBar از تمام استایل‌ها تا ساعت و آنتن بالای گوشی همیشه سفید و واضح بمانند
+          # ۳. سفید کردن آیکون‌های ساعت و آنتن بالای گوشی در تمام استایل‌ها
           for style_file in glob.glob("presentation/src/main/res/values*/styles.xml"):
               with open(style_file, "r") as f:
                   s = f.read()
-              s = re.sub(r'<item name="android:windowLightStatusBar">true</item>', '<item name="android:windowLightStatusBar">false</item>', s)
-              s = re.sub(r'<item name="android:windowLightNavigationBar">true</item>', '<item name="android:windowLightNavigationBar">false</item>', s)
+              s = s.replace('<item name="android:windowLightStatusBar">true</item>', '<item name="android:windowLightStatusBar">false</item>')
+              s = s.replace('<item name="android:windowLightNavigationBar">true</item>', '<item name="android:windowLightNavigationBar">false</item>')
               with open(style_file, "w") as f:
                   f.write(s)
 
-          # ۳. طراحی آیکون مینیمال، براق و مدرن (طیف آبی آسمانی مثل آیکون‌های دسکتاپ گوشی با حباب پیام سفید تمیز)
+          # ۴. طراحی آیکون آبی یکدست و استاندارد (سازگار با تمام نسخه‌های اندروید بدون کرش)
           os.makedirs("presentation/src/main/res/drawable", exist_ok=True)
           os.makedirs("presentation/src/main/res/mipmap-anydpi-v26", exist_ok=True)
 
           bg_xml = """<?xml version="1.0" encoding="utf-8"?>
           <vector xmlns:android="http://schemas.android.com/apk/res/android"
-              xmlns:aapt="http://schemas.android.com/aapt"
               android:width="108dp"
               android:height="108dp"
               android:viewportWidth="108"
               android:viewportHeight="108">
-              <path android:pathData="M0,0h108v108h-108z">
-                  <aapt:attr name="android:fillColor">
-                      <gradient
-                          android:startX="0"
-                          android:startY="0"
-                          android:endX="108"
-                          android:endY="108"
-                          android:type="linear">
-                          <item android:offset="0.0" android:color="#38BDF8"/>
-                          <item android:offset="0.5" android:color="#0284C7"/>
-                          <item android:offset="1.0" android:color="#1E3A8A"/>
-                      </gradient>
-                  </aapt:attr>
-              </path>
+              <path android:fillColor="#0284C7" android:pathData="M0,0h108v108h-108z"/>
+              <path android:fillColor="#0EA5E9" android:pathData="M0,0L108,0L108,54L0,74z"/>
           </vector>"""
 
           fg_xml = """<?xml version="1.0" encoding="utf-8"?>
@@ -82,15 +85,9 @@ jobs:
               android:height="108dp"
               android:viewportWidth="108"
               android:viewportHeight="108">
-              <!-- سایه ملایم زیر حباب پیام -->
-              <path
-                  android:fillColor="#26000000"
-                  android:pathData="M54,31C39.6,31 28,40.8 28,53c0,5.2 2.2,10 5.8,13.8L31,77l11.4,-4.2c3.6,1.4 7.5,2.2 11.6,2.2c14.4,0 26,-9.8 26,-22S68.4,31 54,31z"/>
-              <!-- حباب پیام اصلی سفید و یکدست -->
               <path
                   android:fillColor="#FFFFFF"
                   android:pathData="M54,29C39.6,29 28,38.8 28,51c0,5.2 2.2,10 5.8,13.8L31,75l11.4,-4.2c3.6,1.4 7.5,2.2 11.6,2.2c14.4,0 26,-9.8 26,-22S68.4,29 54,29z"/>
-              <!-- سه نقطه مدرن آبی در مرکز حباب -->
               <path
                   android:fillColor="#0284C7"
                   android:pathData="M43,51m-3.2,0a3.2,3.2 0,1 1,6.4 0a3.2,3.2 0,1 1,-6.4 0"/>
