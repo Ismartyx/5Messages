@@ -27,13 +27,17 @@ jobs:
           unset ANDROID_NDK_HOME
           unset ANDROID_NDK_ROOT
           unset ANDROID_NDK_LATEST_HOME
-          rm -rf "$ANDROID_HOME/ndk-bundle" "$ANDROID_SDK_ROOT/ndk-bundle" || true
+          sudo rm -rf "$ANDROID_HOME/ndk" "$ANDROID_HOME/ndk-bundle" "$ANDROID_SDK_ROOT/ndk" "$ANDROID_SDK_ROOT/ndk-bundle" || true
           cat << 'EOF' > init.gradle
-          allprojects {
-              afterEvaluate { project ->
-                  if (project.hasProperty('android')) {
-                      project.android.packagingOptions {
-                          doNotStrip "**/*.so"
+          gradle.projectsLoaded {
+              rootProject.allprojects {
+                  afterEvaluate { project ->
+                      if (project.hasProperty('android')) {
+                          project.android.packagingOptions {
+                              doNotStrip "**/*.so"
+                              doNotStrip "*/*.so"
+                              doNotStrip "*/*/*.so"
+                          }
                       }
                   }
               }
