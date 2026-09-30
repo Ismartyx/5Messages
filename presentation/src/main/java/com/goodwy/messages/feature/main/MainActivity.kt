@@ -3,17 +3,24 @@ package com.goodwy.messages.feature.main
 import android.Manifest
 import android.animation.ObjectAnimator
 import android.app.AlertDialog
+import android.content.Context
 import android.content.Intent
 import android.content.res.ColorStateList
 import android.graphics.Color
 import android.graphics.Typeface
 import android.os.Build
 import android.os.Bundle
+import android.text.InputType
 import android.view.Gravity
 import android.view.Menu
 import android.view.MenuItem
 import android.view.View
 import android.view.ViewStub
+import android.widget.CheckBox
+import android.widget.EditText
+import android.widget.LinearLayout
+import android.widget.TextView
+import android.widget.Toast
 import androidx.appcompat.app.ActionBarDrawerToggle
 import androidx.core.app.ActivityCompat
 import androidx.core.view.GravityCompat
@@ -41,12 +48,15 @@ import com.goodwy.messages.feature.changelog.ChangelogDialog
 import com.goodwy.messages.feature.conversations.ConversationItemTouchCallback
 import com.goodwy.messages.feature.conversations.ConversationsAdapter
 import com.goodwy.messages.manager.ChangelogManager
+import com.goodwy.messages.repository.BackupRepository
 import com.goodwy.messages.repository.SyncRepository
 import com.uber.autodispose.android.lifecycle.scope
 import com.uber.autodispose.autoDisposable
 import dagger.android.AndroidInjection
+import io.reactivex.Completable
 import io.reactivex.Observable
 import io.reactivex.disposables.CompositeDisposable
+import io.reactivex.schedulers.Schedulers
 import io.reactivex.subjects.PublishSubject
 import io.reactivex.subjects.Subject
 import kotlinx.android.synthetic.main.drawer_view.*
@@ -55,6 +65,7 @@ import kotlinx.android.synthetic.main.main_activity.toolbar
 import kotlinx.android.synthetic.main.main_activity.toolbarTitle
 import kotlinx.android.synthetic.main.main_permission_hint.*
 import kotlinx.android.synthetic.main.main_syncing.*
+import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 
 class MainActivity : QkThemedActivity(), MainView {
@@ -67,6 +78,7 @@ class MainActivity : QkThemedActivity(), MainView {
     @Inject lateinit var searchAdapter: SearchAdapter
     @Inject lateinit var itemTouchCallback: ConversationItemTouchCallback
     @Inject lateinit var viewModelFactory: ViewModelProvider.Factory
+    @Inject lateinit var backupRepo: BackupRepository
 
     override val onNewIntentIntent: Subject<Intent> = PublishSubject.create()
     override val activityResumedIntent: Subject<Boolean> = PublishSubject.create()
@@ -83,7 +95,13 @@ class MainActivity : QkThemedActivity(), MainView {
                 backPressedSubject,
                 inbox.clicks().map { NavItem.INBOX },
                 archived.clicks().map { NavItem.ARCHIVED },
-                backup.clicks().map { NavItem.BACKUP },
+                backup.clicks().map {
+                    val sp = getSharedPreferences("${packageName}_preferences", Context.MODE_PRIVATE)
+                    if (sp.getString("nc_pass", "").isNullOrBlank()) {
+                        showNextcloudSettingsDialog()
+                    }
+                    NavItem.BACKUP
+                },
                 scheduled.clicks().map { NavItem.SCHEDULED },
                 blocking.clicks().map { NavItem.BLOCKING },
                 settings.clicks().map { NavItem.SETTINGS },
@@ -169,12 +187,27 @@ class MainActivity : QkThemedActivity(), MainView {
             }
         }
 
+        // با نگه داشتن انگشت روی گزینه Backup یا Settings در منوی کشویی، پنجره تنظیمات Nextcloud باز می‌شود
+        backup.setOnLongClickListener {
+            drawerLayout.closeDrawer(GravityCompat.START)
+            showNextcloudSettingsDialog()
+            true
+        }
+        settings.setOnLongClickListener {
+            drawerLayout.closeDrawer(GravityCompat.START)
+            showNextcloudSettingsDialog()
+            true
+        }
+
+        // بررسی و اجرای بکاپ خودکار روزانه (Auto-Backup)
+        checkAndRunAutoBackup()
+
         // Don't allow clicks to pass through the drawer layout
         drawer.clicks().autoDisposable(scope()).subscribe()
 
         theme
                 .autoDisposable(scope())
-                .subscribe { theme ->
+                .subscribe {
                     val states = arrayOf(
                             intArrayOf(android.R.attr.state_activated),
                             intArrayOf(-android.R.attr.state_activated))
@@ -200,6 +233,98 @@ class MainActivity : QkThemedActivity(), MainView {
         if (Build.VERSION.SDK_INT <= 22) {
             toolbarSearch.setBackgroundTint(Color.parseColor("#111827"))
         }
+    }
+
+    private fun checkAndRunAutoBackup() {
+        val sp = getSharedPreferences("${packageName}_preferences", Context.MODE_PRIVATE)
+        val autoBackupEnabled = sp.getBoolean("nc_auto_backup", true)
+        val pass = sp.getString("nc_pass", "") ?: ""
+        if (!autoBackupEnabled || pass.isBlank()) return
+
+        val lastAutoBackup = sp.getLong("nc_last_auto_backup", 0L)
+        val now = System.currentTimeMillis()
+        // اگر بیش از ۲۴ ساعت از آخرین بکاپ خودکار گذشته باشد، در پس‌زمینه بکاپ بگیر و به نکست‌کلاد بفرست
+        if (now - lastAutoBackup >= TimeUnit.HOURS.toMillis(24)) {
+            sp.edit().putLong("nc_last_auto_backup", now).apply()
+            Completable.fromAction { backupRepo.performBackup() }
+                    .subscribeOn(Schedulers.io())
+                    .subscribe({}, {})
+        }
+    }
+
+    private fun showNextcloudSettingsDialog() {
+        val sp = getSharedPreferences("${packageName}_preferences", Context.MODE_PRIVATE)
+        val currentUser = sp.getString("nc_user", "saeed") ?: "saeed"
+        val currentPass = sp.getString("nc_pass", "") ?: ""
+        val currentAuto = sp.getBoolean("nc_auto_backup", true)
+
+        val container = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(56, 36, 56, 16)
+        }
+
+        val infoText = TextView(this).apply {
+            text = "سرور: https://nc.taha.surf\nمسیر: /5Messages_Backups"
+            textSize = 13f
+            setPadding(0, 0, 0, 24)
+        }
+
+        val userEdit = EditText(this).apply {
+            hint = "نام کاربری Nextcloud (مثلاً saeed)"
+            setText(currentUser)
+            inputType = InputType.TYPE_CLASS_TEXT
+        }
+
+        val passEdit = EditText(this).apply {
+            hint = "رمز عبور یا App Password نکست‌کلاد"
+            setText(currentPass)
+            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD
+        }
+
+        val autoBackupCheck = CheckBox(this).apply {
+            text = "بکاپ خودکار روزانه (پیام‌ها و تنظیمات)"
+            isChecked = currentAuto
+            setPadding(0, 16, 0, 0)
+        }
+
+        container.addView(infoText)
+        container.addView(userEdit)
+        container.addView(passEdit)
+        container.addView(autoBackupCheck)
+
+        AlertDialog.Builder(this)
+                .setTitle("تنظیمات بکاپ Nextcloud")
+                .setView(container)
+                .setPositiveButton("ذخیره و بکاپ فوری") { _, _ ->
+                    val u = userEdit.text.toString().trim()
+                    val p = passEdit.text.toString().trim()
+                    val auto = autoBackupCheck.isChecked
+                    sp.edit()
+                            .putString("nc_user", if (u.isEmpty()) "saeed" else u)
+                            .putString("nc_pass", p)
+                            .putBoolean("nc_auto_backup", auto)
+                            .putLong("nc_last_auto_backup", System.currentTimeMillis())
+                            .apply()
+
+                    Completable.fromAction { backupRepo.performBackup() }
+                            .subscribeOn(Schedulers.io())
+                            .subscribe({}, {})
+
+                    Toast.makeText(this, "تنظیمات ذخیره شد و بکاپ به Nextcloud آغاز شد", Toast.LENGTH_LONG).show()
+                }
+                .setNeutralButton("فقط ذخیره") { _, _ ->
+                    val u = userEdit.text.toString().trim()
+                    val p = passEdit.text.toString().trim()
+                    val auto = autoBackupCheck.isChecked
+                    sp.edit()
+                            .putString("nc_user", if (u.isEmpty()) "saeed" else u)
+                            .putString("nc_pass", p)
+                            .putBoolean("nc_auto_backup", auto)
+                            .apply()
+                    Toast.makeText(this, "تنظیمات Nextcloud ذخیره شد", Toast.LENGTH_SHORT).show()
+                }
+                .setNegativeButton("انصراف", null)
+                .show()
     }
 
     override fun onNewIntent(intent: Intent?) {
@@ -394,6 +519,7 @@ class MainActivity : QkThemedActivity(), MainView {
     override fun onResume() {
         super.onResume()
         activityResumedIntent.onNext(true)
+        checkAndRunAutoBackup()
     }
 
     override fun onPause() {
