@@ -4,11 +4,13 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/drawerLayout"
     android:layout_width="match_parent"
-    android:layout_height="match_parent">
+    android:layout_height="match_parent"
+    android:background="#0B1220">
 
     <androidx.constraintlayout.widget.ConstraintLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent"
+        android:background="#0B1220"
         android:animateLayoutChanges="true">
 
         <androidx.appcompat.widget.Toolbar
@@ -21,7 +23,7 @@
             android:layout_marginBottom="4dp"
             android:layout_marginStart="16dp"
             android:layout_marginEnd="16dp"
-            android:backgroundTint="?attr/bubbleColor"
+            android:backgroundTint="#111827"
             app:contentInsetStartWithNavigation="0dp"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
@@ -32,6 +34,7 @@
                 android:id="@+id/toolbarTitle"
                 style="@style/ToolbarText"
                 android:layout_marginStart="4dp"
+                android:textColor="#F9FAFB"
                 android:visibility="gone" />
 
             <com.goodwy.messages.common.widget.QkEditText
@@ -45,7 +48,8 @@
                 android:maxLines="1"
                 android:paddingStart="4dp"
                 android:paddingEnd="16dp"
-                android:textColorHint="?android:attr/textColorTertiary"
+                android:textColor="#F9FAFB"
+                android:textColorHint="#9CA3AF"
                 app:textSize="primary"
                 tools:textSize="16sp" />
 
@@ -148,6 +152,7 @@
             android:layout_gravity="center"
             android:gravity="center"
             android:padding="56dp"
+            android:textColor="#9CA3AF"
             app:layout_constraintBottom_toTopOf="@id/bottom"
             app:layout_constraintTop_toBottomOf="@id/categoryScroll"
             tools:text="Your conversations will appear here"
@@ -193,7 +198,7 @@
             android:id="@+id/bottom"
             android:layout_width="match_parent"
             android:layout_height="1dp"
-            android:background="?android:attr/divider"
+            android:background="#1F2937"
             app:layout_constraintBottom_toTopOf="@id/snackbar" />
 
         <ViewStub
