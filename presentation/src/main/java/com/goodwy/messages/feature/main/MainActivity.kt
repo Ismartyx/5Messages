@@ -5,6 +5,7 @@ import android.animation.ObjectAnimator
 import android.app.AlertDialog
 import android.content.Intent
 import android.content.res.ColorStateList
+import android.graphics.Color
 import android.graphics.Typeface
 import android.os.Build
 import android.os.Bundle
@@ -110,6 +111,15 @@ class MainActivity : QkThemedActivity(), MainView {
     private val syncing by lazy { findViewById<View>(R.id.syncing) }
     private val backPressedSubject: Subject<NavItem> = PublishSubject.create()
 
+    // FinanceApp Color Palette per Category
+    private val categoryColors = mapOf(
+        MessageCategory.CONTACTS to Color.parseColor("#0EA5E9"), // Sky Blue
+        MessageCategory.UNKNOWN to Color.parseColor("#F59E0B"),  // Amber Orange
+        MessageCategory.BANK to Color.parseColor("#22C55E"),     // Emerald Green
+        MessageCategory.OTP to Color.parseColor("#A855F7"),      // Purple
+        MessageCategory.OTHER to Color.parseColor("#EF4444")     // Coral Red
+    )
+
     private val categoryTabs by lazy {
         mapOf(
             tabContacts to Pair(MessageCategory.CONTACTS, "مخاطبین"),
@@ -127,6 +137,11 @@ class MainActivity : QkThemedActivity(), MainView {
         viewModel.bindView(this)
         onNewIntentIntent.onNext(intent)
 
+        // Apply FinanceApp Deep Navy Dark Theme (#0B1220 & #111827)
+        window.statusBarColor = Color.parseColor("#0B1220")
+        window.navigationBarColor = Color.parseColor("#0B1220")
+        drawer.setBackgroundColor(Color.parseColor("#111827"))
+
         (snackbar as? ViewStub)?.setOnInflateListener { _, _ ->
             snackbarButton.clicks()
                     .autoDisposable(scope(Lifecycle.Event.ON_DESTROY))
@@ -134,8 +149,8 @@ class MainActivity : QkThemedActivity(), MainView {
         }
 
         (syncing as? ViewStub)?.setOnInflateListener { _, _ ->
-            syncingProgress?.progressTintList = ColorStateList.valueOf(theme.blockingFirst().theme)
-            syncingProgress?.indeterminateTintList = ColorStateList.valueOf(theme.blockingFirst().theme)
+            syncingProgress?.progressTintList = ColorStateList.valueOf(Color.parseColor("#0EA5E9"))
+            syncingProgress?.indeterminateTintList = ColorStateList.valueOf(Color.parseColor("#0EA5E9"))
         }
 
         toggle.syncState()
@@ -157,7 +172,6 @@ class MainActivity : QkThemedActivity(), MainView {
         // Don't allow clicks to pass through the drawer layout
         drawer.clicks().autoDisposable(scope()).subscribe()
 
-        // Set the theme color tint to the recyclerView, progressbar, and FAB
         theme
                 .autoDisposable(scope())
                 .subscribe { theme ->
@@ -165,27 +179,26 @@ class MainActivity : QkThemedActivity(), MainView {
                             intArrayOf(android.R.attr.state_activated),
                             intArrayOf(-android.R.attr.state_activated))
 
-                    resolveThemeColor(android.R.attr.textColorSecondary)
-                            .let { textSecondary -> ColorStateList(states, intArrayOf(theme.theme, textSecondary)) }
+                    ColorStateList(states, intArrayOf(Color.parseColor("#0EA5E9"), Color.parseColor("#9CA3AF")))
                             .let { tintList ->
                                 inboxIcon.imageTintList = tintList
                                 archivedIcon.imageTintList = tintList
                             }
 
                     listOf(plusBadge1, plusBadge2).forEach { badge ->
-                        badge.setBackgroundTint(theme.theme)
-                        badge.setTextColor(theme.textPrimary)
+                        badge.setBackgroundTint(Color.parseColor("#0EA5E9"))
+                        badge.setTextColor(Color.WHITE)
                     }
-                    syncingProgress?.progressTintList = ColorStateList.valueOf(theme.theme)
-                    syncingProgress?.indeterminateTintList = ColorStateList.valueOf(theme.theme)
-                    plusIcon.setTint(theme.theme)
-                    rateIcon.setTint(theme.theme)
-                    compose.setBackgroundTint(theme.theme)
-                    compose.setTint(theme.textPrimary)
+                    syncingProgress?.progressTintList = ColorStateList.valueOf(Color.parseColor("#0EA5E9"))
+                    syncingProgress?.indeterminateTintList = ColorStateList.valueOf(Color.parseColor("#0EA5E9"))
+                    plusIcon.setTint(Color.parseColor("#0EA5E9"))
+                    rateIcon.setTint(Color.parseColor("#0EA5E9"))
+                    compose.setBackgroundTint(Color.parseColor("#0EA5E9"))
+                    compose.setTint(Color.WHITE)
                 }
 
         if (Build.VERSION.SDK_INT <= 22) {
-            toolbarSearch.setBackgroundTint(resolveThemeColor(R.attr.bubbleColor))
+            toolbarSearch.setBackgroundTint(Color.parseColor("#111827"))
         }
     }
 
@@ -255,13 +268,14 @@ class MainActivity : QkThemedActivity(), MainView {
                 showBackButton(state.page.selected > 0)
                 if (state.page.selected > 0) {
                     toolbar.setNavigationIcon(R.drawable.ic_arrow_back_24dp)
-                    toolbar.navigationIcon?.setTint(resolveThemeColor(android.R.attr.textColorSecondary))
+                    toolbar.navigationIcon?.setTint(Color.parseColor("#9CA3AF"))
                     toolbar.setBackgroundResource(R.drawable.rounded_rectangle_transparent_24dp)
                     compose.animate().rotation(90f).start()
                 } else {
                     toolbar.setNavigationIcon(R.drawable.ic_menu_24dp)
-                    toolbar.navigationIcon?.setTint(resolveThemeColor(android.R.attr.textColorSecondary))
+                    toolbar.navigationIcon?.setTint(Color.parseColor("#9CA3AF"))
                     toolbar.setBackgroundResource(R.drawable.rounded_rectangle_24dp)
+                    toolbar.setBackgroundTint(Color.parseColor("#111827"))
                     toolbar.elevation = prefs.searchElevation.get().toFloat()
                     compose.animate().rotation(0f).start()
                 }
@@ -271,23 +285,27 @@ class MainActivity : QkThemedActivity(), MainView {
                 itemTouchHelper.attachToRecyclerView(recyclerView)
                 empty.setText(R.string.inbox_empty_text)
 
-                val activeTheme = colors.theme()
-                val inactiveBg = resolveThemeColor(R.attr.bubbleColor)
-                val inactiveText = resolveThemeColor(android.R.attr.textColorSecondary)
-                val primaryText = resolveThemeColor(android.R.attr.textColorPrimary)
+                val inactiveBg = Color.parseColor("#111827")
+                val inactiveText = Color.parseColor("#9CA3AF")
+                val activeCategoryColor = categoryColors[state.page.category] ?: Color.parseColor("#0EA5E9")
+
+                // Tint the FAB button to match the currently selected category's color
+                compose.setBackgroundTint(activeCategoryColor)
+                compose.setTint(Color.WHITE)
 
                 categoryTabs.forEach { (tabView, pair) ->
                     val category = pair.first
                     val label = pair.second
                     val unreadCount = state.page.unreadCounts[category] ?: 0
                     val isSelected = state.page.category == category
+                    val catColor = categoryColors[category] ?: Color.parseColor("#0EA5E9")
 
                     tabView.text = if (unreadCount > 0) "$label ($unreadCount)" else label
-                    tabView.setBackgroundTint(if (isSelected) activeTheme.theme else inactiveBg)
+                    tabView.setBackgroundTint(if (isSelected) catColor else inactiveBg)
                     tabView.setTextColor(
                         when {
-                            isSelected -> activeTheme.textPrimary
-                            unreadCount > 0 -> primaryText
+                            isSelected -> Color.WHITE
+                            unreadCount > 0 -> catColor
                             else -> inactiveText
                         }
                     )
@@ -298,7 +316,7 @@ class MainActivity : QkThemedActivity(), MainView {
             is Searching -> {
                 showBackButton(true)
                 toolbar.setNavigationIcon(R.drawable.ic_arrow_back_24dp)
-                toolbar.navigationIcon?.setTint(resolveThemeColor(android.R.attr.textColorSecondary))
+                toolbar.navigationIcon?.setTint(Color.parseColor("#9CA3AF"))
                 if (recyclerView.adapter !== searchAdapter) recyclerView.adapter = searchAdapter
                 searchAdapter.data = state.page.data ?: listOf()
                 itemTouchHelper.attachToRecyclerView(null)
@@ -309,11 +327,11 @@ class MainActivity : QkThemedActivity(), MainView {
                 showBackButton(state.page.selected > 0)
                 if (state.page.selected > 0) {
                     toolbar.setNavigationIcon(R.drawable.ic_arrow_back_24dp)
-                    toolbar.navigationIcon?.setTint(resolveThemeColor(android.R.attr.textColorSecondary))
+                    toolbar.navigationIcon?.setTint(Color.parseColor("#9CA3AF"))
                     compose.animate().rotation(90f).start()
                 } else {
                     toolbar.setNavigationIcon(R.drawable.ic_menu_24dp)
-                    toolbar.navigationIcon?.setTint(resolveThemeColor(android.R.attr.textColorSecondary))
+                    toolbar.navigationIcon?.setTint(Color.parseColor("#9CA3AF"))
                     compose.animate().rotation(0f).start()
                 }
                 toolbar.setBackgroundResource(R.drawable.rounded_rectangle_transparent_24dp)
@@ -390,10 +408,7 @@ class MainActivity : QkThemedActivity(), MainView {
 
     override fun showBackButton(show: Boolean) {
         toggle.onDrawerSlide(drawer, if (show) 1f else 0f)
-        toggle.drawerArrowDrawable.color = when (show) {
-            true -> resolveThemeColor(android.R.attr.textColorSecondary)
-            false -> resolveThemeColor(android.R.attr.textColorPrimary)
-        }
+        toggle.drawerArrowDrawable.color = Color.parseColor("#F9FAFB")
     }
 
     override fun requestDefaultSms() {
@@ -441,7 +456,7 @@ class MainActivity : QkThemedActivity(), MainView {
     override fun showArchivedSnackbar() {
         Snackbar.make(drawerLayout, R.string.toast_archived, Snackbar.LENGTH_LONG).apply {
             setAction(R.string.button_undo) { undoArchiveIntent.onNext(Unit) }
-            setActionTextColor(colors.theme().theme)
+            setActionTextColor(Color.parseColor("#0EA5E9"))
             show()
         }
     }
