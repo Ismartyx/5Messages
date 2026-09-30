@@ -42,6 +42,7 @@ import com.goodwy.messages.common.util.extensions.scrapViews
 import com.goodwy.messages.common.util.extensions.setBackgroundTint
 import com.goodwy.messages.common.util.extensions.setTint
 import com.goodwy.messages.common.util.extensions.setVisible
+import com.goodwy.messages.common.widget.QkTextView
 import com.goodwy.messages.feature.blocking.BlockingDialog
 import com.goodwy.messages.feature.changelog.ChangelogDialog
 import com.goodwy.messages.feature.conversations.ConversationItemTouchCallback
@@ -134,7 +135,6 @@ class MainActivity : QkThemedActivity(), MainView {
     private val backPressedSubject: Subject<NavItem> = PublishSubject.create()
     private var currentSelectedIds: List<Long> = emptyList()
 
-    // FinanceApp Color Palette per Category
     private val categoryColors = mapOf(
         MessageCategory.CONTACTS to Color.parseColor("#0EA5E9"), // Sky Blue
         MessageCategory.UNKNOWN to Color.parseColor("#F59E0B"),  // Amber Orange
@@ -151,30 +151,23 @@ class MainActivity : QkThemedActivity(), MainView {
         MessageCategory.OTHER to "متفرقه"
     )
 
-    private val categoryViewMap by lazy {
-        mapOf(
-            MessageCategory.CONTACTS to tabContacts,
-            MessageCategory.UNKNOWN to tabUnknown,
-            MessageCategory.BANK to tabBank,
-            MessageCategory.OTP to tabOtp,
-            MessageCategory.OTHER to tabOther
-        )
+    private val tabViews: List<QkTextView> by lazy {
+        listOf(tabContacts, tabUnknown, tabBank, tabOtp, tabOther)
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         AndroidInjection.inject(this)
         super.onCreate(savedInstanceState)
         setContentView(R.layout.main_activity)
+        forceWhiteStatusBarIcons()
         viewModel.bindView(this)
         onNewIntentIntent.onNext(intent)
 
-        // Force white status bar & navigation bar icons on dark #0B1220 background
-        forceWhiteStatusBarIcons()
-        drawer.setBackgroundColor(Color.parseColor("#111827"))
+        drawer?.setBackgroundColor(Color.parseColor("#111827"))
 
         conversationsSelectedIntent
                 .autoDisposable(scope())
-                .subscribe { currentSelectedIds = it }
+                .subscribe({ currentSelectedIds = it }, {})
 
         (snackbar as? ViewStub)?.setOnInflateListener { _, _ ->
             snackbarButton.clicks()
@@ -196,25 +189,12 @@ class MainActivity : QkThemedActivity(), MainView {
         itemTouchCallback.adapter = conversationsAdapter
         conversationsAdapter.autoScrollToStart(recyclerView)
 
-        // Apply saved tab order and click/long-click listeners
-        applySavedTabOrderToLayout()
-        categoryViewMap.forEach { (category, tabView) ->
-            tabView.setOnClickListener {
-                clearSelection()
-                viewModel.setCategory(category)
-            }
-            tabView.setOnLongClickListener {
-                showReorderCategoryDialog(category)
-                true
-            }
-        }
-
-        backup.setOnLongClickListener {
+        backup?.setOnLongClickListener {
             drawerLayout.closeDrawer(GravityCompat.START)
             showNextcloudSettingsDialog()
             true
         }
-        settings.setOnLongClickListener {
+        settings?.setOnLongClickListener {
             drawerLayout.closeDrawer(GravityCompat.START)
             showNextcloudSettingsDialog()
             true
@@ -226,7 +206,7 @@ class MainActivity : QkThemedActivity(), MainView {
 
         theme
                 .autoDisposable(scope())
-                .subscribe {
+                .subscribe({
                     forceWhiteStatusBarIcons()
                     val states = arrayOf(
                             intArrayOf(android.R.attr.state_activated),
@@ -234,52 +214,46 @@ class MainActivity : QkThemedActivity(), MainView {
 
                     ColorStateList(states, intArrayOf(Color.parseColor("#0EA5E9"), Color.parseColor("#9CA3AF")))
                             .let { tintList ->
-                                inboxIcon.imageTintList = tintList
-                                archivedIcon.imageTintList = tintList
+                                inboxIcon?.imageTintList = tintList
+                                archivedIcon?.imageTintList = tintList
                             }
 
                     listOf(plusBadge1, plusBadge2).forEach { badge ->
-                        badge.setBackgroundTint(Color.parseColor("#0EA5E9"))
-                        badge.setTextColor(Color.WHITE)
+                        badge?.setBackgroundTint(Color.parseColor("#0EA5E9"))
+                        badge?.setTextColor(Color.WHITE)
                     }
                     syncingProgress?.progressTintList = ColorStateList.valueOf(Color.parseColor("#0EA5E9"))
                     syncingProgress?.indeterminateTintList = ColorStateList.valueOf(Color.parseColor("#0EA5E9"))
-                    plusIcon.setTint(Color.parseColor("#0EA5E9"))
-                    rateIcon.setTint(Color.parseColor("#0EA5E9"))
-                    compose.setBackgroundTint(Color.parseColor("#0EA5E9"))
-                    compose.setTint(Color.WHITE)
-                }
+                    plusIcon?.setTint(Color.parseColor("#0EA5E9"))
+                    rateIcon?.setTint(Color.parseColor("#0EA5E9"))
+                    compose?.setBackgroundTint(Color.parseColor("#0EA5E9"))
+                    compose?.setTint(Color.WHITE)
+                }, {})
 
         if (Build.VERSION.SDK_INT <= 22) {
-            toolbarSearch.setBackgroundTint(Color.parseColor("#111827"))
+            toolbarSearch?.setBackgroundTint(Color.parseColor("#111827"))
         }
     }
 
     private fun forceWhiteStatusBarIcons() {
-        window.statusBarColor = Color.parseColor("#0B1220")
-        window.navigationBarColor = Color.parseColor("#0B1220")
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            var flags = window.decorView.systemUiVisibility
-            // Clear light status bar flag so icons (clock, signal, battery) become white!
-            flags = flags and View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR.inv()
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                flags = flags and View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR.inv()
+        try {
+            window.statusBarColor = Color.parseColor("#0B1220")
+            window.navigationBarColor = Color.parseColor("#0B1220")
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                var flags = window.decorView.systemUiVisibility
+                flags = flags and View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR.inv()
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    flags = flags and View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR.inv()
+                }
+                window.decorView.systemUiVisibility = flags
             }
-            window.decorView.systemUiVisibility = flags
-        }
-    }
-
-    private fun applySavedTabOrderToLayout() {
-        val order = viewModel.getSavedCategoryOrder()
-        categoryContainer.removeAllViews()
-        order.forEach { cat ->
-            categoryViewMap[cat]?.let { view -> categoryContainer.addView(view) }
-        }
+        } catch (_: Exception) {}
     }
 
     private fun showReorderCategoryDialog(selectedCat: MessageCategory) {
         val currentOrder = viewModel.getSavedCategoryOrder().toMutableList()
         val currentIndex = currentOrder.indexOf(selectedCat)
+        if (currentIndex == -1) return
         val catTitle = categoryLabels[selectedCat] ?: ""
 
         val options = arrayOf(
@@ -309,7 +283,6 @@ class MainActivity : QkThemedActivity(), MainView {
                         }
                     }
                     viewModel.saveCategoryOrder(currentOrder)
-                    applySavedTabOrderToLayout()
                 }
                 .setNegativeButton("انصراف", null)
                 .show()
@@ -333,19 +306,21 @@ class MainActivity : QkThemedActivity(), MainView {
     }
 
     private fun checkAndRunAutoBackup() {
-        val sp = getSharedPreferences("${packageName}_preferences", Context.MODE_PRIVATE)
-        val autoBackupEnabled = sp.getBoolean("nc_auto_backup", true)
-        val pass = sp.getString("nc_pass", "") ?: ""
-        if (!autoBackupEnabled || pass.isBlank()) return
+        try {
+            val sp = getSharedPreferences("${packageName}_preferences", Context.MODE_PRIVATE)
+            val autoBackupEnabled = sp.getBoolean("nc_auto_backup", true)
+            val pass = sp.getString("nc_pass", "") ?: ""
+            if (!autoBackupEnabled || pass.isBlank()) return
 
-        val lastAutoBackup = sp.getLong("nc_last_auto_backup", 0L)
-        val now = System.currentTimeMillis()
-        if (now - lastAutoBackup >= TimeUnit.HOURS.toMillis(24)) {
-            sp.edit().putLong("nc_last_auto_backup", now).apply()
-            Completable.fromAction { backupRepo.performBackup() }
-                    .subscribeOn(Schedulers.io())
-                    .subscribe({}, {})
-        }
+            val lastAutoBackup = sp.getLong("nc_last_auto_backup", 0L)
+            val now = System.currentTimeMillis()
+            if (now - lastAutoBackup >= TimeUnit.HOURS.toMillis(24)) {
+                sp.edit().putLong("nc_last_auto_backup", now).apply()
+                Completable.fromAction { backupRepo.performBackup() }
+                        .subscribeOn(Schedulers.io())
+                        .subscribe({}, {})
+            }
+        } catch (_: Exception) {}
     }
 
     private fun showNextcloudSettingsDialog() {
@@ -460,30 +435,30 @@ class MainActivity : QkThemedActivity(), MainView {
             else -> 0
         }
 
-        toolbarSearch.setVisible(state.page is Inbox && state.page.selected == 0 || state.page is Searching)
-        toolbarTitle.setVisible(toolbarSearch.visibility != View.VISIBLE)
-        categoryScroll.setVisible(state.page is Inbox && state.page.selected == 0)
+        toolbarSearch?.setVisible(state.page is Inbox && state.page.selected == 0 || state.page is Searching)
+        toolbarTitle?.setVisible(toolbarSearch?.visibility != View.VISIBLE)
+        categoryScroll?.setVisible(state.page is Inbox && state.page.selected == 0)
 
-        toolbar.menu.findItem(R.id.archive)?.isVisible = state.page is Inbox && selectedConversations != 0
-        toolbar.menu.findItem(R.id.unarchive)?.isVisible = state.page is Archived && selectedConversations != 0
-        toolbar.menu.findItem(R.id.delete)?.isVisible = selectedConversations != 0
-        toolbar.menu.findItem(R.id.add)?.isVisible = addContact && selectedConversations != 0
-        toolbar.menu.findItem(R.id.pin)?.isVisible = markPinned && selectedConversations != 0
-        toolbar.menu.findItem(R.id.unpin)?.isVisible = !markPinned && selectedConversations != 0
-        toolbar.menu.findItem(R.id.read)?.isVisible = markRead && selectedConversations != 0
-        toolbar.menu.findItem(R.id.unread)?.isVisible = !markRead && selectedConversations != 0
-        toolbar.menu.findItem(R.id.block)?.isVisible = selectedConversations != 0
-        toolbar.menu.findItem(MENU_MOVE_CATEGORY)?.isVisible = state.page is Inbox && selectedConversations != 0
+        toolbar?.menu?.findItem(R.id.archive)?.isVisible = state.page is Inbox && selectedConversations != 0
+        toolbar?.menu?.findItem(R.id.unarchive)?.isVisible = state.page is Archived && selectedConversations != 0
+        toolbar?.menu?.findItem(R.id.delete)?.isVisible = selectedConversations != 0
+        toolbar?.menu?.findItem(R.id.add)?.isVisible = addContact && selectedConversations != 0
+        toolbar?.menu?.findItem(R.id.pin)?.isVisible = markPinned && selectedConversations != 0
+        toolbar?.menu?.findItem(R.id.unpin)?.isVisible = !markPinned && selectedConversations != 0
+        toolbar?.menu?.findItem(R.id.read)?.isVisible = markRead && selectedConversations != 0
+        toolbar?.menu?.findItem(R.id.unread)?.isVisible = !markRead && selectedConversations != 0
+        toolbar?.menu?.findItem(R.id.block)?.isVisible = selectedConversations != 0
+        toolbar?.menu?.findItem(MENU_MOVE_CATEGORY)?.isVisible = state.page is Inbox && selectedConversations != 0
 
         listOf(plusBadge1, plusBadge2).forEach { badge ->
-            badge.isVisible = !state.upgraded
+            badge?.isVisible = !state.upgraded
         }
-        plus.isVisible = state.upgraded
-        plusBanner.isVisible = !state.upgraded
-        rateLayout.setVisible(state.showRating)
+        plus?.isVisible = state.upgraded
+        plusBanner?.isVisible = !state.upgraded
+        rateLayout?.setVisible(state.showRating)
 
-        compose.setVisible(state.page is Inbox || state.page is Archived)
-        compose.animate().rotation(if (state.drawerOpen) 90f else 0f).start()
+        compose?.setVisible(state.page is Inbox || state.page is Archived)
+        compose?.animate()?.rotation(if (state.drawerOpen) 90f else 0f)?.start()
         conversationsAdapter.emptyView = empty.takeIf { state.page is Inbox || state.page is Archived }
         searchAdapter.emptyView = empty.takeIf { state.page is Searching }
 
@@ -491,32 +466,34 @@ class MainActivity : QkThemedActivity(), MainView {
             is Inbox -> {
                 showBackButton(state.page.selected > 0)
                 if (state.page.selected > 0) {
-                    toolbar.setNavigationIcon(R.drawable.ic_arrow_back_24dp)
-                    toolbar.navigationIcon?.setTint(Color.parseColor("#F9FAFB"))
-                    toolbar.setBackgroundResource(R.drawable.rounded_rectangle_transparent_24dp)
-                    compose.animate().rotation(90f).start()
+                    toolbar?.setNavigationIcon(R.drawable.ic_arrow_back_24dp)
+                    toolbar?.navigationIcon?.setTint(Color.parseColor("#F9FAFB"))
+                    toolbar?.setBackgroundResource(R.drawable.rounded_rectangle_transparent_24dp)
+                    compose?.animate()?.rotation(90f)?.start()
                 } else {
-                    toolbar.setNavigationIcon(R.drawable.ic_menu_24dp)
-                    toolbar.navigationIcon?.setTint(Color.parseColor("#F9FAFB"))
-                    toolbar.setBackgroundResource(R.drawable.rounded_rectangle_24dp)
-                    toolbar.setBackgroundTint(Color.parseColor("#111827"))
-                    toolbar.elevation = prefs.searchElevation.get().toFloat()
-                    compose.animate().rotation(0f).start()
+                    toolbar?.setNavigationIcon(R.drawable.ic_menu_24dp)
+                    toolbar?.navigationIcon?.setTint(Color.parseColor("#F9FAFB"))
+                    toolbar?.setBackgroundResource(R.drawable.rounded_rectangle_24dp)
+                    toolbar?.setBackgroundTint(Color.parseColor("#111827"))
+                    toolbar?.elevation = prefs.searchElevation.get().toFloat()
+                    compose?.animate()?.rotation(0f)?.start()
                 }
                 title = getString(R.string.main_title_selected, state.page.selected)
-                if (recyclerView.adapter !== conversationsAdapter) recyclerView.adapter = conversationsAdapter
+                if (recyclerView?.adapter !== conversationsAdapter) recyclerView?.adapter = conversationsAdapter
                 conversationsAdapter.updateData(state.page.data)
                 itemTouchHelper.attachToRecyclerView(recyclerView)
-                empty.setText(R.string.inbox_empty_text)
+                empty?.setText(R.string.inbox_empty_text)
 
                 val inactiveBg = Color.parseColor("#111827")
                 val activeCategoryColor = categoryColors[state.page.category] ?: Color.parseColor("#0EA5E9")
 
-                compose.setBackgroundTint(activeCategoryColor)
-                compose.setTint(Color.WHITE)
+                compose?.setBackgroundTint(activeCategoryColor)
+                compose?.setTint(Color.WHITE)
 
-                // Always keep each tab's text colored with its own FinanceApp category color when unselected!
-                categoryViewMap.forEach { (category, tabView) ->
+                // Safe binding of ordered categories to the 5 tab views without removing views from layout
+                val orderedCategories = viewModel.getSavedCategoryOrder()
+                tabViews.forEachIndexed { index, tabView ->
+                    val category = orderedCategories.getOrNull(index) ?: return@forEachIndexed
                     val label = categoryLabels[category] ?: ""
                     val unreadCount = state.page.unreadCounts[category] ?: 0
                     val isSelected = state.page.category == category
@@ -526,63 +503,74 @@ class MainActivity : QkThemedActivity(), MainView {
                     tabView.setBackgroundTint(if (isSelected) catColor else inactiveBg)
                     tabView.setTextColor(if (isSelected) Color.WHITE else catColor)
                     tabView.setTypeface(null, Typeface.BOLD)
+
+                    tabView.setOnClickListener {
+                        clearSelection()
+                        viewModel.setCategory(category)
+                    }
+                    tabView.setOnLongClickListener {
+                        showReorderCategoryDialog(category)
+                        true
+                    }
                 }
             }
 
             is Searching -> {
                 showBackButton(true)
-                toolbar.setNavigationIcon(R.drawable.ic_arrow_back_24dp)
-                toolbar.navigationIcon?.setTint(Color.parseColor("#F9FAFB"))
-                if (recyclerView.adapter !== searchAdapter) recyclerView.adapter = searchAdapter
+                toolbar?.setNavigationIcon(R.drawable.ic_arrow_back_24dp)
+                toolbar?.navigationIcon?.setTint(Color.parseColor("#F9FAFB"))
+                if (recyclerView?.adapter !== searchAdapter) recyclerView?.adapter = searchAdapter
                 searchAdapter.data = state.page.data ?: listOf()
                 itemTouchHelper.attachToRecyclerView(null)
-                empty.setText(R.string.inbox_search_empty_text)
+                empty?.setText(R.string.inbox_search_empty_text)
             }
 
             is Archived -> {
                 showBackButton(state.page.selected > 0)
                 if (state.page.selected > 0) {
-                    toolbar.setNavigationIcon(R.drawable.ic_arrow_back_24dp)
-                    toolbar.navigationIcon?.setTint(Color.parseColor("#F9FAFB"))
-                    compose.animate().rotation(90f).start()
+                    toolbar?.setNavigationIcon(R.drawable.ic_arrow_back_24dp)
+                    toolbar?.navigationIcon?.setTint(Color.parseColor("#F9FAFB"))
+                    compose?.animate()?.rotation(90f)?.start()
                 } else {
-                    toolbar.setNavigationIcon(R.drawable.ic_menu_24dp)
-                    toolbar.navigationIcon?.setTint(Color.parseColor("#F9FAFB"))
-                    compose.animate().rotation(0f).start()
+                    toolbar?.setNavigationIcon(R.drawable.ic_menu_24dp)
+                    toolbar?.navigationIcon?.setTint(Color.parseColor("#F9FAFB"))
+                    compose?.animate()?.rotation(0f)?.start()
                 }
-                toolbar.setBackgroundResource(R.drawable.rounded_rectangle_transparent_24dp)
+                toolbar?.setBackgroundResource(R.drawable.rounded_rectangle_transparent_24dp)
                 title = when (state.page.selected != 0) {
                     true -> getString(R.string.main_title_selected, state.page.selected)
                     false -> getString(R.string.title_archived)
                 }
-                if (recyclerView.adapter !== conversationsAdapter) recyclerView.adapter = conversationsAdapter
+                if (recyclerView?.adapter !== conversationsAdapter) recyclerView?.adapter = conversationsAdapter
                 conversationsAdapter.updateData(state.page.data)
                 itemTouchHelper.attachToRecyclerView(null)
-                empty.setText(R.string.archived_empty_text)
+                empty?.setText(R.string.archived_empty_text)
             }
         }
 
-        inbox.isActivated = state.page is Inbox
-        archived.isActivated = state.page is Archived
+        inbox?.isActivated = state.page is Inbox
+        archived?.isActivated = state.page is Archived
 
-        if (drawerLayout.isDrawerOpen(GravityCompat.START) && !state.drawerOpen) {
-            drawerLayout.closeDrawer(GravityCompat.START)
-        } else if (!drawerLayout.isDrawerVisible(GravityCompat.START) && state.drawerOpen) {
-            drawerLayout.openDrawer(GravityCompat.START)
+        if (drawerLayout?.isDrawerOpen(GravityCompat.START) == true && !state.drawerOpen) {
+            drawerLayout?.closeDrawer(GravityCompat.START)
+        } else if (drawerLayout?.isDrawerVisible(GravityCompat.START) == false && state.drawerOpen) {
+            drawerLayout?.openDrawer(GravityCompat.START)
         }
 
         when (state.syncing) {
             is SyncRepository.SyncProgress.Idle -> {
-                syncing.isVisible = false
-                snackbar.isVisible = !state.defaultSms || !state.smsPermission || !state.contactPermission
+                syncing?.isVisible = false
+                snackbar?.isVisible = !state.defaultSms || !state.smsPermission || !state.contactPermission
             }
 
             is SyncRepository.SyncProgress.Running -> {
-                syncing.isVisible = true
-                syncingProgress.max = state.syncing.max
-                progressAnimator.apply { setIntValues(syncingProgress.progress, state.syncing.progress) }.start()
-                syncingProgress.isIndeterminate = state.syncing.indeterminate
-                snackbar.isVisible = false
+                syncing?.isVisible = true
+                syncingProgress?.max = state.syncing.max
+                if (syncingProgress != null) {
+                    progressAnimator.apply { setIntValues(syncingProgress.progress, state.syncing.progress) }.start()
+                }
+                syncingProgress?.isIndeterminate = state.syncing.indeterminate
+                snackbar?.isVisible = false
             }
         }
 
@@ -642,7 +630,7 @@ class MainActivity : QkThemedActivity(), MainView {
 
     override fun clearSearch() {
         dismissKeyboard()
-        toolbarSearch.text = null
+        toolbarSearch?.text = null
     }
 
     override fun clearSelection() {
@@ -650,7 +638,7 @@ class MainActivity : QkThemedActivity(), MainView {
     }
 
     override fun themeChanged() {
-        recyclerView.scrapViews()
+        recyclerView?.scrapViews()
     }
 
     override fun showBlockingDialog(conversations: List<Long>, block: Boolean) {
