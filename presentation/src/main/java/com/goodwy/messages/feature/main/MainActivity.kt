@@ -42,7 +42,6 @@ import com.goodwy.messages.common.util.extensions.scrapViews
 import com.goodwy.messages.common.util.extensions.setBackgroundTint
 import com.goodwy.messages.common.util.extensions.setTint
 import com.goodwy.messages.common.util.extensions.setVisible
-import com.goodwy.messages.common.widget.QkTextView
 import com.goodwy.messages.feature.blocking.BlockingDialog
 import com.goodwy.messages.feature.changelog.ChangelogDialog
 import com.goodwy.messages.feature.conversations.ConversationItemTouchCallback
@@ -133,6 +132,7 @@ class MainActivity : QkThemedActivity(), MainView {
     private val snackbar by lazy { findViewById<View>(R.id.snackbar) }
     private val syncing by lazy { findViewById<View>(R.id.syncing) }
     private val backPressedSubject: Subject<NavItem> = PublishSubject.create()
+    private var currentSelectedIds: List<Long> = emptyList()
 
     // FinanceApp Color Palette per Category
     private val categoryColors = mapOf(
@@ -171,6 +171,10 @@ class MainActivity : QkThemedActivity(), MainView {
         // Force white status bar & navigation bar icons on dark #0B1220 background
         forceWhiteStatusBarIcons()
         drawer.setBackgroundColor(Color.parseColor("#111827"))
+
+        conversationsSelectedIntent
+                .autoDisposable(scope())
+                .subscribe { currentSelectedIds = it }
 
         (snackbar as? ViewStub)?.setOnInflateListener { _, _ ->
             snackbarButton.clicks()
@@ -685,7 +689,7 @@ class MainActivity : QkThemedActivity(), MainView {
 
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
         if (item.itemId == MENU_MOVE_CATEGORY) {
-            showMoveConversationsCategoryDialog(conversationsAdapter.selection)
+            showMoveConversationsCategoryDialog(currentSelectedIds)
             return true
         }
         optionsItemIntent.onNext(item.itemId)
