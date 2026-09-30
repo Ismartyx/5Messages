@@ -38,11 +38,11 @@ import com.goodwy.messages.common.androidxcompat.drawerOpen
 import com.goodwy.messages.common.base.QkThemedActivity
 import com.goodwy.messages.common.util.extensions.autoScrollToStart
 import com.goodwy.messages.common.util.extensions.dismissKeyboard
-import com.goodwy.messages.common.util.extensions.resolveThemeColor
 import com.goodwy.messages.common.util.extensions.scrapViews
 import com.goodwy.messages.common.util.extensions.setBackgroundTint
 import com.goodwy.messages.common.util.extensions.setTint
 import com.goodwy.messages.common.util.extensions.setVisible
+import com.goodwy.messages.common.widget.QkTextView
 import com.goodwy.messages.feature.blocking.BlockingDialog
 import com.goodwy.messages.feature.changelog.ChangelogDialog
 import com.goodwy.messages.feature.conversations.ConversationItemTouchCallback
@@ -65,10 +65,15 @@ import kotlinx.android.synthetic.main.main_activity.toolbar
 import kotlinx.android.synthetic.main.main_activity.toolbarTitle
 import kotlinx.android.synthetic.main.main_permission_hint.*
 import kotlinx.android.synthetic.main.main_syncing.*
+import java.util.Collections
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 
 class MainActivity : QkThemedActivity(), MainView {
+
+    companion object {
+        private const val MENU_MOVE_CATEGORY = 9991
+    }
 
     @Inject lateinit var blockingDialog: BlockingDialog
     @Inject lateinit var disposables: CompositeDisposable
@@ -138,13 +143,21 @@ class MainActivity : QkThemedActivity(), MainView {
         MessageCategory.OTHER to Color.parseColor("#EF4444")     // Coral Red
     )
 
-    private val categoryTabs by lazy {
+    private val categoryLabels = mapOf(
+        MessageCategory.CONTACTS to "مخاطبین",
+        MessageCategory.UNKNOWN to "شخصی ناشناس",
+        MessageCategory.BANK to "بانکی",
+        MessageCategory.OTP to "رمز و کد",
+        MessageCategory.OTHER to "متفرقه"
+    )
+
+    private val categoryViewMap by lazy {
         mapOf(
-            tabContacts to Pair(MessageCategory.CONTACTS, "مخاطبین"),
-            tabUnknown to Pair(MessageCategory.UNKNOWN, "شخصی ناشناس"),
-            tabBank to Pair(MessageCategory.BANK, "بانکی"),
-            tabOtp to Pair(MessageCategory.OTP, "رمز و کد"),
-            tabOther to Pair(MessageCategory.OTHER, "متفرقه")
+            MessageCategory.CONTACTS to tabContacts,
+            MessageCategory.UNKNOWN to tabUnknown,
+            MessageCategory.BANK to tabBank,
+            MessageCategory.OTP to tabOtp,
+            MessageCategory.OTHER to tabOther
         )
     }
 
@@ -155,9 +168,8 @@ class MainActivity : QkThemedActivity(), MainView {
         viewModel.bindView(this)
         onNewIntentIntent.onNext(intent)
 
-        // Apply FinanceApp Deep Navy Dark Theme (#0B1220 & #111827)
-        window.statusBarColor = Color.parseColor("#0B1220")
-        window.navigationBarColor = Color.parseColor("#0B1220")
+        // Force white status bar & navigation bar icons on dark #0B1220 background
+        forceWhiteStatusBarIcons()
         drawer.setBackgroundColor(Color.parseColor("#111827"))
 
         (snackbar as? ViewStub)?.setOnInflateListener { _, _ ->
@@ -180,14 +192,19 @@ class MainActivity : QkThemedActivity(), MainView {
         itemTouchCallback.adapter = conversationsAdapter
         conversationsAdapter.autoScrollToStart(recyclerView)
 
-        categoryTabs.forEach { (tabView, pair) ->
+        // Apply saved tab order and click/long-click listeners
+        applySavedTabOrderToLayout()
+        categoryViewMap.forEach { (category, tabView) ->
             tabView.setOnClickListener {
                 clearSelection()
-                viewModel.setCategory(pair.first)
+                viewModel.setCategory(category)
+            }
+            tabView.setOnLongClickListener {
+                showReorderCategoryDialog(category)
+                true
             }
         }
 
-        // با نگه داشتن انگشت روی گزینه Backup یا Settings در منوی کشویی، پنجره تنظیمات Nextcloud باز می‌شود
         backup.setOnLongClickListener {
             drawerLayout.closeDrawer(GravityCompat.START)
             showNextcloudSettingsDialog()
@@ -199,15 +216,14 @@ class MainActivity : QkThemedActivity(), MainView {
             true
         }
 
-        // بررسی و اجرای بکاپ خودکار روزانه (Auto-Backup)
         checkAndRunAutoBackup()
 
-        // Don't allow clicks to pass through the drawer layout
         drawer.clicks().autoDisposable(scope()).subscribe()
 
         theme
                 .autoDisposable(scope())
                 .subscribe {
+                    forceWhiteStatusBarIcons()
                     val states = arrayOf(
                             intArrayOf(android.R.attr.state_activated),
                             intArrayOf(-android.R.attr.state_activated))
@@ -235,6 +251,83 @@ class MainActivity : QkThemedActivity(), MainView {
         }
     }
 
+    private fun forceWhiteStatusBarIcons() {
+        window.statusBarColor = Color.parseColor("#0B1220")
+        window.navigationBarColor = Color.parseColor("#0B1220")
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            var flags = window.decorView.systemUiVisibility
+            // Clear light status bar flag so icons (clock, signal, battery) become white!
+            flags = flags and View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR.inv()
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                flags = flags and View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR.inv()
+            }
+            window.decorView.systemUiVisibility = flags
+        }
+    }
+
+    private fun applySavedTabOrderToLayout() {
+        val order = viewModel.getSavedCategoryOrder()
+        categoryContainer.removeAllViews()
+        order.forEach { cat ->
+            categoryViewMap[cat]?.let { view -> categoryContainer.addView(view) }
+        }
+    }
+
+    private fun showReorderCategoryDialog(selectedCat: MessageCategory) {
+        val currentOrder = viewModel.getSavedCategoryOrder().toMutableList()
+        val currentIndex = currentOrder.indexOf(selectedCat)
+        val catTitle = categoryLabels[selectedCat] ?: ""
+
+        val options = arrayOf(
+            "انتقال به اول لیست (سمت چپ)",
+            "یک واحد به چپ",
+            "یک واحد به راست",
+            "انتقال به آخر لیست (سمت راست)"
+        )
+
+        AlertDialog.Builder(this)
+                .setTitle("جابجایی پوشه «$catTitle»")
+                .setItems(options) { _, which ->
+                    when (which) {
+                        0 -> {
+                            currentOrder.removeAt(currentIndex)
+                            currentOrder.add(0, selectedCat)
+                        }
+                        1 -> if (currentIndex > 0) {
+                            Collections.swap(currentOrder, currentIndex, currentIndex - 1)
+                        }
+                        2 -> if (currentIndex < currentOrder.size - 1) {
+                            Collections.swap(currentOrder, currentIndex, currentIndex + 1)
+                        }
+                        3 -> {
+                            currentOrder.removeAt(currentIndex)
+                            currentOrder.add(selectedCat)
+                        }
+                    }
+                    viewModel.saveCategoryOrder(currentOrder)
+                    applySavedTabOrderToLayout()
+                }
+                .setNegativeButton("انصراف", null)
+                .show()
+    }
+
+    private fun showMoveConversationsCategoryDialog(selectedThreadIds: List<Long>) {
+        if (selectedThreadIds.isEmpty()) return
+        val categories = viewModel.getSavedCategoryOrder()
+        val titles = categories.map { categoryLabels[it] ?: it.name }.toTypedArray()
+
+        AlertDialog.Builder(this)
+                .setTitle("انتقال به کدام دسته‌بندی؟")
+                .setItems(titles) { _, which ->
+                    val targetCategory = categories[which]
+                    viewModel.setManualCategoryForConversations(selectedThreadIds, targetCategory)
+                    clearSelection()
+                    Toast.makeText(this, "به پوشه «${titles[which]}» منتقل شد", Toast.LENGTH_SHORT).show()
+                }
+                .setNegativeButton("انصراف", null)
+                .show()
+    }
+
     private fun checkAndRunAutoBackup() {
         val sp = getSharedPreferences("${packageName}_preferences", Context.MODE_PRIVATE)
         val autoBackupEnabled = sp.getBoolean("nc_auto_backup", true)
@@ -243,7 +336,6 @@ class MainActivity : QkThemedActivity(), MainView {
 
         val lastAutoBackup = sp.getLong("nc_last_auto_backup", 0L)
         val now = System.currentTimeMillis()
-        // اگر بیش از ۲۴ ساعت از آخرین بکاپ خودکار گذشته باشد، در پس‌زمینه بکاپ بگیر و به نکست‌کلاد بفرست
         if (now - lastAutoBackup >= TimeUnit.HOURS.toMillis(24)) {
             sp.edit().putLong("nc_last_auto_backup", now).apply()
             Completable.fromAction { backupRepo.performBackup() }
@@ -338,6 +430,8 @@ class MainActivity : QkThemedActivity(), MainView {
             return
         }
 
+        forceWhiteStatusBarIcons()
+
         val addContact = when (state.page) {
             is Inbox -> state.page.addContact
             is Archived -> state.page.addContact
@@ -375,6 +469,7 @@ class MainActivity : QkThemedActivity(), MainView {
         toolbar.menu.findItem(R.id.read)?.isVisible = markRead && selectedConversations != 0
         toolbar.menu.findItem(R.id.unread)?.isVisible = !markRead && selectedConversations != 0
         toolbar.menu.findItem(R.id.block)?.isVisible = selectedConversations != 0
+        toolbar.menu.findItem(MENU_MOVE_CATEGORY)?.isVisible = state.page is Inbox && selectedConversations != 0
 
         listOf(plusBadge1, plusBadge2).forEach { badge ->
             badge.isVisible = !state.upgraded
@@ -393,12 +488,12 @@ class MainActivity : QkThemedActivity(), MainView {
                 showBackButton(state.page.selected > 0)
                 if (state.page.selected > 0) {
                     toolbar.setNavigationIcon(R.drawable.ic_arrow_back_24dp)
-                    toolbar.navigationIcon?.setTint(Color.parseColor("#9CA3AF"))
+                    toolbar.navigationIcon?.setTint(Color.parseColor("#F9FAFB"))
                     toolbar.setBackgroundResource(R.drawable.rounded_rectangle_transparent_24dp)
                     compose.animate().rotation(90f).start()
                 } else {
                     toolbar.setNavigationIcon(R.drawable.ic_menu_24dp)
-                    toolbar.navigationIcon?.setTint(Color.parseColor("#9CA3AF"))
+                    toolbar.navigationIcon?.setTint(Color.parseColor("#F9FAFB"))
                     toolbar.setBackgroundResource(R.drawable.rounded_rectangle_24dp)
                     toolbar.setBackgroundTint(Color.parseColor("#111827"))
                     toolbar.elevation = prefs.searchElevation.get().toFloat()
@@ -411,37 +506,29 @@ class MainActivity : QkThemedActivity(), MainView {
                 empty.setText(R.string.inbox_empty_text)
 
                 val inactiveBg = Color.parseColor("#111827")
-                val inactiveText = Color.parseColor("#9CA3AF")
                 val activeCategoryColor = categoryColors[state.page.category] ?: Color.parseColor("#0EA5E9")
 
-                // Tint the FAB button to match the currently selected category's color
                 compose.setBackgroundTint(activeCategoryColor)
                 compose.setTint(Color.WHITE)
 
-                categoryTabs.forEach { (tabView, pair) ->
-                    val category = pair.first
-                    val label = pair.second
+                // Always keep each tab's text colored with its own FinanceApp category color when unselected!
+                categoryViewMap.forEach { (category, tabView) ->
+                    val label = categoryLabels[category] ?: ""
                     val unreadCount = state.page.unreadCounts[category] ?: 0
                     val isSelected = state.page.category == category
                     val catColor = categoryColors[category] ?: Color.parseColor("#0EA5E9")
 
                     tabView.text = if (unreadCount > 0) "$label ($unreadCount)" else label
                     tabView.setBackgroundTint(if (isSelected) catColor else inactiveBg)
-                    tabView.setTextColor(
-                        when {
-                            isSelected -> Color.WHITE
-                            unreadCount > 0 -> catColor
-                            else -> inactiveText
-                        }
-                    )
-                    tabView.setTypeface(null, if (unreadCount > 0 || isSelected) Typeface.BOLD else Typeface.NORMAL)
+                    tabView.setTextColor(if (isSelected) Color.WHITE else catColor)
+                    tabView.setTypeface(null, Typeface.BOLD)
                 }
             }
 
             is Searching -> {
                 showBackButton(true)
                 toolbar.setNavigationIcon(R.drawable.ic_arrow_back_24dp)
-                toolbar.navigationIcon?.setTint(Color.parseColor("#9CA3AF"))
+                toolbar.navigationIcon?.setTint(Color.parseColor("#F9FAFB"))
                 if (recyclerView.adapter !== searchAdapter) recyclerView.adapter = searchAdapter
                 searchAdapter.data = state.page.data ?: listOf()
                 itemTouchHelper.attachToRecyclerView(null)
@@ -452,11 +539,11 @@ class MainActivity : QkThemedActivity(), MainView {
                 showBackButton(state.page.selected > 0)
                 if (state.page.selected > 0) {
                     toolbar.setNavigationIcon(R.drawable.ic_arrow_back_24dp)
-                    toolbar.navigationIcon?.setTint(Color.parseColor("#9CA3AF"))
+                    toolbar.navigationIcon?.setTint(Color.parseColor("#F9FAFB"))
                     compose.animate().rotation(90f).start()
                 } else {
                     toolbar.setNavigationIcon(R.drawable.ic_menu_24dp)
-                    toolbar.navigationIcon?.setTint(Color.parseColor("#9CA3AF"))
+                    toolbar.navigationIcon?.setTint(Color.parseColor("#F9FAFB"))
                     compose.animate().rotation(0f).start()
                 }
                 toolbar.setBackgroundResource(R.drawable.rounded_rectangle_transparent_24dp)
@@ -518,6 +605,7 @@ class MainActivity : QkThemedActivity(), MainView {
 
     override fun onResume() {
         super.onResume()
+        forceWhiteStatusBarIcons()
         activityResumedIntent.onNext(true)
         checkAndRunAutoBackup()
     }
@@ -589,10 +677,17 @@ class MainActivity : QkThemedActivity(), MainView {
 
     override fun onCreateOptionsMenu(menu: Menu?): Boolean {
         menuInflater.inflate(R.menu.main, menu)
+        menu?.add(0, MENU_MOVE_CATEGORY, 0, "تغییر دسته‌بندی (انتقال به پوشه)")?.apply {
+            setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER)
+        }
         return super.onCreateOptionsMenu(menu)
     }
 
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
+        if (item.itemId == MENU_MOVE_CATEGORY) {
+            showMoveConversationsCategoryDialog(conversationsAdapter.selection)
+            return true
+        }
         optionsItemIntent.onNext(item.itemId)
         return true
     }
