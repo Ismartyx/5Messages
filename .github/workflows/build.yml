@@ -19,6 +19,65 @@ jobs:
           distribution: 'temurin'
           java-version: '8'
 
+      - name: Customize App Name (Messages) & FinanceApp Icon
+        run: |
+          # ۱. تغییر نام برنامه به Messages در تمام فایل‌های زبان
+          APP_NAME="Messages"
+          find presentation/src/main/res -name "strings.xml" -exec sed -i "s|<string name=\"app_name\">.*</string>|<string name=\"app_name\">$APP_NAME</string>|g" {} +
+
+          # ۲. طراحی و جایگزینی آیکون مدرن با پالت رنگی FinanceApp (#0B1220, #0EA5E9, #22C55E)
+          python3 - << 'PYEOF'
+          import os, glob
+
+          os.makedirs("presentation/src/main/res/drawable", exist_ok=True)
+          os.makedirs("presentation/src/main/res/mipmap-anydpi-v26", exist_ok=True)
+
+          bg_xml = """<?xml version="1.0" encoding="utf-8"?>
+          <vector xmlns:android="http://schemas.android.com/apk/res/android"
+              android:width="108dp"
+              android:height="108dp"
+              android:viewportWidth="108"
+              android:viewportHeight="108">
+              <path android:fillColor="#0B1220" android:pathData="M0,0h108v108h-108z"/>
+              <path android:fillColor="#111827" android:pathData="M0,54a54,54 0 1,0 108,0a54,54 0 1,0 -108,0"/>
+          </vector>"""
+
+          fg_xml = """<?xml version="1.0" encoding="utf-8"?>
+          <vector xmlns:android="http://schemas.android.com/apk/res/android"
+              android:width="108dp"
+              android:height="108dp"
+              android:viewportWidth="108"
+              android:viewportHeight="108">
+              <path
+                  android:fillColor="#22C55E"
+                  android:pathData="M42,30h34c4.4,0 8,3.6 8,8v20c0,4.4 -3.6,8 -8,8h-6l-8,8v-8h-20c-4.4,0 -8,-3.6 -8,-8v-20c0,-4.4 3.6,-8 8,-8z"/>
+              <path
+                  android:fillColor="#0EA5E9"
+                  android:pathData="M30,38h36c4.4,0 8,3.6 8,8v20c0,4.4 -3.6,8 -8,8h-18l-10,9v-9h-8c-4.4,0 -8,-3.6 -8,-8v-20c0,-4.4 3.6,-8 8,-8z"/>
+              <path
+                  android:fillColor="#FFFFFF"
+                  android:pathData="M36,48h24v3.5h-24zM36,55.5h16v3.5h-16z"/>
+              <path
+                  android:fillColor="#F59E0B"
+                  android:pathData="M56,55.5h4v3.5h-4z"/>
+          </vector>"""
+
+          adaptive_xml = """<?xml version="1.0" encoding="utf-8"?>
+          <adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+              <background android:drawable="@drawable/ic_launcher_bg_custom"/>
+              <foreground android:drawable="@drawable/ic_launcher_fg_custom"/>
+          </adaptive-icon>"""
+
+          with open("presentation/src/main/res/drawable/ic_launcher_bg_custom.xml", "w") as f:
+              f.write(bg_xml)
+          with open("presentation/src/main/res/drawable/ic_launcher_fg_custom.xml", "w") as f:
+              f.write(fg_xml)
+
+          for xml_file in glob.glob("presentation/src/main/res/mipmap-anydpi-v26/*.xml"):
+              with open(xml_file, "w") as f:
+                  f.write(adaptive_xml)
+          PYEOF
+
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
@@ -57,5 +116,5 @@ jobs:
         if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: 5Messages-APK
+          name: Messages-APK
           path: "**/*.apk"
