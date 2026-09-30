@@ -4,6 +4,8 @@ import androidx.recyclerview.widget.ItemTouchHelper
 import com.goodwy.messages.R
 import com.goodwy.messages.common.Navigator
 import com.goodwy.messages.common.base.QkViewModel
+import com.goodwy.messages.extensions.anyOf
+import com.goodwy.messages.extensions.asObservable
 import com.goodwy.messages.extensions.mapNotNull
 import com.goodwy.messages.interactor.DeleteConversations
 import com.goodwy.messages.interactor.MarkAllSeen
@@ -32,11 +34,10 @@ import io.reactivex.android.schedulers.AndroidSchedulers
 import io.reactivex.rxkotlin.plusAssign
 import io.reactivex.rxkotlin.withLatestFrom
 import io.reactivex.schedulers.Schedulers
-import io.realm.Case
 import io.realm.Realm
-import io.realm.RealmQuery
 import io.realm.RealmResults
 import io.realm.Sort
+import java.util.Locale
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 
@@ -61,9 +62,10 @@ class MainViewModel @Inject constructor(
     private val ratingManager: RatingManager,
     private val syncContacts: SyncContacts,
     private val syncMessages: SyncMessages
-) : QkViewModel<MainView, MainState>(MainState(page = Inbox(data = conversationRepo.getConversations()))) {
+) : QkViewModel<MainView, MainState>(MainState()) {
 
-    private var currentCategory: MessageCategory = MessageCategory.ALL
+    private var currentCategory: MessageCategory = MessageCategory.CONTACTS
+    private val allInboxConversations = conversationRepo.getConversations()
 
     init {
         disposables += deleteConversations
@@ -73,6 +75,16 @@ class MainViewModel @Inject constructor(
         disposables += migratePreferences
         disposables += syncContacts
         disposables += syncMessages
+
+        // Load initial category
+        refreshInboxCategory()
+
+        // Automatically refresh category & unread badges whenever any message arrives or changes
+        disposables += allInboxConversations.asObservable()
+                .filter { it.isLoaded && it.isValid }
+                .debounce(150, TimeUnit.MILLISECONDS)
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribe({ refreshInboxCategory() }, {})
 
         // Show the syncing UI
         disposables += syncRepository.syncProgress
@@ -111,21 +123,23 @@ class MainViewModel @Inject constructor(
 
     fun setCategory(category: MessageCategory) {
         currentCategory = category
+        refreshInboxCategory(forceInbox = true)
+    }
+
+    private fun refreshInboxCategory(forceInbox: Boolean = false) {
+        val (data, counts) = queryCategoryDataAndCounts(currentCategory)
         newState {
-            copy(page = Inbox(
-                data = getConversationsByCategory(category),
-                category = category
-            ))
+            when {
+                forceInbox -> copy(page = Inbox(data = data, category = currentCategory, unreadCounts = counts))
+                page is Inbox -> copy(page = page.copy(data = data, category = currentCategory, unreadCounts = counts))
+                else -> this
+            }
         }
     }
 
-    private fun getConversationsByCategory(category: MessageCategory): RealmResults<Conversation> {
-        if (category == MessageCategory.ALL) {
-            return conversationRepo.getConversations()
-        }
-
-        val query = Realm.getDefaultInstance()
-                .where(Conversation::class.java)
+    private fun queryCategoryDataAndCounts(selectedCategory: MessageCategory): Pair<RealmResults<Conversation>, Map<MessageCategory, Int>> {
+        val realm = Realm.getDefaultInstance()
+        val allActive = realm.where(Conversation::class.java)
                 .notEqualTo("id", 0L)
                 .equalTo("archived", false)
                 .equalTo("blocked", false)
@@ -135,91 +149,86 @@ class MainViewModel @Inject constructor(
                 .or()
                 .isNotEmpty("draft")
                 .endGroup()
+                .findAll()
 
-        when (category) {
-            MessageCategory.CONTACTS -> {
-                query.isNotNull("recipients.contact")
-            }
-            MessageCategory.OTP -> {
-                query.isNull("recipients.contact")
-                query.applyOtpFilter()
-            }
-            MessageCategory.UNKNOWN -> {
-                query.isNull("recipients.contact")
-                query.not().applyOtpFilter()
-                query.applyMobileNumberFilter()
-            }
-            MessageCategory.BANK -> {
-                query.isNull("recipients.contact")
-                query.not().applyOtpFilter()
-                query.not().applyMobileNumberFilter()
-                query.applyBankFilter()
-            }
-            MessageCategory.OTHER -> {
-                query.isNull("recipients.contact")
-                query.not().applyOtpFilter()
-                query.not().applyMobileNumberFilter()
-                query.not().applyBankFilter()
-            }
-            else -> Unit
-        }
-
-        return query.sort(
-                arrayOf("pinned", "draft", "lastMessage.date"),
-                arrayOf(Sort.DESCENDING, Sort.DESCENDING, Sort.DESCENDING)
-        ).findAllAsync()
-    }
-
-    private fun RealmQuery<Conversation>.applyMobileNumberFilter(): RealmQuery<Conversation> {
-        beginGroup()
-            .beginGroup()
-                .beginsWith("recipients.address", "09")
-                .or()
-                .beginsWith("recipients.address", "+989")
-                .or()
-                .beginsWith("recipients.address", "989")
-                .or()
-                .beginsWith("recipients.address", "00989")
-            .endGroup()
-            .not().beginsWith("recipients.address", "09000")
-            .not().beginsWith("recipients.address", "+989000")
-            .not().beginsWith("recipients.address", "989000")
-        .endGroup()
-        return this
-    }
-
-    private fun RealmQuery<Conversation>.applyOtpFilter(): RealmQuery<Conversation> {
-        val keywords = listOf(
-            "رمز پویا", "رمزدوم", "رمز دوم",
-            "کد تایید", "کد تأیید", "کد تاييد", "کدتاييد", "کدتایید",
-            "کد ورود", "کد فعال", "کد امنیتی", "کد شناسایی",
-            "verification", "otp", "security code"
+        val matchingIds = mutableListOf<Long>()
+        val unreadCounts = mutableMapOf(
+                MessageCategory.CONTACTS to 0,
+                MessageCategory.UNKNOWN to 0,
+                MessageCategory.BANK to 0,
+                MessageCategory.OTP to 0,
+                MessageCategory.OTHER to 0
         )
-        beginGroup()
-        keywords.forEachIndexed { index, keyword ->
-            if (index > 0) or()
-            contains("lastMessage.body", keyword, Case.INSENSITIVE)
+
+        for (conv in allActive) {
+            val cat = classifyConversation(conv)
+            if (cat == selectedCategory) {
+                matchingIds.add(conv.id)
+            }
+            if (conv.unread) {
+                unreadCounts[cat] = (unreadCounts[cat] ?: 0) + 1
+            }
         }
-        endGroup()
-        return this
+
+        val idsArray = if (matchingIds.isEmpty()) longArrayOf(-1L) else matchingIds.toLongArray()
+
+        val results = realm.where(Conversation::class.java)
+                .anyOf("id", idsArray)
+                .sort(
+                        arrayOf("pinned", "draft", "lastMessage.date"),
+                        arrayOf(Sort.DESCENDING, Sort.DESCENDING, Sort.DESCENDING)
+                )
+                .findAllAsync()
+
+        return Pair(results, unreadCounts)
     }
 
-    private fun RealmQuery<Conversation>.applyBankFilter(): RealmQuery<Conversation> {
-        val keywords = listOf(
-            "بانک", "بانك", "واریز", "واريز", "برداشت",
-            "مانده", "موجودی", "موجودي", "حساب",
-            "شبا", "ساتنا", "پایا", "پايا", "تسهیلات", "تسهيلات",
-            "بلوبانک", "کارت به کارت", "كارت به كارت"
+    private fun classifyConversation(conv: Conversation): MessageCategory {
+        // 1. Saved Contacts
+        val hasContact = conv.recipients.any { it.contact != null }
+        if (hasContact) return MessageCategory.CONTACTS
+
+        val address = conv.recipients.firstOrNull()?.address?.trim() ?: ""
+        val body = (conv.lastMessage?.body ?: "").toLowerCase(Locale.ROOT)
+        val addrLower = address.toLowerCase(Locale.ROOT)
+
+        // 2. OTP & Verification codes
+        val otpKeywords = listOf(
+                "رمز پویا", "رمزدوم", "رمز دوم",
+                "کد تایید", "کد تأیید", "کد تاييد", "کدتاييد", "کدتایید",
+                "کد ورود", "کد فعال", "کد امنیتی", "کد شناسایی",
+                "verification", "otp", "security code"
         )
-        beginGroup()
-        keywords.forEachIndexed { index, keyword ->
-            if (index > 0) or()
-            contains("lastMessage.body", keyword, Case.INSENSITIVE)
+        if (otpKeywords.any { body.contains(it) }) {
+            return MessageCategory.OTP
         }
-        or()
-        contains("recipients.address", "bank", Case.INSENSITIVE)
-        endGroup()
-        return this
+
+        // 3. Bank & Financial messages
+        val bankKeywords = listOf(
+                "بانک", "بانك", "واریز", "واريز", "برداشت",
+                "مانده", "موجودی", "موجودي", "حساب",
+                "شبا", "ساتنا", "پایا", "پايا", "تسهیلات", "تسهيلات",
+                "بلوبانک", "کارت به کارت", "كارت به كارت", "سود", "قسط"
+        )
+        if (bankKeywords.any { body.contains(it) } || addrLower.contains("bank")) {
+            return MessageCategory.BANK
+        }
+
+        // 4. Personal Unknown mobile numbers
+        if (isPersonalMobileNumber(address)) {
+            return MessageCategory.UNKNOWN
+        }
+
+        // 5. Other / Promotional / Shortcodes
+        return MessageCategory.OTHER
+    }
+
+    private fun isPersonalMobileNumber(address: String): Boolean {
+        val cleaned = address.replace(" ", "").replace("-", "")
+        if (cleaned.startsWith("09000") || cleaned.startsWith("+989000") || cleaned.startsWith("989000")) {
+            return false
+        }
+        return Regex("^(\\+98|0098|98|0)?9\\d{9}$").matches(cleaned)
     }
 
     override fun bindView(view: MainView) {
@@ -270,7 +279,7 @@ class MainViewModel @Inject constructor(
                 .map { query -> query.trim() }
                 .withLatestFrom(state) { query, state ->
                     if (query.isEmpty() && state.page is Searching) {
-                        newState { copy(page = Inbox(data = getConversationsByCategory(currentCategory), category = currentCategory)) }
+                        refreshInboxCategory(forceInbox = true)
                     }
                     query
                 }
@@ -333,7 +342,7 @@ class MainViewModel @Inject constructor(
                             state.page is Inbox && state.page.selected > 0 -> view.clearSelection()
                             state.page is Archived && state.page.selected > 0 -> view.clearSelection()
                             state.page !is Inbox -> {
-                                newState { copy(page = Inbox(data = getConversationsByCategory(currentCategory), category = currentCategory)) }
+                                refreshInboxCategory(forceInbox = true)
                             }
                             else -> newState { copy(hasError = true) }
                         }
@@ -351,7 +360,7 @@ class MainViewModel @Inject constructor(
                 .distinctUntilChanged()
                 .doOnNext { drawerItem ->
                     when (drawerItem) {
-                        NavItem.INBOX -> newState { copy(page = Inbox(data = getConversationsByCategory(currentCategory), category = currentCategory)) }
+                        NavItem.INBOX -> refreshInboxCategory(forceInbox = true)
                         NavItem.ARCHIVED -> newState { copy(page = Archived(data = conversationRepo.getConversations(true))) }
                         else -> Unit
                     }
