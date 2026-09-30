@@ -79,18 +79,23 @@ class MainViewModel @Inject constructor(
         // Load initial category
         refreshInboxCategory()
 
-        // Automatically refresh category & unread badges whenever any message arrives or changes
+        // Refresh category & unread badges on the main thread whenever Realm conversations change
         disposables += allInboxConversations.asObservable()
-                .filter { it.isLoaded && it.isValid }
-                .debounce(150, TimeUnit.MILLISECONDS)
                 .observeOn(AndroidSchedulers.mainThread())
+                .filter { it.isLoaded && it.isValid }
                 .subscribe({ refreshInboxCategory() }, {})
 
-        // Show the syncing UI
+        // Show the syncing UI and refresh categories as soon as syncing completes
         disposables += syncRepository.syncProgress
                 .sample(16, TimeUnit.MILLISECONDS)
                 .distinctUntilChanged()
-                .subscribe { syncing -> newState { copy(syncing = syncing) } }
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribe { syncing ->
+                    newState { copy(syncing = syncing) }
+                    if (syncing is SyncRepository.SyncProgress.Idle) {
+                        refreshInboxCategory()
+                    }
+                }
 
         // Update the upgraded status
         disposables += billingManager.upgradeStatus
@@ -103,9 +108,14 @@ class MainViewModel @Inject constructor(
         // Migrate the preferences from 2.7.3
         migratePreferences.execute(Unit)
 
-        // If we have all permissions and we've never run a sync, run a sync.
-        val lastSync = Realm.getDefaultInstance().use { realm -> realm.where(SyncLog::class.java)?.max("date") ?: 0 }
-        if (lastSync == 0 && permissionManager.isDefaultSms() && permissionManager.hasReadSms() && permissionManager.hasContacts()) {
+        // If we have all permissions and no conversations are synced yet, run a sync
+        val hasAnyConversations = Realm.getDefaultInstance().use { realm ->
+            realm.where(Conversation::class.java).count() > 0L
+        }
+        val lastSync = Realm.getDefaultInstance().use { realm ->
+            realm.where(SyncLog::class.java)?.max("date")?.toLong() ?: 0L
+        }
+        if ((lastSync == 0L || !hasAnyConversations) && permissionManager.isDefaultSms() && permissionManager.hasReadSms() && permissionManager.hasContacts()) {
             syncMessages.execute(Unit)
         }
 
@@ -139,16 +149,13 @@ class MainViewModel @Inject constructor(
 
     private fun queryCategoryDataAndCounts(selectedCategory: MessageCategory): Pair<RealmResults<Conversation>, Map<MessageCategory, Int>> {
         val realm = Realm.getDefaultInstance()
+        realm.refresh()
+
         val allActive = realm.where(Conversation::class.java)
                 .notEqualTo("id", 0L)
                 .equalTo("archived", false)
                 .equalTo("blocked", false)
                 .isNotEmpty("recipients")
-                .beginGroup()
-                .isNotNull("lastMessage")
-                .or()
-                .isNotEmpty("draft")
-                .endGroup()
                 .findAll()
 
         val matchingIds = mutableListOf<Long>()
@@ -161,6 +168,8 @@ class MainViewModel @Inject constructor(
         )
 
         for (conv in allActive) {
+            if (conv.lastMessage == null && conv.draft.isEmpty()) continue
+
             val cat = classifyConversation(conv)
             if (cat == selectedCategory) {
                 matchingIds.add(conv.id)
@@ -247,8 +256,10 @@ class MainViewModel @Inject constructor(
                 .share()
 
         permissions
+                .observeOn(AndroidSchedulers.mainThread())
                 .doOnNext { (defaultSms, smsPermission, contactPermission) ->
                     newState { copy(defaultSms = defaultSms, smsPermission = smsPermission, contactPermission = contactPermission) }
+                    refreshInboxCategory()
                 }
                 .autoDisposable(view.scope())
                 .subscribe()
@@ -295,6 +306,13 @@ class MainViewModel @Inject constructor(
                 .map(conversationRepo::searchConversations)
                 .autoDisposable(view.scope())
                 .subscribe { data -> newState { copy(page = Searching(loading = false, data = data)) } }
+
+        view.activityResumedIntent
+                .filter { resumed -> resumed }
+                .observeOn(AndroidSchedulers.mainThread())
+                .doOnNext { refreshInboxCategory() }
+                .autoDisposable(view.scope())
+                .subscribe()
 
         view.activityResumedIntent
                 .filter { resumed -> !resumed }
