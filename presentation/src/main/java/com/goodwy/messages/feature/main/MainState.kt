@@ -6,7 +6,6 @@ import com.goodwy.messages.repository.SyncRepository
 import io.realm.RealmResults
 
 enum class MessageCategory {
-    ALL,
     CONTACTS,
     UNKNOWN,
     BANK,
@@ -34,7 +33,8 @@ data class Inbox(
     val markRead: Boolean = false,
     val data: RealmResults<Conversation>? = null,
     val selected: Int = 0,
-    val category: MessageCategory = MessageCategory.ALL
+    val category: MessageCategory = MessageCategory.CONTACTS,
+    val unreadCounts: Map<MessageCategory, Int> = emptyMap()
 ) : MainPage()
 
 data class Searching(
