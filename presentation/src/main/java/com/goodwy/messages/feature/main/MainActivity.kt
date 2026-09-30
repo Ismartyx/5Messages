@@ -3,6 +3,7 @@ package com.goodwy.messages.feature.main
 import android.Manifest
 import android.animation.ObjectAnimator
 import android.app.AlertDialog
+import android.content.ClipData
 import android.content.Context
 import android.content.Intent
 import android.content.res.ColorStateList
@@ -11,6 +12,7 @@ import android.graphics.Typeface
 import android.os.Build
 import android.os.Bundle
 import android.text.InputType
+import android.view.DragEvent
 import android.view.Gravity
 import android.view.Menu
 import android.view.MenuItem
@@ -65,7 +67,6 @@ import kotlinx.android.synthetic.main.main_activity.toolbar
 import kotlinx.android.synthetic.main.main_activity.toolbarTitle
 import kotlinx.android.synthetic.main.main_permission_hint.*
 import kotlinx.android.synthetic.main.main_syncing.*
-import java.util.Collections
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 
@@ -134,6 +135,7 @@ class MainActivity : QkThemedActivity(), MainView {
     private val syncing by lazy { findViewById<View>(R.id.syncing) }
     private val backPressedSubject: Subject<NavItem> = PublishSubject.create()
     private var currentSelectedIds: List<Long> = emptyList()
+    private var draggedTabIndex: Int = -1
 
     private val categoryColors = mapOf(
         MessageCategory.CONTACTS to Color.parseColor("#0EA5E9"), // Sky Blue
@@ -189,6 +191,8 @@ class MainActivity : QkThemedActivity(), MainView {
         itemTouchCallback.adapter = conversationsAdapter
         conversationsAdapter.autoScrollToStart(recyclerView)
 
+        setupDragAndDropForCategoryTabs()
+
         backup?.setOnLongClickListener {
             drawerLayout.closeDrawer(GravityCompat.START)
             showNextcloudSettingsDialog()
@@ -235,6 +239,52 @@ class MainActivity : QkThemedActivity(), MainView {
         }
     }
 
+    private fun setupDragAndDropForCategoryTabs() {
+        tabViews.forEachIndexed { index, tabView ->
+            // با نگه داشتن دست روی هر تب، قابلیت کشیدن و رها کردن (Drag & Drop) فعال می‌شود
+            tabView.setOnLongClickListener { view ->
+                draggedTabIndex = index
+                val clipData = ClipData.newPlainText("tab_index", index.toString())
+                val shadowBuilder = View.DragShadowBuilder(view)
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                    view.startDragAndDrop(clipData, shadowBuilder, view, 0)
+                } else {
+                    @Suppress("DEPRECATION")
+                    view.startDrag(clipData, shadowBuilder, view, 0)
+                }
+                view.alpha = 0.5f
+                true
+            }
+
+            tabView.setOnDragListener { targetView, event ->
+                when (event.action) {
+                    DragEvent.ACTION_DRAG_STARTED -> true
+                    DragEvent.ACTION_DRAG_ENTERED -> {
+                        val fromIdx = draggedTabIndex
+                        val toIdx = tabViews.indexOf(targetView)
+                        if (fromIdx != -1 && toIdx != -1 && fromIdx != toIdx) {
+                            val currentOrder = viewModel.getSavedCategoryOrder().toMutableList()
+                            if (fromIdx in currentOrder.indices && toIdx in currentOrder.indices) {
+                                val movedItem = currentOrder.removeAt(fromIdx)
+                                currentOrder.add(toIdx, movedItem)
+                                draggedTabIndex = toIdx
+                                viewModel.saveCategoryOrder(currentOrder)
+                            }
+                        }
+                        true
+                    }
+                    DragEvent.ACTION_DROP -> true
+                    DragEvent.ACTION_DRAG_ENDED -> {
+                        tabViews.forEach { it.alpha = 1.0f }
+                        draggedTabIndex = -1
+                        true
+                    }
+                    else -> false
+                }
+            }
+        }
+    }
+
     private fun forceWhiteStatusBarIcons() {
         try {
             window.statusBarColor = Color.parseColor("#0B1220")
@@ -250,51 +300,13 @@ class MainActivity : QkThemedActivity(), MainView {
         } catch (_: Exception) {}
     }
 
-    private fun showReorderCategoryDialog(selectedCat: MessageCategory) {
-        val currentOrder = viewModel.getSavedCategoryOrder().toMutableList()
-        val currentIndex = currentOrder.indexOf(selectedCat)
-        if (currentIndex == -1) return
-        val catTitle = categoryLabels[selectedCat] ?: ""
-
-        val options = arrayOf(
-            "انتقال به اول لیست (سمت چپ)",
-            "یک واحد به چپ",
-            "یک واحد به راست",
-            "انتقال به آخر لیست (سمت راست)"
-        )
-
-        AlertDialog.Builder(this)
-                .setTitle("جابجایی پوشه «$catTitle»")
-                .setItems(options) { _, which ->
-                    when (which) {
-                        0 -> {
-                            currentOrder.removeAt(currentIndex)
-                            currentOrder.add(0, selectedCat)
-                        }
-                        1 -> if (currentIndex > 0) {
-                            Collections.swap(currentOrder, currentIndex, currentIndex - 1)
-                        }
-                        2 -> if (currentIndex < currentOrder.size - 1) {
-                            Collections.swap(currentOrder, currentIndex, currentIndex + 1)
-                        }
-                        3 -> {
-                            currentOrder.removeAt(currentIndex)
-                            currentOrder.add(selectedCat)
-                        }
-                    }
-                    viewModel.saveCategoryOrder(currentOrder)
-                }
-                .setNegativeButton("انصراف", null)
-                .show()
-    }
-
     private fun showMoveConversationsCategoryDialog(selectedThreadIds: List<Long>) {
         if (selectedThreadIds.isEmpty()) return
         val categories = viewModel.getSavedCategoryOrder()
         val titles = categories.map { categoryLabels[it] ?: it.name }.toTypedArray()
 
         AlertDialog.Builder(this)
-                .setTitle("انتقال به کدام دسته‌بندی؟")
+                .setTitle("انتقال به کدام پوشه؟")
                 .setItems(titles) { _, which ->
                     val targetCategory = categories[which]
                     viewModel.setManualCategoryForConversations(selectedThreadIds, targetCategory)
@@ -490,16 +502,16 @@ class MainActivity : QkThemedActivity(), MainView {
                 compose?.setBackgroundTint(activeCategoryColor)
                 compose?.setTint(Color.WHITE)
 
-                // Safe binding of ordered categories to the 5 tab views without removing views from layout
                 val orderedCategories = viewModel.getSavedCategoryOrder()
                 tabViews.forEachIndexed { index, tabView ->
                     val category = orderedCategories.getOrNull(index) ?: return@forEachIndexed
                     val label = categoryLabels[category] ?: ""
-                    val unreadCount = state.page.unreadCounts[category] ?: 0
+                    val hasUnread = (state.page.unreadCounts[category] ?: 0) > 0
                     val isSelected = state.page.category == category
                     val catColor = categoryColors[category] ?: Color.parseColor("#0EA5E9")
 
-                    tabView.text = if (unreadCount > 0) "$label ($unreadCount)" else label
+                    // نمایش نام تمیز فولدر بدون اعداد گیج‌کننده (فقط یک نقطه کوچک در صورت داشتن پیام نخوانده)
+                    tabView.text = if (hasUnread) "$label •" else label
                     tabView.setBackgroundTint(if (isSelected) catColor else inactiveBg)
                     tabView.setTextColor(if (isSelected) Color.WHITE else catColor)
                     tabView.setTypeface(null, Typeface.BOLD)
@@ -507,10 +519,6 @@ class MainActivity : QkThemedActivity(), MainView {
                     tabView.setOnClickListener {
                         clearSelection()
                         viewModel.setCategory(category)
-                    }
-                    tabView.setOnLongClickListener {
-                        showReorderCategoryDialog(category)
-                        true
                     }
                 }
             }
@@ -669,8 +677,9 @@ class MainActivity : QkThemedActivity(), MainView {
 
     override fun onCreateOptionsMenu(menu: Menu?): Boolean {
         menuInflater.inflate(R.menu.main, menu)
-        menu?.add(0, MENU_MOVE_CATEGORY, 0, "تغییر دسته‌بندی (انتقال به پوشه)")?.apply {
-            setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER)
+        // قرار دادن دکمه مستقیم «پوشه» در نوار بالای صفحه هنگام انتخاب پیام (همراه با حضور در منوی سه‌نقطه)
+        menu?.add(0, MENU_MOVE_CATEGORY, 0, "انتقال به پوشه")?.apply {
+            setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS)
         }
         return super.onCreateOptionsMenu(menu)
     }
