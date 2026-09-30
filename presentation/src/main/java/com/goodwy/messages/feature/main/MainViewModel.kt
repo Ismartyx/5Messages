@@ -82,8 +82,8 @@ class MainViewModel @Inject constructor(
         disposables += syncMessages
 
         // Force dark theme globally so chat screen and settings match FinanceApp dark style
-        if (prefs.nightMode.get() != Preferences.NIGHT_MODE_DARK) {
-            prefs.nightMode.set(Preferences.NIGHT_MODE_DARK)
+        if (prefs.nightMode.get() != 1) {
+            prefs.nightMode.set(1)
             prefs.black.set(false)
         }
 
@@ -234,7 +234,7 @@ class MainViewModel @Inject constructor(
     private fun classifyConversation(conv: Conversation): MessageCategory {
         val address = conv.recipients.firstOrNull()?.address?.trim() ?: ""
 
-        // 0. اولویت اول: اگر کاربر دستی دسته‌بندی این شماره یا مکالمه را انتخاب کرده باشد
+        // 0. اولویت اول: اگر کاربر دستی دسته‌‌بندی این شماره یا مکالمه را انتخاب کرده باشد
         val manualByThread = manualPrefs.getString("thread_${conv.id}", null)
         if (manualByThread != null) {
             try { return MessageCategory.valueOf(manualByThread) } catch (_: Exception) {}
