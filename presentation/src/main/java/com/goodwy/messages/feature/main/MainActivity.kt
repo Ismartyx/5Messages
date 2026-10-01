@@ -367,295 +367,216 @@ class MainActivity : QkThemedActivity(), MainView {
 
     private fun showNextcloudSettingsDialog() {
         val sp = getSharedPreferences("${packageName}_preferences", Context.MODE_PRIVATE)
-        val currentServer = sp.getString("nc_server", "https://nc.paranas.ir") ?: "https://nc.paranas.ir"
+        val currentServer = sp.getString("nc_server", "[https://nc.paranas.ir](https://nc.paranas.ir)") ?: "[https://nc.paranas.ir](https://nc.paranas.ir)"
         val currentUser = sp.getString("nc_user", "saeed") ?: "saeed"
         val currentPass = sp.getString("nc_pass", "") ?: ""
         val currentPath = sp.getString("nc_path", "Backups/MessagesBackup/Messages_Backup.json")
                 ?: "Backups/MessagesBackup/Messages_Backup.json"
         val currentAuto = sp.getBoolean("nc_auto_backup", true)
 
-        val scrollView = ScrollView(this)
-        val card = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(dp(20), dp(20), dp(20), dp(20))
-            background = makeRoundedBg("#0B1220", "#1E293B", 18)
-        }
-        scrollView.addView(card)
+        val dp = resources.displayMetrics.density
+        fun Int.dp(): Int = (this * dp).toInt()
 
-        // عنوان بالا: اتصال خودکار به سرور نکست‌کلاد
-        val header = TextView(this).apply {
+        fun makeInputBg(): android.graphics.drawable.GradientDrawable {
+            return android.graphics.drawable.GradientDrawable().apply {
+                setColor(Color.parseColor("#0B1220"))
+                cornerRadius = 12f * dp
+                setStroke((1 * dp).toInt(), Color.parseColor("#1E293B"))
+            }
+        }
+
+        fun makeButtonBg(hexColor: String): android.graphics.drawable.GradientDrawable {
+            return android.graphics.drawable.GradientDrawable().apply {
+                setColor(Color.parseColor(hexColor))
+                cornerRadius = 14f * dp
+            }
+        }
+
+        fun makeLabel(textStr: String): TextView {
+            return TextView(this).apply {
+                text = textStr
+                setTextColor(Color.parseColor("#9CA3AF"))
+                textSize = 12f
+                gravity = Gravity.RIGHT
+                setPadding(4.dp(), 10.dp(), 4.dp(), 6.dp())
+            }
+        }
+
+        val rootCard = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(20.dp(), 20.dp(), 20.dp(), 20.dp())
+            background = android.graphics.drawable.GradientDrawable().apply {
+                setColor(Color.parseColor("#111827"))
+                cornerRadius = 18f * dp
+                setStroke((1 * dp).toInt(), Color.parseColor("#1F2937"))
+            }
+        }
+
+        val headerTitle = TextView(this).apply {
             text = "☁️ اتصال خودکار به سرور نکست‌کلاد"
-            setTextColor(Color.parseColor("#38BDF8"))
-            textSize = 16f
+            setTextColor(Color.parseColor("#0EA5E9"))
+            textSize = 15f
             setTypeface(null, Typeface.BOLD)
             gravity = Gravity.RIGHT
-            setPadding(0, 0, 0, dp(16))
+            setPadding(0, 0, 0, 12.dp())
         }
-        card.addView(header)
 
-        // ۱. آدرس سرور نکست‌کلاد
-        val serverLabel = TextView(this).apply {
-            text = "آدرس سرور نکست‌کلاد"
-            setTextColor(Color.parseColor("#94A3B8"))
-            textSize = 13f
-            gravity = Gravity.RIGHT
-            setPadding(0, 0, 0, dp(6))
-        }
-        val serverInput = EditText(this).apply {
+        val serverEdit = EditText(this).apply {
             setText(currentServer)
-            hint = "https://nc.paranas.ir"
+            hint = "[https://nc.paranas.ir](https://nc.paranas.ir)"
+            setHintTextColor(Color.parseColor("#6B7280"))
             setTextColor(Color.WHITE)
-            setHintTextColor(Color.parseColor("#64748B"))
             textSize = 14f
-            gravity = Gravity.LEFT or Gravity.CENTER_VERTICAL
-            setPadding(dp(14), dp(12), dp(14), dp(12))
-            background = makeRoundedBg("#090E1A", "#1E293B", 12)
+            background = makeInputBg()
+            setPadding(14.dp(), 12.dp(), 14.dp(), 12.dp())
             inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_URI
         }
-        card.addView(serverLabel)
-        card.addView(serverInput)
 
-        // ۲. ردیف دو ستونه: نام کاربری (راست) و رمز / App Password (چپ)
-        val credentialsRow = LinearLayout(this).apply {
+        // ردیف دو ستونه برای نام کاربری و رمز / App Password
+        val credentialsLabelsRow = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             weightSum = 2f
-            setPadding(0, dp(14), 0, 0)
         }
+        val passLabel = makeLabel("رمز / App Password").apply {
+            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply { rightMargin = 6.dp() }
+        }
+        val userLabel = makeLabel("نام کاربری").apply {
+            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply { leftMargin = 6.dp() }
+        }
+        credentialsLabelsRow.addView(passLabel)
+        credentialsLabelsRow.addView(userLabel)
 
-        val passCol = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f).apply {
-                marginEnd = dp(6)
-            }
+        val credentialsInputsRow = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            weightSum = 2f
         }
-        val passLabel = TextView(this).apply {
-            text = "رمز / App Password"
-            setTextColor(Color.parseColor("#94A3B8"))
-            textSize = 12f
-            gravity = Gravity.RIGHT
-            setPadding(0, 0, 0, dp(6))
-        }
-        val passInput = EditText(this).apply {
+        val passEdit = EditText(this).apply {
             setText(currentPass)
             hint = "••••••••••••"
+            setHintTextColor(Color.parseColor("#6B7280"))
             setTextColor(Color.WHITE)
-            setHintTextColor(Color.parseColor("#64748B"))
             textSize = 14f
-            gravity = Gravity.LEFT or Gravity.CENTER_VERTICAL
-            setPadding(dp(14), dp(12), dp(14), dp(12))
-            background = makeRoundedBg("#090E1A", "#1E293B", 12)
+            background = makeInputBg()
+            setPadding(14.dp(), 12.dp(), 14.dp(), 12.dp())
             inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD
+            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply { rightMargin = 6.dp() }
         }
-        passCol.addView(passLabel)
-        passCol.addView(passInput)
-
-        val userCol = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f).apply {
-                marginStart = dp(6)
-            }
-        }
-        val userLabel = TextView(this).apply {
-            text = "نام کاربری"
-            setTextColor(Color.parseColor("#94A3B8"))
-            textSize = 12f
-            gravity = Gravity.RIGHT
-            setPadding(0, 0, 0, dp(6))
-        }
-        val userInput = EditText(this).apply {
+        val userEdit = EditText(this).apply {
             setText(currentUser)
             hint = "saeed"
+            setHintTextColor(Color.parseColor("#6B7280"))
             setTextColor(Color.WHITE)
-            setHintTextColor(Color.parseColor("#64748B"))
             textSize = 14f
-            gravity = Gravity.LEFT or Gravity.CENTER_VERTICAL
-            setPadding(dp(14), dp(12), dp(14), dp(12))
-            background = makeRoundedBg("#090E1A", "#1E293B", 12)
+            background = makeInputBg()
+            setPadding(14.dp(), 12.dp(), 14.dp(), 12.dp())
             inputType = InputType.TYPE_CLASS_TEXT
+            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply { leftMargin = 6.dp() }
         }
-        userCol.addView(userLabel)
-        userCol.addView(userInput)
+        credentialsInputsRow.addView(passEdit)
+        credentialsInputsRow.addView(userEdit)
 
-        credentialsRow.addView(passCol)
-        credentialsRow.addView(userCol)
-        card.addView(credentialsRow)
-
-        // ۳. نام فایل در نکست‌کلاد
-        val pathLabel = TextView(this).apply {
-            text = "نام فایل در نکست‌کلاد"
-            setTextColor(Color.parseColor("#94A3B8"))
-            textSize = 13f
-            gravity = Gravity.RIGHT
-            setPadding(0, dp(14), 0, dp(6))
-        }
-        val pathInput = EditText(this).apply {
+        val pathEdit = EditText(this).apply {
             setText(currentPath)
             hint = "Backups/MessagesBackup/Messages_Backup.json"
-            setTextColor(Color.WHITE)
-            setHintTextColor(Color.parseColor("#64748B"))
-            textSize = 14f
-            gravity = Gravity.LEFT or Gravity.CENTER_VERTICAL
-            setPadding(dp(14), dp(12), dp(14), dp(12))
-            background = makeRoundedBg("#090E1A", "#1E293B", 12)
-            inputType = InputType.TYPE_CLASS_TEXT
-        }
-        card.addView(pathLabel)
-        card.addView(pathInput)
-
-        // ۴. تیک بکاپ اتوماتیک پس از هر تغییر
-        val autoCheck = CheckBox(this).apply {
-            text = "بکاپ اتوماتیک پس از هر تغییر"
+            setHintTextColor(Color.parseColor("#6B7280"))
             setTextColor(Color.WHITE)
             textSize = 13f
+            background = makeInputBg()
+            setPadding(14.dp(), 12.dp(), 14.dp(), 12.dp())
+            inputType = InputType.TYPE_CLASS_TEXT
+        }
+
+        val autoBackupCheck = CheckBox(this).apply {
+            text = "بکاپ اتوماتیک پس از هر تغییر"
+            setTextColor(Color.parseColor("#F9FAFB"))
             isChecked = currentAuto
             buttonTintList = ColorStateList.valueOf(Color.parseColor("#0EA5E9"))
             layoutDirection = View.LAYOUT_DIRECTION_RTL
             gravity = Gravity.RIGHT or Gravity.CENTER_VERTICAL
-            val params = LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply {
-                gravity = Gravity.RIGHT
-                topMargin = dp(14)
-                bottomMargin = dp(14)
-            }
-            layoutParams = params
+            setPadding(0, 14.dp(), 0, 14.dp())
         }
-        card.addView(autoCheck)
 
-        // ۵. ردیف دکمه‌های سبز (ذخیره و بکاپ ابری) و نارنجی (بازیابی از سرور)
         val buttonsRow = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             weightSum = 2f
+            setPadding(0, 8.dp(), 0, 0)
         }
 
-        val restoreBtn = Button(this).apply {
+        val restoreBtn = TextView(this).apply {
             text = "☁️ بازیابی از سرور"
             setTextColor(Color.WHITE)
-            textSize = 13f
+            textSize = 14f
             setTypeface(null, Typeface.BOLD)
-            isAllCaps = false
-            background = makeRoundedBg("#F59E0B", null, 12)
-            layoutParams = LinearLayout.LayoutParams(0, dp(48), 1f).apply {
-                marginEnd = dp(6)
-            }
+            gravity = Gravity.CENTER
+            background = makeButtonBg("#F59E0B")
+            setPadding(12.dp(), 14.dp(), 12.dp(), 14.dp())
+            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply { rightMargin = 6.dp() }
         }
 
-        val saveBackupBtn = Button(this).apply {
+        val saveBackupBtn = TextView(this).apply {
             text = "💾 ذخیره و بکاپ ابری"
             setTextColor(Color.WHITE)
-            textSize = 13f
+            textSize = 14f
             setTypeface(null, Typeface.BOLD)
-            isAllCaps = false
-            background = makeRoundedBg("#10B981", null, 12)
-            layoutParams = LinearLayout.LayoutParams(0, dp(48), 1f).apply {
-                marginStart = dp(6)
-            }
+            gravity = Gravity.CENTER
+            background = makeButtonBg("#22C55E")
+            setPadding(12.dp(), 14.dp(), 12.dp(), 14.dp())
+            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply { leftMargin = 6.dp() }
         }
 
         buttonsRow.addView(restoreBtn)
         buttonsRow.addView(saveBackupBtn)
-        card.addView(buttonsRow)
 
-        // دکمه رفتن به لیست فایل‌های بکاپ محلی
-        val localFilesBtn = Button(this).apply {
-            text = "📂 مدیریت فایل‌های بکاپ محلی"
-            setTextColor(Color.parseColor("#94A3B8"))
-            textSize = 12f
-            isAllCaps = false
-            background = makeRoundedBg("#111827", "#1E293B", 10)
-            layoutParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(40)).apply {
-                topMargin = dp(12)
-            }
-        }
-        card.addView(localFilesBtn)
+        rootCard.addView(headerTitle)
+        rootCard.addView(makeLabel("آدرس سرور نکست‌کلاد"))
+        rootCard.addView(serverEdit)
+        rootCard.addView(credentialsLabelsRow)
+        rootCard.addView(credentialsInputsRow)
+        rootCard.addView(makeLabel("نام فایل در نکست‌کلاد"))
+        rootCard.addView(pathEdit)
+        rootCard.addView(autoBackupCheck)
+        rootCard.addView(buttonsRow)
 
         val dialog = AlertDialog.Builder(this)
-                .setView(scrollView)
+                .setView(rootCard)
                 .create()
 
         dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
 
-        fun saveInputsToPrefs() {
-            val srv = serverInput.text.toString().trim().ifEmpty { "https://nc.paranas.ir" }
-            val usr = userInput.text.toString().trim().ifEmpty { "saeed" }
-            val pwd = passInput.text.toString().trim()
-            val pth = pathInput.text.toString().trim().ifEmpty { "Backups/MessagesBackup/Messages_Backup.json" }
-            val aut = autoCheck.isChecked
-
+        fun saveFieldsToPrefs() {
+            val srv = serverEdit.text.toString().trim().trimEnd('/')
+            val usr = userEdit.text.toString().trim()
+            val pwd = passEdit.text.toString().trim()
+            val pth = pathEdit.text.toString().trim().trimStart('/')
             sp.edit()
-                    .putString("nc_server", srv)
-                    .putString("nc_user", usr)
+                    .putString("nc_server", if (srv.isEmpty()) "[https://nc.paranas.ir](https://nc.paranas.ir)" else srv)
+                    .putString("nc_user", if (usr.isEmpty()) "saeed" else usr)
                     .putString("nc_pass", pwd)
-                    .putString("nc_path", pth)
-                    .putBoolean("nc_auto_backup", aut)
+                    .putString("nc_path", if (pth.isEmpty()) "Backups/MessagesBackup/Messages_Backup.json" else pth)
+                    .putBoolean("nc_auto_backup", autoBackupCheck.isChecked)
                     .putLong("nc_last_auto_backup", System.currentTimeMillis())
                     .apply()
         }
 
         saveBackupBtn.setOnClickListener {
-            saveInputsToPrefs()
+            saveFieldsToPrefs()
             dialog.dismiss()
-            Toast.makeText(this, "در حال ذخیره و ارسال بکاپ به سرور نکست‌‌کلاد...", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, "در حال ذخیره و ارسال بکاپ به سرور نکست‌کلاد...", Toast.LENGTH_SHORT).show()
             Completable.fromAction { backupRepo.performBackup() }
                     .subscribeOn(Schedulers.io())
-                    .observeOn(AndroidSchedulers.mainThread())
-                    .subscribe({
-                        Toast.makeText(this, "✅ بکاپ ابری در نکست‌کلاد ذخیره شد", Toast.LENGTH_LONG).show()
-                    }, {
-                        Toast.makeText(this, "خطا در ارسال به سرور", Toast.LENGTH_SHORT).show()
-                    })
+                    .subscribe({}, {})
         }
 
         restoreBtn.setOnClickListener {
-            saveInputsToPrefs()
+            saveFieldsToPrefs()
             dialog.dismiss()
-            Toast.makeText(this, "در حال دریافت فایل بکاپ از سرور نکست‌‌کلاد...", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, "در حال دریافت و بازیابی بکاپ از سرور نکست‌کلاد...", Toast.LENGTH_LONG).show()
             Completable.fromAction {
-                val srv = (sp.getString("nc_server", "https://nc.paranas.ir") ?: "").trim().trimEnd('/')
-                val usr = (sp.getString("nc_user", "saeed") ?: "").trim()
-                val pwd = (sp.getString("nc_pass", "") ?: "").trim()
-                val pth = (sp.getString("nc_path", "Backups/MessagesBackup/Messages_Backup.json") ?: "").trim().trimStart('/')
-
-                if (srv.isEmpty() || usr.isEmpty() || pwd.isEmpty() || pth.isEmpty()) {
-                    throw IllegalStateException("اطلاعات سرور کامل نیست")
-                }
-
-                val auth = "Basic " + Base64.encodeToString("$usr:$pwd".toByteArray(Charsets.UTF_8), Base64.NO_WRAP)
-                val targetUrl = "$srv/remote.php/dav/files/$usr/$pth"
-
-                val conn = (URL(targetUrl).openConnection() as HttpURLConnection).apply {
-                    requestMethod = "GET"
-                    setRequestProperty("Authorization", auth)
-                    connectTimeout = 15000
-                    readTimeout = 30000
-                }
-
-                if (conn.responseCode !in 200..299) {
-                    val code = conn.responseCode
-                    conn.disconnect()
-                    throw IllegalStateException("HTTP $code")
-                }
-
-                val bytes = conn.inputStream.use { it.readBytes() }
-                conn.disconnect()
-
-                val dir = (getExternalFilesDir("Backups") ?: File(filesDir, "Backups")).apply { mkdirs() }
-                val cloudFile = File(dir, "backup-nextcloud-restore.json")
-                FileOutputStream(cloudFile, false).use { it.write(bytes) }
-
-                backupRepo.performRestore(cloudFile.absolutePath)
+                // با صدا زدن مسیر ویژه __NEXTCLOUD_DIRECT__، مستقیم از سرور دانلود و بازیابی می‌شود
+                backupRepo.performRestore("__NEXTCLOUD_DIRECT__")
             }
-            .subscribeOn(Schedulers.io())
-            .observeOn(AndroidSchedulers.mainThread())
-            .subscribe({
-                Toast.makeText(this, "✅ بازیابی اطلاعات و تنظیمات از سرور انجام شد!", Toast.LENGTH_LONG).show()
-            }, { err ->
-                Toast.makeText(this, "❌ خطا در بازیابی از سرور: ${err.message}", Toast.LENGTH_LONG).show()
-            })
-        }
-
-        localFilesBtn.setOnClickListener {
-            saveInputsToPrefs()
-            dialog.dismiss()
-            navigator.showBackup()
+                    .subscribeOn(Schedulers.io())
+                    .subscribe({}, {})
         }
 
         dialog.show()
