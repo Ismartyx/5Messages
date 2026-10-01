@@ -19,12 +19,12 @@ jobs:
           distribution: 'temurin'
           java-version: '8'
 
-      - name: Apply Global Dark Theme, Telegram-Style Icon, App Name & Internet Permission
+      - name: Apply Global Dark Theme, Telegram-Style Icon, App Name & Permissions
         run: |
           python3 - << 'PYEOF'
           import os, glob, re
 
-          # ۱. تغییر نام برنامه به Messages
+          # ۱. تغییر نام برنامه به Messages در ریسورس‌ها و گریدل
           for s_file in glob.glob("**/src/**/res/values*/strings.xml", recursive=True):
               with open(s_file, "r") as f:
                   content = f.read()
@@ -40,19 +40,33 @@ jobs:
               with open(g_file, "w") as f:
                   f.write(g)
 
+          # ۲. تنظیم مانیفست: تغییر نام قطعی، رفع تداخل با tools:replace و افزودن مجوز اینترنت
           manifest_file = "presentation/src/main/AndroidManifest.xml"
           if os.path.exists(manifest_file):
               with open(manifest_file, "r") as f:
                   m = f.read()
+              
               m = re.sub(r'android:label="@string/[^"]+"', 'android:label="Messages"', m)
               m = m.replace("4Messages", "Messages")
-              # تضمین دسترسی به اینترنت برای آپلود نکست‌کلاد
+              
+              # افزودن فضای نام tools اگر وجود نداشت
+              if "xmlns:tools=" not in m:
+                  m = m.replace("<manifest", '<manifest xmlns:tools="http://schemas.android.com/tools"')
+              
+              # افزودن tools:replace="android:label" برای رفع تداخل نام در بیلد
+              if "tools:replace=" not in m:
+                  m = m.replace("<application", '<application tools:replace="android:label"')
+              elif "android:label" not in m.split("tools:replace=")[1].split('"')[1]:
+                  m = re.sub(r'(tools:replace=")([^"]*)(")', r'\1\2,android:label\3', m)
+
+              # افزودن مجوز اینترنت
               if "android.permission.INTERNET" not in m:
                   m = m.replace("<application", '<uses-permission android:name="android.permission.INTERNET" />\n    <application')
+                  
               with open(manifest_file, "w") as f:
                   f.write(m)
 
-          # ۲. پیش‌فرض تم تاریک و سفید ماندن آیکون‌های ساعت و آنتن بالای صفحه
+          # ۳. پیش‌فرض تم تاریک و سفید ماندن آیکون‌های ساعت و آنتن بالای صفحه
           prefs_file = "domain/src/main/java/com/goodwy/messages/util/Preferences.kt"
           if os.path.exists(prefs_file):
               with open(prefs_file, "r") as f:
@@ -96,7 +110,7 @@ jobs:
               with open(style_file, "w") as f:
                   f.write(s)
 
-          # ۳. طراحی آیکون به سبک تلگرام با تغییر اختصاصی (پس‌زمینه آبی تلگرامی + موشک/پیامک مدرن سفید)
+          # ۴. طراحی آیکون به سبک تلگرام با تغییر اختصاصی
           os.makedirs("presentation/src/main/res/drawable", exist_ok=True)
           os.makedirs("presentation/src/main/res/mipmap-anydpi-v26", exist_ok=True)
 
