@@ -19,7 +19,7 @@ jobs:
           distribution: 'temurin'
           java-version: '8'
 
-      - name: Apply Global Dark Theme, Telegram-Style Icon & App Name
+      - name: Apply Global Dark Theme, Telegram-Style Icon, App Name & Internet Permission
         run: |
           python3 - << 'PYEOF'
           import os, glob, re
@@ -39,6 +39,18 @@ jobs:
               g = g.replace("4Messages", "Messages").replace("5Messages", "Messages")
               with open(g_file, "w") as f:
                   f.write(g)
+
+          manifest_file = "presentation/src/main/AndroidManifest.xml"
+          if os.path.exists(manifest_file):
+              with open(manifest_file, "r") as f:
+                  m = f.read()
+              m = re.sub(r'android:label="@string/[^"]+"', 'android:label="Messages"', m)
+              m = m.replace("4Messages", "Messages")
+              # تضمین دسترسی به اینترنت برای آپلود نکست‌کلاد
+              if "android.permission.INTERNET" not in m:
+                  m = m.replace("<application", '<uses-permission android:name="android.permission.INTERNET" />\n    <application')
+              with open(manifest_file, "w") as f:
+                  f.write(m)
 
           # ۲. پیش‌فرض تم تاریک و سفید ماندن آیکون‌های ساعت و آنتن بالای صفحه
           prefs_file = "domain/src/main/java/com/goodwy/messages/util/Preferences.kt"
@@ -103,18 +115,15 @@ jobs:
               android:height="108dp"
               android:viewportWidth="108"
               android:viewportHeight="108">
-              <!-- سایه داخلی بال موشک به سبک تلگرام -->
               <path
                   android:fillColor="#B3E5FC"
                   android:pathData="M44,62L42,76L53,66L72,42L44,62Z"/>
               <path
                   android:fillColor="#81D4FA"
                   android:pathData="M44,62L53,66L42,76L44,62Z"/>
-              <!-- بدنه اصلی موشک تلگرامی با زاویه تیز و مدرن -->
               <path
                   android:fillColor="#FFFFFF"
                   android:pathData="M78,32L26,52L44,60L72,38L50,63L66,74L78,32Z"/>
-              <!-- دو خط سرعت/پیام در دنباله موشک (تغییر اختصاصی نسبت به تلگرام) -->
               <path
                   android:fillColor="#FFFFFF"
                   android:pathData="M26,64h10v3.5h-10zM30,71h7v3.5h-7z"/>
