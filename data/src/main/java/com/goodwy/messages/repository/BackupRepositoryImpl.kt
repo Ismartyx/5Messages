@@ -114,8 +114,7 @@ class BackupRepositoryImpl @Inject constructor(
         } catch (e: Exception) {
             Timber.w(e)
             backupProgress.onNext(BackupRepository.Progress.Idle())
-            // هدایت خطا به سمت رابط کاربری برای نمایش پیغام واقعی
-            throw RuntimeException(e.message ?: "خطای ناشناخته در ارتباط با سرور")
+            throw RuntimeException(e.message ?: "خطای ناشناخته")
         }
 
         backupProgress.onNext(BackupRepository.Progress.Finished())
@@ -180,25 +179,10 @@ class BackupRepositoryImpl @Inject constructor(
     private fun uploadToNextcloud(data: ByteArray) {
         val cfg = getNextcloudConfig() ?: throw RuntimeException("لطفاً تنظیمات نکست‌کلاد را کامل کنید")
         
-        val baseDav = "${cfg.serverUrl}/remote.php/dav/files/${cfg.user}"
-        val segments = cfg.remoteFilePath.split("/").filter { it.isNotBlank() }
-
-        var currentFolderUrl = baseDav
-        for (i in 0 until segments.size - 1) {
-            currentFolderUrl += "/${segments[i]}"
-            val mkConn = (URL(currentFolderUrl).openConnection() as HttpURLConnection).apply {
-                requestMethod = "MKCOL"
-                setRequestProperty("Authorization", cfg.authHeader)
-                // اضافه کردن User-Agent برای دور زدن فایروال و Cloudflare
-                setRequestProperty("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
-                connectTimeout = 10000
-                readTimeout = 10000
-            }
-            tryOrNull { mkConn.responseCode }
-            mkConn.disconnect()
-        }
-
-        val targetFileUrl = "$baseDav/${cfg.remoteFilePath}"
+        // اطمینان از اینکه قبل از نام فایل / قرار نگیرد
+        val safePath = cfg.remoteFilePath.trimStart('/')
+        val targetFileUrl = "${cfg.serverUrl}/remote.php/dav/files/${cfg.user}/$safePath"
+        
         val conn = (URL(targetFileUrl).openConnection() as HttpURLConnection).apply {
             requestMethod = "PUT"
             doOutput = true
@@ -224,7 +208,8 @@ class BackupRepositoryImpl @Inject constructor(
             return null
         }
         try {
-            val targetFileUrl = "${cfg.serverUrl}/remote.php/dav/files/${cfg.user}/${cfg.remoteFilePath}"
+            val safePath = cfg.remoteFilePath.trimStart('/')
+            val targetFileUrl = "${cfg.serverUrl}/remote.php/dav/files/${cfg.user}/$safePath"
             val conn = (URL(targetFileUrl).openConnection() as HttpURLConnection).apply {
                 requestMethod = "GET"
                 setRequestProperty("Authorization", cfg.authHeader)
