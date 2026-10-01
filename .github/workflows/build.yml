@@ -19,12 +19,12 @@ jobs:
           distribution: 'temurin'
           java-version: '8'
 
-      - name: Apply Global Dark Theme, Fix Popup Menu, Set App Name & Flat Icon
+      - name: Apply Global Dark Theme, Telegram-Style Icon & App Name
         run: |
           python3 - << 'PYEOF'
           import os, glob, re
 
-          # ۱. تغییر نام برنامه به Messages در تمامی فایل‌های strings.xml و build.gradle (بدون دستکاری AndroidManifest)
+          # ۱. تغییر نام برنامه به Messages
           for s_file in glob.glob("**/src/**/res/values*/strings.xml", recursive=True):
               with open(s_file, "r") as f:
                   content = f.read()
@@ -36,11 +36,11 @@ jobs:
           for g_file in glob.glob("**/*.gradle", recursive=True):
               with open(g_file, "r") as f:
                   g = f.read()
-              g = g.replace("4Messages", "Messages").replace("5Messages", "Messages").replace("QKSMS", "Messages")
+              g = g.replace("4Messages", "Messages").replace("5Messages", "Messages")
               with open(g_file, "w") as f:
                   f.write(g)
 
-          # ۲. قرار دادن پیش‌فرض تم برنامه روی NIGHT_MODE_DARK در Preferences.kt
+          # ۲. پیش‌فرض تم تاریک و سفید ماندن آیکون‌های ساعت و آنتن بالای صفحه
           prefs_file = "domain/src/main/java/com/goodwy/messages/util/Preferences.kt"
           if os.path.exists(prefs_file):
               with open(prefs_file, "r") as f:
@@ -50,7 +50,6 @@ jobs:
               with open(prefs_file, "w") as f:
                   f.write(p)
 
-          # ۳. اصلاح QkThemedActivity.kt تا در صفحه چت و تمام صفحات دیگر، ساعت و آنتن بالای صفحه همیشه سفید باشند
           themed_act = "presentation/src/main/java/com/goodwy/messages/common/base/QkThemedActivity.kt"
           if os.path.exists(themed_act):
               with open(themed_act, "r") as f:
@@ -60,7 +59,6 @@ jobs:
               with open(themed_act, "w") as f:
                   f.write(ta)
 
-          # ۴. تنظیم صحیح colors.xml (تم تاریک سرمه‌ای FinanceApp)
           colors_file = "presentation/src/main/res/values/colors.xml"
           if os.path.exists(colors_file):
               with open(colors_file, "r") as f:
@@ -70,7 +68,6 @@ jobs:
               with open(colors_file, "w") as f:
                   f.write(c)
 
-          # ۵. تبدیل استایل‌ها به تم تاریک تا منوی سه‌نقطه و پنجره‌ها تیره با متن سفید خوانا باشند
           for style_file in glob.glob("presentation/src/main/res/values*/styles.xml"):
               with open(style_file, "r") as f:
                   s = f.read()
@@ -87,7 +84,7 @@ jobs:
               with open(style_file, "w") as f:
                   f.write(s)
 
-          # ۶. طراحی آیکون کاملاً تخت و ساده (Flat Solid Icon)
+          # ۳. طراحی آیکون به سبک تلگرام با تغییر اختصاصی (پس‌زمینه آبی تلگرامی + موشک/پیامک مدرن سفید)
           os.makedirs("presentation/src/main/res/drawable", exist_ok=True)
           os.makedirs("presentation/src/main/res/mipmap-anydpi-v26", exist_ok=True)
 
@@ -97,7 +94,7 @@ jobs:
               android:height="108dp"
               android:viewportWidth="108"
               android:viewportHeight="108">
-              <path android:fillColor="#0EA5E9" android:pathData="M0,0h108v108h-108z"/>
+              <path android:fillColor="#24A1DE" android:pathData="M0,0h108v108h-108z"/>
           </vector>"""
 
           fg_xml = """<?xml version="1.0" encoding="utf-8"?>
@@ -106,9 +103,21 @@ jobs:
               android:height="108dp"
               android:viewportWidth="108"
               android:viewportHeight="108">
+              <!-- سایه داخلی بال موشک به سبک تلگرام -->
+              <path
+                  android:fillColor="#B3E5FC"
+                  android:pathData="M44,62L42,76L53,66L72,42L44,62Z"/>
+              <path
+                  android:fillColor="#81D4FA"
+                  android:pathData="M44,62L53,66L42,76L44,62Z"/>
+              <!-- بدنه اصلی موشک تلگرامی با زاویه تیز و مدرن -->
               <path
                   android:fillColor="#FFFFFF"
-                  android:pathData="M32,34h44c3.3,0 6,2.7 6,6v24c0,3.3 -2.7,6 -6,6H48l-12,10V70h-4c-3.3,0 -6,-2.7 -6,-6V40c0,-3.3 2.7,-6 6,-6z"/>
+                  android:pathData="M78,32L26,52L44,60L72,38L50,63L66,74L78,32Z"/>
+              <!-- دو خط سرعت/پیام در دنباله موشک (تغییر اختصاصی نسبت به تلگرام) -->
+              <path
+                  android:fillColor="#FFFFFF"
+                  android:pathData="M26,64h10v3.5h-10zM30,71h7v3.5h-7z"/>
           </vector>"""
 
           adaptive_xml = """<?xml version="1.0" encoding="utf-8"?>
