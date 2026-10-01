@@ -113,6 +113,9 @@ class BackupRepositoryImpl @Inject constructor(
             uploadToNextcloud(json)
         } catch (e: Exception) {
             Timber.w(e)
+            backupProgress.onNext(BackupRepository.Progress.Idle())
+            // هدایت خطا به سمت رابط کاربری برای نمایش پیغام واقعی
+            throw RuntimeException(e.message ?: "خطای ناشناخته در ارتباط با سرور")
         }
 
         backupProgress.onNext(BackupRepository.Progress.Finished())
@@ -175,52 +178,63 @@ class BackupRepositoryImpl @Inject constructor(
     }
 
     private fun uploadToNextcloud(data: ByteArray) {
-        val cfg = getNextcloudConfig() ?: return
-        try {
-            val baseDav = "${cfg.serverUrl}/remote.php/dav/files/${cfg.user}"
-            val segments = cfg.remoteFilePath.split("/").filter { it.isNotBlank() }
+        val cfg = getNextcloudConfig() ?: throw RuntimeException("لطفاً تنظیمات نکست‌کلاد را کامل کنید")
+        
+        val baseDav = "${cfg.serverUrl}/remote.php/dav/files/${cfg.user}"
+        val segments = cfg.remoteFilePath.split("/").filter { it.isNotBlank() }
 
-            var currentFolderUrl = baseDav
-            for (i in 0 until segments.size - 1) {
-                currentFolderUrl += "/${segments[i]}"
-                val mkConn = (URL(currentFolderUrl).openConnection() as HttpURLConnection).apply {
-                    requestMethod = "MKCOL"
-                    setRequestProperty("Authorization", cfg.authHeader)
-                    connectTimeout = 10000
-                    readTimeout = 10000
-                }
-                tryOrNull { mkConn.responseCode }
-                mkConn.disconnect()
-            }
-
-            val targetFileUrl = "$baseDav/${cfg.remoteFilePath}"
-            val conn = (URL(targetFileUrl).openConnection() as HttpURLConnection).apply {
-                requestMethod = "PUT"
-                doOutput = true
+        var currentFolderUrl = baseDav
+        for (i in 0 until segments.size - 1) {
+            currentFolderUrl += "/${segments[i]}"
+            val mkConn = (URL(currentFolderUrl).openConnection() as HttpURLConnection).apply {
+                requestMethod = "MKCOL"
                 setRequestProperty("Authorization", cfg.authHeader)
-                setRequestProperty("Content-Type", "application/json")
-                connectTimeout = 15000
-                readTimeout = 30000
+                // اضافه کردن User-Agent برای دور زدن فایروال و Cloudflare
+                setRequestProperty("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
+                connectTimeout = 10000
+                readTimeout = 10000
             }
-            conn.outputStream.use { it.write(data) }
-            conn.responseCode
-            conn.disconnect()
-        } catch (e: Exception) {
-            Timber.w(e, "Nextcloud upload failed")
+            tryOrNull { mkConn.responseCode }
+            mkConn.disconnect()
+        }
+
+        val targetFileUrl = "$baseDav/${cfg.remoteFilePath}"
+        val conn = (URL(targetFileUrl).openConnection() as HttpURLConnection).apply {
+            requestMethod = "PUT"
+            doOutput = true
+            setRequestProperty("Authorization", cfg.authHeader)
+            setRequestProperty("Content-Type", "application/json")
+            setRequestProperty("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
+            connectTimeout = 15000
+            readTimeout = 30000
+        }
+        conn.outputStream.use { it.write(data) }
+        val code = conn.responseCode
+        conn.disconnect()
+        
+        if (code !in 200..299) {
+            throw RuntimeException("کد خطای سرور: $code")
         }
     }
 
-    private fun downloadFromNextcloudToFile(): File? {
-        val cfg = getNextcloudConfig() ?: return null
-        return try {
+    private fun downloadFromNextcloudToFile(throwOnError: Boolean = false): File? {
+        val cfg = getNextcloudConfig()
+        if (cfg == null) {
+            if (throwOnError) throw RuntimeException("لطفاً تنظیمات نکست‌کلاد را کامل کنید")
+            return null
+        }
+        try {
             val targetFileUrl = "${cfg.serverUrl}/remote.php/dav/files/${cfg.user}/${cfg.remoteFilePath}"
             val conn = (URL(targetFileUrl).openConnection() as HttpURLConnection).apply {
                 requestMethod = "GET"
                 setRequestProperty("Authorization", cfg.authHeader)
+                setRequestProperty("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
                 connectTimeout = 15000
                 readTimeout = 30000
             }
-            if (conn.responseCode in 200..299) {
+            
+            val code = conn.responseCode
+            if (code in 200..299) {
                 val bytes = conn.inputStream.use { it.readBytes() }
                 conn.disconnect()
                 if (bytes.isNotEmpty()) {
@@ -229,13 +243,15 @@ class BackupRepositoryImpl @Inject constructor(
                     FileOutputStream(cloudFile, false).use { it.write(bytes) }
                     return cloudFile
                 }
+            } else {
+                conn.disconnect()
+                if (throwOnError) throw RuntimeException("کد خطای سرور: $code")
             }
-            conn.disconnect()
-            null
         } catch (e: Exception) {
-            Timber.w(e, "Nextcloud download failed")
-            null
+            Timber.w(e)
+            if (throwOnError) throw RuntimeException(e.message ?: "خطا در دریافت از سرور")
         }
+        return null
     }
 
     private fun messageToBackupMessage(message: Message): BackupMessage = BackupMessage(
@@ -280,67 +296,74 @@ class BackupRepositoryImpl @Inject constructor(
 
         restoreProgress.onNext(BackupRepository.Progress.Parsing())
 
-        val resolvedFile = if (filePath == "__NEXTCLOUD_DIRECT__") {
-            downloadFromNextcloudToFile() ?: run {
-                restoreProgress.onNext(BackupRepository.Progress.Idle())
-                return
-            }
-        } else {
-            File(filePath)
-        }
-
-        val backup = resolvedFile.source().buffer().use { source ->
-            moshi.adapter(Backup::class.java).fromJson(source)
-        }
-
-        importSharedPrefs("${context.packageName}_preferences", backup?.preferences)
-        importSharedPrefs("manual_message_categories", backup?.manualCategories)
-
-        val messageCount = backup?.messages?.size ?: 0
-        var errorCount = 0
-
-        backup?.messages?.forEachIndexed { index, message ->
-            if (stopFlag) {
-                stopFlag = false
-                restoreProgress.onNext(BackupRepository.Progress.Idle())
-                return
+        try {
+            val resolvedFile = if (filePath == "__NEXTCLOUD_DIRECT__") {
+                downloadFromNextcloudToFile(throwOnError = true) ?: run {
+                    restoreProgress.onNext(BackupRepository.Progress.Idle())
+                    throw RuntimeException("فایل در سرور یافت نشد")
+                }
+            } else {
+                File(filePath)
             }
 
-            restoreProgress.onNext(BackupRepository.Progress.Running(messageCount, index))
-            timer.cancel()
+            val backup = resolvedFile.source().buffer().use { source ->
+                moshi.adapter(Backup::class.java).fromJson(source)
+            }
 
-            try {
-                val values = contentValuesOf(
-                        Telephony.Sms.TYPE to message.type,
-                        Telephony.Sms.ADDRESS to message.address,
-                        Telephony.Sms.DATE to message.date,
-                        Telephony.Sms.DATE_SENT to message.dateSent,
-                        Telephony.Sms.READ to message.read,
-                        Telephony.Sms.SEEN to 1,
-                        Telephony.Sms.STATUS to message.status,
-                        Telephony.Sms.BODY to message.body,
-                        Telephony.Sms.PROTOCOL to message.protocol,
-                        Telephony.Sms.SERVICE_CENTER to message.serviceCenter,
-                        Telephony.Sms.LOCKED to message.locked
-                )
+            importSharedPrefs("${context.packageName}_preferences", backup?.preferences)
+            importSharedPrefs("manual_message_categories", backup?.manualCategories)
 
-                if (prefs.canUseSubId.get()) {
-                    values.put(Telephony.Sms.SUBSCRIPTION_ID, message.subId)
+            val messageCount = backup?.messages?.size ?: 0
+            var errorCount = 0
+
+            backup?.messages?.forEachIndexed { index, message ->
+                if (stopFlag) {
+                    stopFlag = false
+                    restoreProgress.onNext(BackupRepository.Progress.Idle())
+                    return
                 }
 
-                context.contentResolver.insert(Telephony.Sms.CONTENT_URI, values)
-            } catch (e: Exception) {
-                Timber.w(e)
-                errorCount++
+                restoreProgress.onNext(BackupRepository.Progress.Running(messageCount, index))
+                timer.cancel()
+
+                try {
+                    val values = contentValuesOf(
+                            Telephony.Sms.TYPE to message.type,
+                            Telephony.Sms.ADDRESS to message.address,
+                            Telephony.Sms.DATE to message.date,
+                            Telephony.Sms.DATE_SENT to message.dateSent,
+                            Telephony.Sms.READ to message.read,
+                            Telephony.Sms.SEEN to 1,
+                            Telephony.Sms.STATUS to message.status,
+                            Telephony.Sms.BODY to message.body,
+                            Telephony.Sms.PROTOCOL to message.protocol,
+                            Telephony.Sms.SERVICE_CENTER to message.serviceCenter,
+                            Telephony.Sms.LOCKED to message.locked
+                    )
+
+                    if (prefs.canUseSubId.get()) {
+                        values.put(Telephony.Sms.SUBSCRIPTION_ID, message.subId)
+                    }
+
+                    context.contentResolver.insert(Telephony.Sms.CONTENT_URI, values)
+                } catch (e: Exception) {
+                    Timber.w(e)
+                    errorCount++
+                }
             }
-        }
 
-        if (errorCount > 0) {
-            Timber.w(Exception("Failed to restore $errorCount/$messageCount messages"))
-        }
+            if (errorCount > 0) {
+                Timber.w(Exception("Failed to restore $errorCount/$messageCount messages"))
+            }
 
-        restoreProgress.onNext(BackupRepository.Progress.Syncing())
-        syncRepo.syncMessages()
+            restoreProgress.onNext(BackupRepository.Progress.Syncing())
+            syncRepo.syncMessages()
+
+        } catch (e: Exception) {
+            Timber.w(e)
+            restoreProgress.onNext(BackupRepository.Progress.Idle())
+            throw RuntimeException(e.message ?: "خطا در بازیابی")
+        }
 
         restoreProgress.onNext(BackupRepository.Progress.Finished())
         Timer().schedule(1000) { restoreProgress.onNext(BackupRepository.Progress.Idle()) }
