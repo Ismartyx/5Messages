@@ -1,8 +1,6 @@
 package com.goodwy.messages.repository
 
 import android.content.Context
-import android.os.Build
-import android.os.Environment
 import android.provider.Telephony
 import android.util.Base64
 import androidx.core.content.contentValuesOf
@@ -38,21 +36,14 @@ class BackupRepositoryImpl @Inject constructor(
     private val syncRepo: SyncRepository
 ) : BackupRepository {
 
-    // ذخیره در پوشه اختصاصی برنامه تا در اندروید ۱۱ به بالا هم بدون خطای دسترسی کار کند
     private val BACKUP_DIRECTORY: String
         get() = (context.getExternalFilesDir("Backups") ?: File(context.filesDir, "Backups")).apply { mkdirs() }.absolutePath
-
-    // تنظیمات اتصال مستقیم و انحصاری به سرور Nextcloud شخصی
-    companion object {
-        private const val NEXTCLOUD_WEBDAV_FOLDER = "https://nc.taha.surf/remote.php/dav/files/saeed/5Messages_Backups"
-        private const val DEFAULT_NC_USER = "saeed"
-        private const val DEFAULT_NC_PASS = "" // در صورت تمایل App Password نکست‌کلاد را اینجا قرار بده
-    }
 
     data class Backup(
         val messageCount: Int = 0,
         val messages: List<BackupMessage> = listOf(),
-        val preferences: Map<String, String> = mapOf()
+        val preferences: Map<String, String> = mapOf(),
+        val manualCategories: Map<String, String> = mapOf()
     )
 
     data class BackupMetadata(
@@ -71,6 +62,14 @@ class BackupRepositoryImpl @Inject constructor(
         val serviceCenter: String?,
         val locked: Boolean,
         val subId: Int
+    )
+
+    private data class NextcloudConfig(
+        val serverUrl: String,
+        val user: String,
+        val pass: String,
+        val remoteFilePath: String,
+        val authHeader: String
     )
 
     private val backupProgress: Subject<BackupRepository.Progress> =
@@ -97,11 +96,11 @@ class BackupRepositoryImpl @Inject constructor(
 
         backupProgress.onNext(BackupRepository.Progress.Saving())
 
-        // استخراج تمام تنظیمات برنامه (Preferences) برای ذخیره در کنار پیام‌ها
-        val exportedPrefs = exportPreferences()
+        val exportedPrefs = exportSharedPrefs("${context.packageName}_preferences", excludePrefix = "nc_")
+        val exportedCategories = exportSharedPrefs("manual_message_categories")
 
         val adapter = moshi.adapter(Backup::class.java).indent("\t")
-        val json = adapter.toJson(Backup(messageCount, backupMessages, exportedPrefs)).toByteArray()
+        val json = adapter.toJson(Backup(messageCount, backupMessages, exportedPrefs, exportedCategories)).toByteArray()
 
         try {
             val dir = File(BACKUP_DIRECTORY).apply { mkdirs() }
@@ -109,10 +108,9 @@ class BackupRepositoryImpl @Inject constructor(
             val fileName = "backup-$timestamp.json"
             val file = File(dir, fileName)
 
-            FileOutputStream(file, false).use { fileOutputStream -> fileOutputStream.write(json) }
+            FileOutputStream(file, false).use { it.write(json) }
 
-            // ارسال مستقیم فایل بکاپ به سرور Nextcloud شخصی
-            uploadToNextcloud(fileName, json)
+            uploadToNextcloud(json)
         } catch (e: Exception) {
             Timber.w(e)
         }
@@ -121,12 +119,12 @@ class BackupRepositoryImpl @Inject constructor(
         Timer().schedule(1000) { backupProgress.onNext(BackupRepository.Progress.Idle()) }
     }
 
-    private fun exportPreferences(): Map<String, String> {
+    private fun exportSharedPrefs(prefsName: String, excludePrefix: String? = null): Map<String, String> {
         val result = mutableMapOf<String, String>()
         try {
-            val sp = context.getSharedPreferences("${context.packageName}_preferences", Context.MODE_PRIVATE)
+            val sp = context.getSharedPreferences(prefsName, Context.MODE_PRIVATE)
             for ((key, value) in sp.all) {
-                if (key.startsWith("nc_")) continue // عدم ذخیره پسورد در فایل
+                if (excludePrefix != null && key.startsWith(excludePrefix)) continue
                 val serialized = when (value) {
                     is Boolean -> "B:$value"
                     is Int -> "I:$value"
@@ -143,10 +141,10 @@ class BackupRepositoryImpl @Inject constructor(
         return result
     }
 
-    private fun importPreferences(prefsMap: Map<String, String>?) {
+    private fun importSharedPrefs(prefsName: String, prefsMap: Map<String, String>?) {
         if (prefsMap.isNullOrEmpty()) return
         try {
-            val sp = context.getSharedPreferences("${context.packageName}_preferences", Context.MODE_PRIVATE)
+            val sp = context.getSharedPreferences(prefsName, Context.MODE_PRIVATE)
             val editor = sp.edit()
             for ((key, raw) in prefsMap) {
                 when {
@@ -163,73 +161,80 @@ class BackupRepositoryImpl @Inject constructor(
         }
     }
 
-    private fun getNextcloudAuthHeader(): String? {
+    private fun getNextcloudConfig(): NextcloudConfig? {
         val sp = context.getSharedPreferences("${context.packageName}_preferences", Context.MODE_PRIVATE)
-        val user = sp.getString("nc_user", DEFAULT_NC_USER) ?: DEFAULT_NC_USER
-        val pass = sp.getString("nc_pass", DEFAULT_NC_PASS) ?: DEFAULT_NC_PASS
-        if (user.isBlank() || pass.isBlank()) return null
-        val credentials = "$user:$pass"
-        return "Basic " + Base64.encodeToString(credentials.toByteArray(Charsets.UTF_8), Base64.NO_WRAP)
+        val server = (sp.getString("nc_server", "https://nc.paranas.ir") ?: "https://nc.paranas.ir").trim().trimEnd('/')
+        val user = (sp.getString("nc_user", "saeed") ?: "saeed").trim()
+        val pass = (sp.getString("nc_pass", "") ?: "").trim()
+        val path = (sp.getString("nc_path", "Backups/MessagesBackup/Messages_Backup.json")
+                ?: "Backups/MessagesBackup/Messages_Backup.json").trim().trimStart('/')
+
+        if (server.isBlank() || user.isBlank() || pass.isBlank() || path.isBlank()) return null
+        val auth = "Basic " + Base64.encodeToString("$user:$pass".toByteArray(Charsets.UTF_8), Base64.NO_WRAP)
+        return NextcloudConfig(server, user, pass, path, auth)
     }
 
-    private fun uploadToNextcloud(fileName: String, data: ByteArray) {
-        val authHeader = getNextcloudAuthHeader() ?: return
+    private fun uploadToNextcloud(data: ByteArray) {
+        val cfg = getNextcloudConfig() ?: return
         try {
-            // ۱. ساخت پوشه 5Messages_Backups در نکست‌کلاد (اگر وجود نداشته باشد)
-            val mkcolConn = (URL(NEXTCLOUD_WEBDAV_FOLDER).openConnection() as HttpURLConnection).apply {
-                requestMethod = "MKCOL"
-                setRequestProperty("Authorization", authHeader)
-                connectTimeout = 10000
-                readTimeout = 10000
+            val baseDav = "${cfg.serverUrl}/remote.php/dav/files/${cfg.user}"
+            val segments = cfg.remoteFilePath.split("/").filter { it.isNotBlank() }
+
+            var currentFolderUrl = baseDav
+            for (i in 0 until segments.size - 1) {
+                currentFolderUrl += "/${segments[i]}"
+                val mkConn = (URL(currentFolderUrl).openConnection() as HttpURLConnection).apply {
+                    requestMethod = "MKCOL"
+                    setRequestProperty("Authorization", cfg.authHeader)
+                    connectTimeout = 10000
+                    readTimeout = 10000
+                }
+                tryOrNull { mkConn.responseCode }
+                mkConn.disconnect()
             }
-            tryOrNull { mkcolConn.responseCode }
-            mkcolConn.disconnect()
 
-            // ۲. آپلود فایل بکاپ با تاریخ و ساعت
-            putBytesToWebDav("$NEXTCLOUD_WEBDAV_FOLDER/$fileName", authHeader, data)
-
-            // ۳. آپلود یک نسخه به نام latest.json برای بازیابی سریع از سرور
-            putBytesToWebDav("$NEXTCLOUD_WEBDAV_FOLDER/latest.json", authHeader, data)
+            val targetFileUrl = "$baseDav/${cfg.remoteFilePath}"
+            val conn = (URL(targetFileUrl).openConnection() as HttpURLConnection).apply {
+                requestMethod = "PUT"
+                doOutput = true
+                setRequestProperty("Authorization", cfg.authHeader)
+                setRequestProperty("Content-Type", "application/json")
+                connectTimeout = 15000
+                readTimeout = 30000
+            }
+            conn.outputStream.use { it.write(data) }
+            conn.responseCode
+            conn.disconnect()
         } catch (e: Exception) {
             Timber.w(e, "Nextcloud upload failed")
         }
     }
 
-    private fun putBytesToWebDav(targetUrl: String, authHeader: String, data: ByteArray) {
-        val conn = (URL(targetUrl).openConnection() as HttpURLConnection).apply {
-            requestMethod = "PUT"
-            doOutput = true
-            setRequestProperty("Authorization", authHeader)
-            setRequestProperty("Content-Type", "application/json")
-            connectTimeout = 15000
-            readTimeout = 30000
-        }
-        conn.outputStream.use { it.write(data) }
-        val code = conn.responseCode
-        conn.disconnect()
-        Timber.i("Nextcloud WebDAV PUT $targetUrl -> HTTP $code")
-    }
-
-    private fun syncLatestFromNextcloud() {
-        val authHeader = getNextcloudAuthHeader() ?: return
-        try {
-            val conn = (URL("$NEXTCLOUD_WEBDAV_FOLDER/latest.json").openConnection() as HttpURLConnection).apply {
+    private fun downloadFromNextcloudToFile(): File? {
+        val cfg = getNextcloudConfig() ?: return null
+        return try {
+            val targetFileUrl = "${cfg.serverUrl}/remote.php/dav/files/${cfg.user}/${cfg.remoteFilePath}"
+            val conn = (URL(targetFileUrl).openConnection() as HttpURLConnection).apply {
                 requestMethod = "GET"
-                setRequestProperty("Authorization", authHeader)
-                connectTimeout = 10000
-                readTimeout = 20000
+                setRequestProperty("Authorization", cfg.authHeader)
+                connectTimeout = 15000
+                readTimeout = 30000
             }
             if (conn.responseCode in 200..299) {
                 val bytes = conn.inputStream.use { it.readBytes() }
+                conn.disconnect()
                 if (bytes.isNotEmpty()) {
                     val dir = File(BACKUP_DIRECTORY).apply { mkdirs() }
                     val cloudFile = File(dir, "backup-nextcloud-latest.json")
                     FileOutputStream(cloudFile, false).use { it.write(bytes) }
+                    return cloudFile
                 }
             }
             conn.disconnect()
+            null
         } catch (e: Exception) {
             Timber.w(e, "Nextcloud download failed")
+            null
         }
     }
 
@@ -252,7 +257,7 @@ class BackupRepositoryImpl @Inject constructor(
     override fun getBackups(): Observable<List<BackupFile>> = QkFileObserver(BACKUP_DIRECTORY).observable
             .subscribeOn(Schedulers.io())
             .observeOn(Schedulers.io())
-            .doOnNext { syncLatestFromNextcloud() }
+            .doOnNext { downloadFromNextcloudToFile() }
             .map { File(BACKUP_DIRECTORY).listFiles() ?: arrayOf() }
             .observeOn(Schedulers.computation())
             .map { files ->
@@ -262,11 +267,7 @@ class BackupRepositoryImpl @Inject constructor(
                         file.source().buffer().use(adapter::fromJson)
                     } ?: return@mapNotNull null
 
-                    val path = file.path
-                    val date = file.lastModified()
-                    val messages = backup.messageCount
-                    val size = file.length()
-                    BackupFile(path, date, messages, size)
+                    BackupFile(file.path, file.lastModified(), backup.messageCount, file.length())
                 }
             }
             .map { files -> files.sortedByDescending { file -> file.date } }
@@ -279,13 +280,21 @@ class BackupRepositoryImpl @Inject constructor(
 
         restoreProgress.onNext(BackupRepository.Progress.Parsing())
 
-        val file = File(filePath)
-        val backup = file.source().buffer().use { source ->
+        val resolvedFile = if (filePath == "__NEXTCLOUD_DIRECT__") {
+            downloadFromNextcloudToFile() ?: run {
+                restoreProgress.onNext(BackupRepository.Progress.Idle())
+                return
+            }
+        } else {
+            File(filePath)
+        }
+
+        val backup = resolvedFile.source().buffer().use { source ->
             moshi.adapter(Backup::class.java).fromJson(source)
         }
 
-        // بازیابی تنظیمات برنامه (Preferences)
-        importPreferences(backup?.preferences)
+        importSharedPrefs("${context.packageName}_preferences", backup?.preferences)
+        importSharedPrefs("manual_message_categories", backup?.manualCategories)
 
         val messageCount = backup?.messages?.size ?: 0
         var errorCount = 0
@@ -327,7 +336,7 @@ class BackupRepositoryImpl @Inject constructor(
         }
 
         if (errorCount > 0) {
-            Timber.w(Exception("Failed to backup $errorCount/$messageCount messages"))
+            Timber.w(Exception("Failed to restore $errorCount/$messageCount messages"))
         }
 
         restoreProgress.onNext(BackupRepository.Progress.Syncing())
