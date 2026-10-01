@@ -9,18 +9,23 @@ import android.content.Intent
 import android.content.res.ColorStateList
 import android.graphics.Color
 import android.graphics.Typeface
+import android.graphics.drawable.GradientDrawable
 import android.os.Build
 import android.os.Bundle
 import android.text.InputType
+import android.util.Base64
 import android.view.DragEvent
 import android.view.Gravity
 import android.view.Menu
 import android.view.MenuItem
 import android.view.View
+import android.view.ViewGroup
 import android.view.ViewStub
+import android.widget.Button
 import android.widget.CheckBox
 import android.widget.EditText
 import android.widget.LinearLayout
+import android.widget.ScrollView
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.ActionBarDrawerToggle
@@ -57,6 +62,7 @@ import com.uber.autodispose.autoDisposable
 import dagger.android.AndroidInjection
 import io.reactivex.Completable
 import io.reactivex.Observable
+import io.reactivex.android.schedulers.AndroidSchedulers
 import io.reactivex.disposables.CompositeDisposable
 import io.reactivex.schedulers.Schedulers
 import io.reactivex.subjects.PublishSubject
@@ -67,6 +73,10 @@ import kotlinx.android.synthetic.main.main_activity.toolbar
 import kotlinx.android.synthetic.main.main_activity.toolbarTitle
 import kotlinx.android.synthetic.main.main_permission_hint.*
 import kotlinx.android.synthetic.main.main_syncing.*
+import java.io.File
+import java.io.FileOutputStream
+import java.net.HttpURLConnection
+import java.net.URL
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 
@@ -74,6 +84,7 @@ class MainActivity : QkThemedActivity(), MainView {
 
     companion object {
         private const val MENU_MOVE_CATEGORY = 9991
+        private const val MENU_NEXTCLOUD_CONFIG = 9992
     }
 
     @Inject lateinit var blockingDialog: BlockingDialog
@@ -101,13 +112,10 @@ class MainActivity : QkThemedActivity(), MainView {
                 backPressedSubject,
                 inbox.clicks().map { NavItem.INBOX },
                 archived.clicks().map { NavItem.ARCHIVED },
-                backup.clicks().map {
-                    val sp = getSharedPreferences("${packageName}_preferences", Context.MODE_PRIVATE)
-                    if (sp.getString("nc_pass", "").isNullOrBlank()) {
-                        showNextcloudSettingsDialog()
-                    }
-                    NavItem.BACKUP
-                },
+                backup.clicks().doOnNext {
+                    drawerLayout?.closeDrawer(GravityCompat.START)
+                    showNextcloudSettingsDialog()
+                }.filter { false }.map { NavItem.BACKUP },
                 scheduled.clicks().map { NavItem.SCHEDULED },
                 blocking.clicks().map { NavItem.BLOCKING },
                 settings.clicks().map { NavItem.SETTINGS },
@@ -198,11 +206,6 @@ class MainActivity : QkThemedActivity(), MainView {
             showNextcloudSettingsDialog()
             true
         }
-        settings?.setOnLongClickListener {
-            drawerLayout.closeDrawer(GravityCompat.START)
-            showNextcloudSettingsDialog()
-            true
-        }
 
         checkAndRunAutoBackup()
 
@@ -241,7 +244,6 @@ class MainActivity : QkThemedActivity(), MainView {
 
     private fun setupDragAndDropForCategoryTabs() {
         tabViews.forEachIndexed { index, tabView ->
-            // با نگه داشتن دست روی هر تب، قابلیت کشیدن و رها کردن (Drag & Drop) فعال می‌شود
             tabView.setOnLongClickListener { view ->
                 draggedTabIndex = index
                 val clipData = ClipData.newPlainText("tab_index", index.toString())
@@ -269,6 +271,7 @@ class MainActivity : QkThemedActivity(), MainView {
                                 currentOrder.add(toIdx, movedItem)
                                 draggedTabIndex = toIdx
                                 viewModel.saveCategoryOrder(currentOrder)
+                                triggerAutoBackupIfEnabled()
                             }
                         }
                         true
@@ -311,10 +314,25 @@ class MainActivity : QkThemedActivity(), MainView {
                     val targetCategory = categories[which]
                     viewModel.setManualCategoryForConversations(selectedThreadIds, targetCategory)
                     clearSelection()
+                    triggerAutoBackupIfEnabled()
                     Toast.makeText(this, "به پوشه «${titles[which]}» منتقل شد", Toast.LENGTH_SHORT).show()
                 }
                 .setNegativeButton("انصراف", null)
                 .show()
+    }
+
+    private fun triggerAutoBackupIfEnabled() {
+        try {
+            val sp = getSharedPreferences("${packageName}_preferences", Context.MODE_PRIVATE)
+            val autoBackupEnabled = sp.getBoolean("nc_auto_backup", true)
+            val pass = sp.getString("nc_pass", "") ?: ""
+            if (!autoBackupEnabled || pass.isBlank()) return
+
+            sp.edit().putLong("nc_last_auto_backup", System.currentTimeMillis()).apply()
+            Completable.fromAction { backupRepo.performBackup() }
+                    .subscribeOn(Schedulers.io())
+                    .subscribe({}, {})
+        } catch (_: Exception) {}
     }
 
     private fun checkAndRunAutoBackup() {
@@ -326,7 +344,7 @@ class MainActivity : QkThemedActivity(), MainView {
 
             val lastAutoBackup = sp.getLong("nc_last_auto_backup", 0L)
             val now = System.currentTimeMillis()
-            if (now - lastAutoBackup >= TimeUnit.HOURS.toMillis(24)) {
+            if (now - lastAutoBackup >= TimeUnit.HOURS.toMillis(6)) {
                 sp.edit().putLong("nc_last_auto_backup", now).apply()
                 Completable.fromAction { backupRepo.performBackup() }
                         .subscribeOn(Schedulers.io())
@@ -335,79 +353,312 @@ class MainActivity : QkThemedActivity(), MainView {
         } catch (_: Exception) {}
     }
 
+    private fun dp(value: Int): Int = (value * resources.displayMetrics.density).toInt()
+
+    private fun makeRoundedBg(fillColor: String, strokeColor: String? = null, radiusDp: Int = 12): GradientDrawable {
+        return GradientDrawable().apply {
+            setColor(Color.parseColor(fillColor))
+            cornerRadius = dp(radiusDp).toFloat()
+            if (strokeColor != null) {
+                setStroke(dp(1), Color.parseColor(strokeColor))
+            }
+        }
+    }
+
     private fun showNextcloudSettingsDialog() {
         val sp = getSharedPreferences("${packageName}_preferences", Context.MODE_PRIVATE)
+        val currentServer = sp.getString("nc_server", "https://nc.paranas.ir") ?: "https://nc.paranas.ir"
         val currentUser = sp.getString("nc_user", "saeed") ?: "saeed"
         val currentPass = sp.getString("nc_pass", "") ?: ""
+        val currentPath = sp.getString("nc_path", "Backups/MessagesBackup/Messages_Backup.json")
+                ?: "Backups/MessagesBackup/Messages_Backup.json"
         val currentAuto = sp.getBoolean("nc_auto_backup", true)
 
-        val container = LinearLayout(this).apply {
+        val scrollView = ScrollView(this)
+        val card = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(56, 36, 56, 16)
+            setPadding(dp(20), dp(20), dp(20), dp(20))
+            background = makeRoundedBg("#0B1220", "#1E293B", 18)
         }
+        scrollView.addView(card)
 
-        val infoText = TextView(this).apply {
-            text = "سرور: https://nc.taha.surf\nمسیر: /5Messages_Backups"
+        // عنوان بالا: اتصال خودکار به سرور نکست‌کلاد
+        val header = TextView(this).apply {
+            text = "☁️ اتصال خودکار به سرور نکست‌کلاد"
+            setTextColor(Color.parseColor("#38BDF8"))
+            textSize = 16f
+            setTypeface(null, Typeface.BOLD)
+            gravity = Gravity.RIGHT
+            setPadding(0, 0, 0, dp(16))
+        }
+        card.addView(header)
+
+        // ۱. آدرس سرور نکست‌کلاد
+        val serverLabel = TextView(this).apply {
+            text = "آدرس سرور نکست‌کلاد"
+            setTextColor(Color.parseColor("#94A3B8"))
             textSize = 13f
-            setPadding(0, 0, 0, 24)
+            gravity = Gravity.RIGHT
+            setPadding(0, 0, 0, dp(6))
+        }
+        val serverInput = EditText(this).apply {
+            setText(currentServer)
+            hint = "https://nc.paranas.ir"
+            setTextColor(Color.WHITE)
+            setHintTextColor(Color.parseColor("#64748B"))
+            textSize = 14f
+            gravity = Gravity.LEFT or Gravity.CENTER_VERTICAL
+            setPadding(dp(14), dp(12), dp(14), dp(12))
+            background = makeRoundedBg("#090E1A", "#1E293B", 12)
+            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_URI
+        }
+        card.addView(serverLabel)
+        card.addView(serverInput)
+
+        // ۲. ردیف دو ستونه: نام کاربری (راست) و رمز / App Password (چپ)
+        val credentialsRow = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            weightSum = 2f
+            setPadding(0, dp(14), 0, 0)
         }
 
-        val userEdit = EditText(this).apply {
-            hint = "نام کاربری Nextcloud (مثلاً saeed)"
-            setText(currentUser)
-            inputType = InputType.TYPE_CLASS_TEXT
+        val passCol = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f).apply {
+                marginEnd = dp(6)
+            }
         }
-
-        val passEdit = EditText(this).apply {
-            hint = "رمز عبور یا App Password نکست‌کلاد"
+        val passLabel = TextView(this).apply {
+            text = "رمز / App Password"
+            setTextColor(Color.parseColor("#94A3B8"))
+            textSize = 12f
+            gravity = Gravity.RIGHT
+            setPadding(0, 0, 0, dp(6))
+        }
+        val passInput = EditText(this).apply {
             setText(currentPass)
+            hint = "••••••••••••"
+            setTextColor(Color.WHITE)
+            setHintTextColor(Color.parseColor("#64748B"))
+            textSize = 14f
+            gravity = Gravity.LEFT or Gravity.CENTER_VERTICAL
+            setPadding(dp(14), dp(12), dp(14), dp(12))
+            background = makeRoundedBg("#090E1A", "#1E293B", 12)
             inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD
         }
+        passCol.addView(passLabel)
+        passCol.addView(passInput)
 
-        val autoBackupCheck = CheckBox(this).apply {
-            text = "بکاپ خودکار روزانه (پیام‌ها و تنظیمات)"
+        val userCol = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f).apply {
+                marginStart = dp(6)
+            }
+        }
+        val userLabel = TextView(this).apply {
+            text = "نام کاربری"
+            setTextColor(Color.parseColor("#94A3B8"))
+            textSize = 12f
+            gravity = Gravity.RIGHT
+            setPadding(0, 0, 0, dp(6))
+        }
+        val userInput = EditText(this).apply {
+            setText(currentUser)
+            hint = "saeed"
+            setTextColor(Color.WHITE)
+            setHintTextColor(Color.parseColor("#64748B"))
+            textSize = 14f
+            gravity = Gravity.LEFT or Gravity.CENTER_VERTICAL
+            setPadding(dp(14), dp(12), dp(14), dp(12))
+            background = makeRoundedBg("#090E1A", "#1E293B", 12)
+            inputType = InputType.TYPE_CLASS_TEXT
+        }
+        userCol.addView(userLabel)
+        userCol.addView(userInput)
+
+        credentialsRow.addView(passCol)
+        credentialsRow.addView(userCol)
+        card.addView(credentialsRow)
+
+        // ۳. نام فایل در نکست‌کلاد
+        val pathLabel = TextView(this).apply {
+            text = "نام فایل در نکست‌کلاد"
+            setTextColor(Color.parseColor("#94A3B8"))
+            textSize = 13f
+            gravity = Gravity.RIGHT
+            setPadding(0, dp(14), 0, dp(6))
+        }
+        val pathInput = EditText(this).apply {
+            setText(currentPath)
+            hint = "Backups/MessagesBackup/Messages_Backup.json"
+            setTextColor(Color.WHITE)
+            setHintTextColor(Color.parseColor("#64748B"))
+            textSize = 14f
+            gravity = Gravity.LEFT or Gravity.CENTER_VERTICAL
+            setPadding(dp(14), dp(12), dp(14), dp(12))
+            background = makeRoundedBg("#090E1A", "#1E293B", 12)
+            inputType = InputType.TYPE_CLASS_TEXT
+        }
+        card.addView(pathLabel)
+        card.addView(pathInput)
+
+        // ۴. تیک بکاپ اتوماتیک پس از هر تغییر
+        val autoCheck = CheckBox(this).apply {
+            text = "بکاپ اتوماتیک پس از هر تغییر"
+            setTextColor(Color.WHITE)
+            textSize = 13f
             isChecked = currentAuto
-            setPadding(0, 16, 0, 0)
+            buttonTintList = ColorStateList.valueOf(Color.parseColor("#0EA5E9"))
+            layoutDirection = View.LAYOUT_DIRECTION_RTL
+            gravity = Gravity.RIGHT or Gravity.CENTER_VERTICAL
+            val params = LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply {
+                gravity = Gravity.RIGHT
+                topMargin = dp(14)
+                bottomMargin = dp(14)
+            }
+            layoutParams = params
+        }
+        card.addView(autoCheck)
+
+        // ۵. ردیف دکمه‌های سبز (ذخیره و بکاپ ابری) و نارنجی (بازیابی از سرور)
+        val buttonsRow = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            weightSum = 2f
         }
 
-        container.addView(infoText)
-        container.addView(userEdit)
-        container.addView(passEdit)
-        container.addView(autoBackupCheck)
+        val restoreBtn = Button(this).apply {
+            text = "☁️ بازیابی از سرور"
+            setTextColor(Color.WHITE)
+            textSize = 13f
+            setTypeface(null, Typeface.BOLD)
+            isAllCaps = false
+            background = makeRoundedBg("#F59E0B", null, 12)
+            layoutParams = LinearLayout.LayoutParams(0, dp(48), 1f).apply {
+                marginEnd = dp(6)
+            }
+        }
 
-        AlertDialog.Builder(this)
-                .setTitle("تنظیمات بکاپ Nextcloud")
-                .setView(container)
-                .setPositiveButton("ذخیره و بکاپ فوری") { _, _ ->
-                    val u = userEdit.text.toString().trim()
-                    val p = passEdit.text.toString().trim()
-                    val auto = autoBackupCheck.isChecked
-                    sp.edit()
-                            .putString("nc_user", if (u.isEmpty()) "saeed" else u)
-                            .putString("nc_pass", p)
-                            .putBoolean("nc_auto_backup", auto)
-                            .putLong("nc_last_auto_backup", System.currentTimeMillis())
-                            .apply()
+        val saveBackupBtn = Button(this).apply {
+            text = "💾 ذخیره و بکاپ ابری"
+            setTextColor(Color.WHITE)
+            textSize = 13f
+            setTypeface(null, Typeface.BOLD)
+            isAllCaps = false
+            background = makeRoundedBg("#10B981", null, 12)
+            layoutParams = LinearLayout.LayoutParams(0, dp(48), 1f).apply {
+                marginStart = dp(6)
+            }
+        }
 
-                    Completable.fromAction { backupRepo.performBackup() }
-                            .subscribeOn(Schedulers.io())
-                            .subscribe({}, {})
+        buttonsRow.addView(restoreBtn)
+        buttonsRow.addView(saveBackupBtn)
+        card.addView(buttonsRow)
 
-                    Toast.makeText(this, "تنظیمات ذخیره شد و بکاپ به Nextcloud آغاز شد", Toast.LENGTH_LONG).show()
+        // دکمه رفتن به لیست فایل‌های بکاپ محلی
+        val localFilesBtn = Button(this).apply {
+            text = "📂 مدیریت فایل‌های بکاپ محلی"
+            setTextColor(Color.parseColor("#94A3B8"))
+            textSize = 12f
+            isAllCaps = false
+            background = makeRoundedBg("#111827", "#1E293B", 10)
+            layoutParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(40)).apply {
+                topMargin = dp(12)
+            }
+        }
+        card.addView(localFilesBtn)
+
+        val dialog = AlertDialog.Builder(this)
+                .setView(scrollView)
+                .create()
+
+        dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
+
+        fun saveInputsToPrefs() {
+            val srv = serverInput.text.toString().trim().ifEmpty { "https://nc.paranas.ir" }
+            val usr = userInput.text.toString().trim().ifEmpty { "saeed" }
+            val pwd = passInput.text.toString().trim()
+            val pth = pathInput.text.toString().trim().ifEmpty { "Backups/MessagesBackup/Messages_Backup.json" }
+            val aut = autoCheck.isChecked
+
+            sp.edit()
+                    .putString("nc_server", srv)
+                    .putString("nc_user", usr)
+                    .putString("nc_pass", pwd)
+                    .putString("nc_path", pth)
+                    .putBoolean("nc_auto_backup", aut)
+                    .putLong("nc_last_auto_backup", System.currentTimeMillis())
+                    .apply()
+        }
+
+        saveBackupBtn.setOnClickListener {
+            saveInputsToPrefs()
+            dialog.dismiss()
+            Toast.makeText(this, "در حال ذخیره و ارسال بکاپ به سرور نکست‌‌کلاد...", Toast.LENGTH_SHORT).show()
+            Completable.fromAction { backupRepo.performBackup() }
+                    .subscribeOn(Schedulers.io())
+                    .observeOn(AndroidSchedulers.mainThread())
+                    .subscribe({
+                        Toast.makeText(this, "✅ بکاپ ابری در نکست‌کلاد ذخیره شد", Toast.LENGTH_LONG).show()
+                    }, {
+                        Toast.makeText(this, "خطا در ارسال به سرور", Toast.LENGTH_SHORT).show()
+                    })
+        }
+
+        restoreBtn.setOnClickListener {
+            saveInputsToPrefs()
+            dialog.dismiss()
+            Toast.makeText(this, "در حال دریافت فایل بکاپ از سرور نکست‌‌کلاد...", Toast.LENGTH_SHORT).show()
+            Completable.fromAction {
+                val srv = (sp.getString("nc_server", "https://nc.paranas.ir") ?: "").trim().trimEnd('/')
+                val usr = (sp.getString("nc_user", "saeed") ?: "").trim()
+                val pwd = (sp.getString("nc_pass", "") ?: "").trim()
+                val pth = (sp.getString("nc_path", "Backups/MessagesBackup/Messages_Backup.json") ?: "").trim().trimStart('/')
+
+                if (srv.isEmpty() || usr.isEmpty() || pwd.isEmpty() || pth.isEmpty()) {
+                    throw IllegalStateException("اطلاعات سرور کامل نیست")
                 }
-                .setNeutralButton("فقط ذخیره") { _, _ ->
-                    val u = userEdit.text.toString().trim()
-                    val p = passEdit.text.toString().trim()
-                    val auto = autoBackupCheck.isChecked
-                    sp.edit()
-                            .putString("nc_user", if (u.isEmpty()) "saeed" else u)
-                            .putString("nc_pass", p)
-                            .putBoolean("nc_auto_backup", auto)
-                            .apply()
-                    Toast.makeText(this, "تنظیمات Nextcloud ذخیره شد", Toast.LENGTH_SHORT).show()
+
+                val auth = "Basic " + Base64.encodeToString("$usr:$pwd".toByteArray(Charsets.UTF_8), Base64.NO_WRAP)
+                val targetUrl = "$srv/remote.php/dav/files/$usr/$pth"
+
+                val conn = (URL(targetUrl).openConnection() as HttpURLConnection).apply {
+                    requestMethod = "GET"
+                    setRequestProperty("Authorization", auth)
+                    connectTimeout = 15000
+                    readTimeout = 30000
                 }
-                .setNegativeButton("انصراف", null)
-                .show()
+
+                if (conn.responseCode !in 200..299) {
+                    val code = conn.responseCode
+                    conn.disconnect()
+                    throw IllegalStateException("HTTP $code")
+                }
+
+                val bytes = conn.inputStream.use { it.readBytes() }
+                conn.disconnect()
+
+                val dir = (getExternalFilesDir("Backups") ?: File(filesDir, "Backups")).apply { mkdirs() }
+                val cloudFile = File(dir, "backup-nextcloud-restore.json")
+                FileOutputStream(cloudFile, false).use { it.write(bytes) }
+
+                backupRepo.performRestore(cloudFile.absolutePath)
+            }
+            .subscribeOn(Schedulers.io())
+            .observeOn(AndroidSchedulers.mainThread())
+            .subscribe({
+                Toast.makeText(this, "✅ بازیابی اطلاعات و تنظیمات از سرور انجام شد!", Toast.LENGTH_LONG).show()
+            }, { err ->
+                Toast.makeText(this, "❌ خطا در بازیابی از سرور: ${err.message}", Toast.LENGTH_LONG).show()
+            })
+        }
+
+        localFilesBtn.setOnClickListener {
+            saveInputsToPrefs()
+            dialog.dismiss()
+            navigator.showBackup()
+        }
+
+        dialog.show()
     }
 
     override fun onNewIntent(intent: Intent?) {
@@ -461,6 +712,7 @@ class MainActivity : QkThemedActivity(), MainView {
         toolbar?.menu?.findItem(R.id.unread)?.isVisible = !markRead && selectedConversations != 0
         toolbar?.menu?.findItem(R.id.block)?.isVisible = selectedConversations != 0
         toolbar?.menu?.findItem(MENU_MOVE_CATEGORY)?.isVisible = state.page is Inbox && selectedConversations != 0
+        toolbar?.menu?.findItem(MENU_NEXTCLOUD_CONFIG)?.isVisible = selectedConversations == 0
 
         listOf(plusBadge1, plusBadge2).forEach { badge ->
             badge?.isVisible = !state.upgraded
@@ -510,7 +762,6 @@ class MainActivity : QkThemedActivity(), MainView {
                     val isSelected = state.page.category == category
                     val catColor = categoryColors[category] ?: Color.parseColor("#0EA5E9")
 
-                    // نمایش نام تمیز فولدر بدون اعداد گیج‌کننده (فقط یک نقطه کوچک در صورت داشتن پیام نخوانده)
                     tabView.text = if (hasUnread) "$label •" else label
                     tabView.setBackgroundTint(if (isSelected) catColor else inactiveBg)
                     tabView.setTextColor(if (isSelected) Color.WHITE else catColor)
@@ -659,42 +910,193 @@ class MainActivity : QkThemedActivity(), MainView {
                 .setTitle(R.string.dialog_delete_title)
                 .setMessage(resources.getQuantityString(R.plurals.dialog_delete_message, count, count))
                 .setPositiveButton(R.string.button_delete) { _, _ -> confirmDeleteIntent.onNext(conversations) }
-                .setNegativeButton(R.string.button_cancel, null)
-                .show()
-    }
+                .setNegativeعلت آن پیامِ خطای قبلی، **فیلتر خودکار کپی‌رایت سیستم** بود؛ چون در مراحل قبل کلِ فایل‌های ۶۰۰ خطیِ سورس اصلی برنامه (`MainActivity.kt`) را با تمام کدهای دست‌نخورده‌اش کامل کپی می‌کردیم، سیستم به تکرار طولانیِ سورسِ اولیه برنامه گیر داد.
 
-    override fun showChangelog(changelog: ChangelogManager.CumulativeChangelog) {
-        changelogDialog.show(changelog)
-    }
+برای اینکه دیگر به این محدودیت نخوریم و کار تو هم خیلی راحت‌تر شود، به جای تکرار کلِ فایل ۶۰۰ خطی، فقط **بخش‌های جدید و اختصاصی خودمان** را می‌گذارم.
 
-    override fun showArchivedSnackbar() {
-        Snackbar.make(drawerLayout, R.string.toast_archived, Snackbar.LENGTH_LONG).apply {
-            setAction(R.string.button_undo) { undoArchiveIntent.onNext(Unit) }
-            setActionTextColor(Color.parseColor("#0EA5E9"))
-            show()
-        }
-    }
+---
 
-    override fun onCreateOptionsMenu(menu: Menu?): Boolean {
-        menuInflater.inflate(R.menu.main, menu)
-        // قرار دادن دکمه مستقیم «پوشه» در نوار بالای صفحه هنگام انتخاب پیام (همراه با حضور در منوی سه‌نقطه)
-        menu?.add(0, MENU_MOVE_CATEGORY, 0, "انتقال به پوشه")?.apply {
-            setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS)
-        }
-        return super.onCreateOptionsMenu(menu)
-    }
+### ۱. طراحی آیکون به سبک تلگرام با تغییر اختصاصی (در `build.yml`)
+در کد `build.yml` زیر، آیکون برنامه را دقیقاً با **آبیِ معروف تلگرام (`#24A1DE` و `#0EA5E9`)** و یک **موشک کاغذی سفیدِ مدرن که دنباله‌اش به شکل حباب پیامک است** طراحی کردم تا در کنار آیکون تلگرامِ پایین صفحه‌ات فوق‌العاده شیک و هماهنگ دیده شود.
 
-    override fun onOptionsItemSelected(item: MenuItem): Boolean {
-        if (item.itemId == MENU_MOVE_CATEGORY) {
-            showMoveConversationsCategoryDialog(currentSelectedIds)
-            return true
-        }
-        optionsItemIntent.onNext(item.itemId)
-        return true
-    }
+وارد `.github/workflows/build.yml` شو و فقط بخش مربوط به آیکون (`bg_xml` و `fg_xml`) را با این الگو جایگزین کن (یا کل `build.yml` زیر را بگذار):
 
-    override fun onBackPressed() {
-        backPressedSubject.onNext(NavItem.BACK)
-    }
+```yaml
+name: Build APK
 
-}
+on:
+  push:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 8
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '8'
+
+      - name: Apply Global Dark Theme, Telegram-Style Icon & App Name
+        run: |
+          python3 - << 'PYEOF'
+          import os, glob, re
+
+          # ۱. تغییر نام برنامه به Messages
+          for s_file in glob.glob("**/src/**/res/values*/strings.xml", recursive=True):
+              with open(s_file, "r") as f:
+                  content = f.read()
+              content = re.sub(r'(<string name="app_name"[^>]*>).*?(</string>)', r'\g<1>Messages\g<2>', content)
+              content = content.replace("4Messages", "Messages").replace("5Messages", "Messages").replace("QKSMS", "Messages")
+              with open(s_file, "w") as f:
+                  f.write(content)
+
+          for g_file in glob.glob("**/*.gradle", recursive=True):
+              with open(g_file, "r") as f:
+                  g = f.read()
+              g = g.replace("4Messages", "Messages").replace("5Messages", "Messages")
+              with open(g_file, "w") as f:
+                  f.write(g)
+
+          # ۲. پیش‌فرض تم تاریک و سفید ماندن آیکون‌های ساعت و آنتن بالای صفحه
+          prefs_file = "domain/src/main/java/com/goodwy/messages/util/Preferences.kt"
+          if os.path.exists(prefs_file):
+              with open(prefs_file, "r") as f:
+                  p = f.read()
+              p = p.replace('rxPrefs.getInteger("nightMode", NIGHT_MODE_SYSTEM)', 'rxPrefs.getInteger("nightMode", NIGHT_MODE_DARK)')
+              p = p.replace('rxPrefs.getInteger("nightMode", NIGHT_MODE_OFF)', 'rxPrefs.getInteger("nightMode", NIGHT_MODE_DARK)')
+              with open(prefs_file, "w") as f:
+                  f.write(p)
+
+          themed_act = "presentation/src/main/java/com/goodwy/messages/common/base/QkThemedActivity.kt"
+          if os.path.exists(themed_act):
+              with open(themed_act, "r") as f:
+                  ta = f.read()
+              ta = ta.replace("View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR", "0")
+              ta = ta.replace("View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR", "0")
+              with open(themed_act, "w") as f:
+                  f.write(ta)
+
+          colors_file = "presentation/src/main/res/values/colors.xml"
+          if os.path.exists(colors_file):
+              with open(colors_file, "r") as f:
+                  c = f.read()
+              c = re.sub(r'(<color name="backgroundDark">).*?(</color>)', r'\g<1>#0B1220\g<2>', c)
+              c = re.sub(r'(<color name="bubbleDark">).*?(</color>)', r'\g<1>#111827\g<2>', c)
+              with open(colors_file, "w") as f:
+                  f.write(c)
+
+          for style_file in glob.glob("presentation/src/main/res/values*/styles.xml"):
+              with open(style_file, "r") as f:
+                  s = f.read()
+              s = s.replace('parent="Theme.AppCompat.Light.NoActionBar"', 'parent="Theme.AppCompat.NoActionBar"')
+              s = s.replace('parent="Theme.AppCompat.Light.Dialog"', 'parent="Theme.AppCompat.Dialog"')
+              s = s.replace('parent="Widget.AppCompat.Light.PopupMenu"', 'parent="Widget.AppCompat.PopupMenu"')
+              s = s.replace('<item name="android:windowLightStatusBar">true</item>', '<item name="android:windowLightStatusBar">false</item>')
+              s = s.replace('<item name="android:windowLightNavigationBar">true</item>', '<item name="android:windowLightNavigationBar">false</item>')
+              s = s.replace('@color/backgroundLight', '@color/backgroundDark')
+              s = s.replace('@color/bubbleLight', '@color/bubbleDark')
+              s = s.replace('@color/textPrimary', '@color/textPrimaryDark')
+              s = s.replace('@color/textSecondary', '@color/textSecondaryDark')
+              s = s.replace('@color/textTertiary', '@color/textTertiaryDark')
+              with open(style_file, "w") as f:
+                  f.write(s)
+
+          # ۳. طراحی آیکون به سبک تلگرام با تغییر اختصاصی (پس‌زمینه آبی تلگرامی + موشک/پیامک مدرن سفید)
+          os.makedirs("presentation/src/main/res/drawable", exist_ok=True)
+          os.makedirs("presentation/src/main/res/mipmap-anydpi-v26", exist_ok=True)
+
+          bg_xml = """<?xml version="1.0" encoding="utf-8"?>
+          <vector xmlns:android="[http://schemas.android.com/apk/res/android](http://schemas.android.com/apk/res/android)"
+              android:width="108dp"
+              android:height="108dp"
+              android:viewportWidth="108"
+              android:viewportHeight="108">
+              <path android:fillColor="#24A1DE" android:pathData="M0,0h108v108h-108z"/>
+          </vector>"""
+
+          fg_xml = """<?xml version="1.0" encoding="utf-8"?>
+          <vector xmlns:android="[http://schemas.android.com/apk/res/android](http://schemas.android.com/apk/res/android)"
+              android:width="108dp"
+              android:height="108dp"
+              android:viewportWidth="108"
+              android:viewportHeight="108">
+              <!-- سایه داخلی بال موشک به سبک تلگرام -->
+              <path
+                  android:fillColor="#B3E5FC"
+                  android:pathData="M44,62L42,76L53,66L72,42L44,62Z"/>
+              <path
+                  android:fillColor="#81D4FA"
+                  android:pathData="M44,62L53,66L42,76L44,62Z"/>
+              <!-- بدنه اصلی موشک تلگرامی با زاویه تیز و مدرن -->
+              <path
+                  android:fillColor="#FFFFFF"
+                  android:pathData="M78,32L26,52L44,60L72,38L50,63L66,74L78,32Z"/>
+              <!-- دو خط سرعت/پیام در دنباله موشک (تغییر اختصاصی نسبت به تلگرام) -->
+              <path
+                  android:fillColor="#FFFFFF"
+                  android:pathData="M26,64h10v3.5h-10zM30,71h7v3.5h-7z"/>
+          </vector>"""
+
+          adaptive_xml = """<?xml version="1.0" encoding="utf-8"?>
+          <adaptive-icon xmlns:android="[http://schemas.android.com/apk/res/android](http://schemas.android.com/apk/res/android)">
+              <background android:drawable="@drawable/ic_launcher_bg_custom"/>
+              <foreground android:drawable="@drawable/ic_launcher_fg_custom"/>
+          </adaptive-icon>"""
+
+          with open("presentation/src/main/res/drawable/ic_launcher_bg_custom.xml", "w") as f:
+              f.write(bg_xml)
+          with open("presentation/src/main/res/drawable/ic_launcher_fg_custom.xml", "w") as f:
+              f.write(fg_xml)
+
+          for xml_file in glob.glob("presentation/src/main/res/mipmap-anydpi-v26/*.xml"):
+              with open(xml_file, "w") as f:
+                  f.write(adaptive_xml)
+          PYEOF
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+
+      - name: Build APK
+        run: |
+          unset ANDROID_NDK_HOME
+          unset ANDROID_NDK_ROOT
+          unset ANDROID_NDK_LATEST_HOME
+          sudo rm -rf "$ANDROID_HOME/ndk" "$ANDROID_HOME/ndk-bundle" "$ANDROID_SDK_ROOT/ndk" "$ANDROID_SDK_ROOT/ndk-bundle" || true
+          cat << 'EOF' > init.gradle
+          gradle.projectsLoaded {
+              rootProject.allprojects {
+                  afterEvaluate { project ->
+                      if (project.hasProperty('android')) {
+                          project.android.packagingOptions {
+                              doNotStrip "**/*.so"
+                              doNotStrip "*/*.so"
+                              doNotStrip "*/*/*.so"
+                          }
+                      }
+                  }
+              }
+          }
+          EOF
+          ./gradlew assembleNoAnalyticsDebug --no-daemon --init-script init.gradle > build_log.txt 2>&1
+
+      - name: Show Exact Error (If Failed)
+        if: failure()
+        run: |
+          echo "=== COMPILATION ERRORS ==="
+          grep -E "^e: |FAILURE:|What went wrong:|Execution failed|> " build_log.txt | tail -n 40 || true
+          echo "=== LAST 40 LINES ==="
+          tail -n 40 build_log.txt
+
+      - name: Upload APK
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Messages-APK
+          path: "**/*.apk"
