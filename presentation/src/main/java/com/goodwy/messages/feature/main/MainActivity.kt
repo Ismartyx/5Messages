@@ -556,7 +556,7 @@ class MainActivity : QkThemedActivity(), MainView {
                     .apply()
         }
 
-        saveBackupBtn.setOnClickListener {
+saveBackupBtn.setOnClickListener {
             saveInputsToPrefs()
             dialog.dismiss()
             Toast.makeText(this, "ارسال به سرور...", Toast.LENGTH_SHORT).show()
@@ -565,8 +565,8 @@ class MainActivity : QkThemedActivity(), MainView {
                     .observeOn(AndroidSchedulers.mainThread())
                     .subscribe({
                         Toast.makeText(this, "✅ در سرور ذخیره شد", Toast.LENGTH_SHORT).show()
-                    }, {
-                        Toast.makeText(this, "❌ خطا در ارسال", Toast.LENGTH_SHORT).show()
+                    }, { error ->
+                        Toast.makeText(this, "❌ خطا: ${error.message}", Toast.LENGTH_LONG).show()
                     })
         }
 
@@ -581,8 +581,8 @@ class MainActivity : QkThemedActivity(), MainView {
             .observeOn(AndroidSchedulers.mainThread())
             .subscribe({
                 Toast.makeText(this, "✅ اطلاعات بازیابی شد!", Toast.LENGTH_SHORT).show()
-            }, {
-                Toast.makeText(this, "❌ خطا در بازیابی", Toast.LENGTH_SHORT).show()
+            }, { error ->
+                Toast.makeText(this, "❌ خطا: ${error.message}", Toast.LENGTH_LONG).show()
             })
         }
 
