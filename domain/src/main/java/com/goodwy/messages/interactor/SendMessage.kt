@@ -20,7 +20,6 @@ package com.goodwy.messages.interactor
 
 import android.content.Context
 import com.goodwy.messages.compat.TelephonyCompat
-import com.goodwy.messages.extensions.mapNotNull
 import com.goodwy.messages.model.Attachment
 import com.goodwy.messages.repository.ConversationRepository
 import com.goodwy.messages.repository.MessageRepository
@@ -45,25 +44,20 @@ class SendMessage @Inject constructor(
 
     override fun buildObservable(params: Params): Flowable<*> = Flowable.just(Unit)
             .filter { params.addresses.isNotEmpty() }
-            .doOnNext {
+            .map {
                 // If a threadId isn't provided, try to obtain one
-                val threadId = when (params.threadId) {
-                    0L -> TelephonyCompat.getOrCreateThreadId(context, params.addresses.toSet())
-                    else -> params.threadId
-                }
-                messageRepo.sendMessage(params.subId, threadId, params.addresses, params.body, params.attachments,
-                        params.delay)
-            }
-            .mapNotNull {
-                // If the threadId wasn't provided, then it's probably because it doesn't exist in Realm.
-                // Sync it now and get the id
                 when (params.threadId) {
                     0L -> conversationRepo.getOrCreateConversation(params.addresses)?.id
+                            ?: TelephonyCompat.getOrCreateThreadId(context, params.addresses.toSet())
                     else -> params.threadId
                 }
             }
-            .doOnNext { threadId -> conversationRepo.updateConversations(threadId) }
-            .doOnNext { threadId -> conversationRepo.markUnarchived(threadId) }
+            .doOnNext { resolvedThreadId ->
+                messageRepo.sendMessage(params.subId, resolvedThreadId, params.addresses, params.body, params.attachments,
+                        params.delay)
+            }
+            .doOnNext { resolvedThreadId -> conversationRepo.updateConversations(resolvedThreadId) }
+            .doOnNext { resolvedThreadId -> conversationRepo.markUnarchived(resolvedThreadId) }
             .flatMap { updateBadge.buildObservable(Unit) } // Update the widget
 
 }

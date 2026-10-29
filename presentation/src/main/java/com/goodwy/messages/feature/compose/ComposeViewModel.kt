@@ -663,6 +663,12 @@ class ComposeViewModel @Inject constructor(
                     }
                     val sendAsGroup = !state.editingMode || state.sendAsGroup
 
+                    val targetThreadId = when {
+                        conversation.id != 0L -> conversation.id
+                        state.threadId != 0L -> state.threadId
+                        else -> threadId
+                    }
+
                     when {
                         // Scheduling a message
                         state.scheduled != 0L -> {
@@ -680,19 +686,19 @@ class ComposeViewModel @Inject constructor(
                         // Sending a group message
                         sendAsGroup -> {
                             sendMessage.execute(SendMessage
-                                    .Params(subId, conversation.id, addresses, body, attachments, delay))
+                                    .Params(subId, targetThreadId, addresses, body, attachments, delay))
                         }
 
                         // Sending a message to an existing conversation with one recipient
                         conversation.recipients.size == 1 -> {
                             val address = conversation.recipients.map { it.address }
-                            sendMessage.execute(SendMessage.Params(subId, threadId, address, body, attachments, delay))
+                            sendMessage.execute(SendMessage.Params(subId, targetThreadId, address, body, attachments, delay))
                         }
 
                         // Create a new conversation with one address
                         addresses.size == 1 -> {
                             sendMessage.execute(SendMessage
-                                    .Params(subId, threadId, addresses, body, attachments, delay))
+                                    .Params(subId, targetThreadId, addresses, body, attachments, delay))
                         }
 
                         // Send a message to multiple addresses

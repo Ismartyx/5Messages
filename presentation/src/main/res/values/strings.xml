@@ -546,4 +546,10 @@
         <item>3</item>
     </integer-array>
 
+    <!-- Smart Number & OTP Copy -->
+    <string name="copy_code">Copy code: %s</string>
+    <string name="copy_number">Copy: %s</string>
+    <string name="copy_card">Copy card: %s</string>
+    <string name="code_copied_toast">Code %s copied</string>
+    <string name="number_copied_toast">%s copied</string>
 </resources>

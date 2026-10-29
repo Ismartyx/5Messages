@@ -89,6 +89,20 @@
         tools:backgroundTint="@color/tools_theme"
         tools:text="@tools:sample/lorem/random" />
 
+    <LinearLayout
+        android:id="@+id/copyCodeContainer"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="12dp"
+        android:layout_marginTop="4dp"
+        android:orientation="horizontal"
+        android:visibility="gone"
+        app:layout_constrainedWidth="true"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHorizontal_bias="0"
+        app:layout_constraintStart_toEndOf="@id/avatar"
+        app:layout_constraintTop_toBottomOf="@id/body" />
+
     <com.goodwy.messages.common.widget.QkTextView
         android:id="@+id/status"
         android:layout_width="wrap_content"
@@ -100,7 +114,7 @@
         android:textColor="?android:attr/textColorSecondary"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/body"
+        app:layout_constraintTop_toBottomOf="@id/copyCodeContainer"
         app:textSize="tertiary"
         tools:text="Sending..." />
 

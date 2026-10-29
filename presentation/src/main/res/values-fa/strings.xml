@@ -423,4 +423,10 @@
     <string name="settings_sim_сonfigure_title">پیکربندی سیم کارت</string>
     <string name="settings_sim_color_summary">پیکربندی رنگ آیکون سیم کارت</string>
     <string name="settings_search_elevation_title">ارتفاع جستجو</string>
+    <!-- Smart Number & OTP Copy -->
+    <string name="copy_code">کپی کد: %s</string>
+    <string name="copy_number">کپی: %s</string>
+    <string name="copy_card">کپی شماره کارت: %s</string>
+    <string name="code_copied_toast">کد %s کپی شد</string>
+    <string name="number_copied_toast">%s کپی شد</string>
 </resources>

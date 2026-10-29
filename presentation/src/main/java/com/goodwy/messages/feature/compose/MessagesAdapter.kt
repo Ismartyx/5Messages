@@ -11,8 +11,12 @@ import android.text.style.StyleSpan
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.view.HapticFeedbackConstants
 import android.widget.ImageView
 import android.widget.ProgressBar
+import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
 import com.jakewharton.rxbinding2.view.clicks
 import com.goodwy.messages.R
@@ -186,7 +190,7 @@ class MessagesAdapter @Inject constructor(
             }
             val isCancellable = message.isSending() && (message.date + delay) > System.currentTimeMillis()// && message.date > System.currentTimeMillis()
             cancel.setVisible(isCancellable)
-            cancel.clicks().subscribe { cancelSending.onNext(message.id) }
+            cancel.setOnClickListener { cancelSending.onNext(message.id) }
             cancel.progress = 2
 
             if (isCancellable) {
@@ -328,6 +332,49 @@ class MessagesAdapter @Inject constructor(
             holder.body.setPadding(paddingLeft, paddingTop, paddingRight, paddingBottom)
         } else if (prefs.bubbleStyle.get() == 1) {
             holder.body.setPadding(paddingRight, paddingTop, paddingLeft, paddingBottom)
+        }
+
+        // Bind the copy code/numbers chips
+        holder.copyCodeContainer?.let { container ->
+            container.removeAllViews()
+            val textToScan = messageText.toString()
+            val numbers = com.goodwy.messages.util.NumberExtractor.extract(textToScan)
+            if (numbers.isNotEmpty() && !message.isSending()) {
+                container.visibility = View.VISIBLE
+                val inflater = LayoutInflater.from(container.context)
+                for (item in numbers) {
+                    val chip = inflater.inflate(R.layout.item_copy_chip, container, false)
+                    val chipText = chip.findViewById<TextView>(R.id.copyChipText)
+                    val chipIcon = chip.findViewById<ImageView>(R.id.copyChipIcon)
+
+                    val label = when (item.type) {
+                        com.goodwy.messages.util.NumberExtractor.NumberType.OTP -> context.getString(R.string.copy_code, item.displayValue)
+                        com.goodwy.messages.util.NumberExtractor.NumberType.CARD -> context.getString(R.string.copy_card, item.displayValue)
+                        com.goodwy.messages.util.NumberExtractor.NumberType.IBAN -> context.getString(R.string.copy_number, item.displayValue)
+                        com.goodwy.messages.util.NumberExtractor.NumberType.GENERAL -> context.getString(R.string.copy_number, item.displayValue)
+                    }
+                    chipText.text = label
+                    chipIcon.setColorFilter(theme.theme)
+
+                    chip.setOnClickListener {
+                        val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
+                        val clip = ClipData.newPlainText("code", item.copyValue)
+                        clipboard?.setPrimaryClip(clip)
+                        tryOrNull(false) {
+                            it.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+                        }
+
+                        val toastMessage = when (item.type) {
+                            com.goodwy.messages.util.NumberExtractor.NumberType.OTP -> context.getString(R.string.code_copied_toast, item.copyValue)
+                            else -> context.getString(R.string.number_copied_toast, item.copyValue)
+                        }
+                        context.makeToast(toastMessage)
+                    }
+                    container.addView(chip)
+                }
+            } else {
+                container.visibility = View.GONE
+            }
         }
 
         // Bind the attachments
