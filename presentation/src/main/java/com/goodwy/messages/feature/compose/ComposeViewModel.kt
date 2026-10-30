@@ -687,7 +687,7 @@ class ComposeViewModel @Inject constructor(
                         conversation.recipients.size > 1 && conversation.recipients.mapNotNull { it.contact?.lookupKey }.filter { it.isNotBlank() }.distinct().size == 1 -> {
                             val activeAddress = conversation.lastMessage?.address?.takeIf { addr ->
                                 conversation.recipients.any { phoneNumberUtils.compare(it.address, addr) }
-                            } ?: conversation.recipients.first().address
+                            } ?: conversation.recipients.firstOrNull()?.address.orEmpty()
                             val actualThreadId = tryOrNull(false) {
                                 TelephonyCompat.getOrCreateThreadId(context, activeAddress)
                             } ?: targetThreadId
