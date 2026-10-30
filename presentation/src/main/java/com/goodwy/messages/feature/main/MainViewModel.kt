@@ -134,6 +134,14 @@ class MainViewModel @Inject constructor(
                     .subscribe({ syncContacts.execute(Unit) }, {})
         }
 
+        if (permissionManager.hasContacts() && permissionManager.hasReadSms()) {
+            Completable.fromAction {
+                syncRepository.mergeContactConversations()
+            }
+            .subscribeOn(Schedulers.io())
+            .subscribe({}, {})
+        }
+
         ratingManager.addSession()
         markAllSeen.execute(Unit)
     }

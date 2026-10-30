@@ -684,7 +684,8 @@ class ComposeViewModel @Inject constructor(
                         }
 
                         // Sending to a single contact with multiple phone numbers
-                        conversation.recipients.size > 1 && conversation.recipients.mapNotNull { it.contact?.lookupKey }.filter { it.isNotBlank() }.distinct().size == 1 -> {
+                        conversation.recipients.size > 1 && (conversation.recipients.mapNotNull { it.contact?.lookupKey }.filter { it.isNotBlank() }.distinct().size == 1 ||
+                            conversation.recipients.mapNotNull { it.contact?.name?.trim() }.filter { it.isNotBlank() }.distinct().size == 1) -> {
                             val activeAddress = conversation.lastMessage?.address?.takeIf { addr ->
                                 conversation.recipients.any { phoneNumberUtils.compare(it.address, addr) }
                             } ?: conversation.recipients.firstOrNull()?.address.orEmpty()

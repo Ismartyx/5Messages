@@ -13,8 +13,8 @@ android {
         applicationId "com.goodwy.messages"
         minSdkVersion 21
         targetSdkVersion 30
-        versionCode 117
-        versionName "1.1.7" //если последняя цифرا ноль, то не работают бэкапы
+        versionCode 118
+        versionName "1.1.8" //если последняя цифرا ноль, то не работают бэкапы
         setProperty("archivesBaseName", "4Messages-v${versionName}")
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
 

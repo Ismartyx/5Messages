@@ -62,6 +62,9 @@ import com.goodwy.messages.repository.BackupRepository
 import com.goodwy.messages.repository.SyncRepository
 import com.goodwy.messages.util.NightModeManager
 import com.goodwy.messages.util.Preferences
+import java.net.HttpURLConnection
+import java.net.URL
+import org.json.JSONObject
 import com.uber.autodispose.android.lifecycle.scope
 import com.uber.autodispose.autoDisposable
 import dagger.android.AndroidInjection
@@ -128,7 +131,7 @@ class MainActivity : QkThemedActivity(), MainView {
                 settings.clicks().map { NavItem.SETTINGS },
                 appUpdate.clicks().doOnNext {
                     drawerLayout?.closeDrawer(GravityCompat.START)
-                    startAppUpdateDownload()
+                    checkAppUpdate()
                 }.filter { false }.map { NavItem.SETTINGS },
                 plus.clicks().map { NavItem.PLUS },
                 help.clicks().map { NavItem.HELP },
@@ -626,15 +629,19 @@ saveBackupBtn.setOnClickListener {
 
         dedupBtn.setOnClickListener {
             dialog.dismiss()
-            Toast.makeText(this, "در حال بررسی و حذف پیام‌های تکراری...", Toast.LENGTH_SHORT).show()
-            Single.fromCallable { backupRepo.deduplicateMessages() }
+            Toast.makeText(this, "در حال بررسی و حذف پیام‌های تکراری و ادغام مخاطبین...", Toast.LENGTH_SHORT).show()
+            Single.fromCallable {
+                val count = backupRepo.deduplicateMessages()
+                syncRepo.mergeContactConversations()
+                count
+            }
                     .subscribeOn(Schedulers.io())
                     .observeOn(AndroidSchedulers.mainThread())
                     .subscribe({ count ->
                         if (count > 0) {
-                            Toast.makeText(this, "✅ $count پیام تکراری حذف و لیست پیام‌ها به‌روز شد", Toast.LENGTH_LONG).show()
+                            Toast.makeText(this, "✅ $count پیام تکراری حذف و مخاطبین ادغام شدند", Toast.LENGTH_LONG).show()
                         } else {
-                            Toast.makeText(this, "هیچ پیام تکراری یافت نشد", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(this, "✅ ادغام گفتگوها انجام شد (پیام تکراری یافت نشد)", Toast.LENGTH_SHORT).show()
                         }
                     }, { error ->
                         Toast.makeText(this, "❌ خطا: ${error.message}", Toast.LENGTH_LONG).show()
@@ -651,17 +658,79 @@ saveBackupBtn.setOnClickListener {
     }
 
 
-    private fun startAppUpdateDownload() {
-        val downloadUrl = "https://github.com/Ismartyx/5Messages/releases/latest/download/5Messages.apk"
-        Toast.makeText(this, "در حال شروع دانلود به‌روزرسانی در اعلان‌ها...", Toast.LENGTH_LONG).show()
+    private fun checkAppUpdate() {
+        Toast.makeText(this, "در حال بررسی نسخه جدید...", Toast.LENGTH_SHORT).show()
+        Single.fromCallable {
+            val url = URL("https://api.github.com/repos/Ismartyx/5Messages/releases/latest")
+            val conn = url.openConnection() as HttpURLConnection
+            conn.setRequestProperty("User-Agent", "5Messages-Android")
+            conn.connectTimeout = 8000
+            conn.readTimeout = 8000
+            if (conn.responseCode == 200) {
+                val text = conn.inputStream.bufferedReader().use { it.readText() }
+                JSONObject(text)
+            } else {
+                throw Exception("HTTP ${conn.responseCode}")
+            }
+        }
+        .subscribeOn(Schedulers.io())
+        .observeOn(AndroidSchedulers.mainThread())
+        .autoDisposable(scope())
+        .subscribe({ json ->
+            val latestTag = json.optString("tag_name", "").replace("v", "").trim()
+            val currentVersion = try {
+                packageManager.getPackageInfo(packageName, 0).versionName.replace("v", "").trim()
+            } catch (e: Exception) { "1.1.7" }
+
+            if (isNewerVersion(latestTag, currentVersion)) {
+                val assetUrl = json.optJSONArray("assets")?.let { arr ->
+                    (0 until arr.length())
+                        .map { arr.getJSONObject(it) }
+                        .find { it.optString("name", "").endsWith(".apk") }
+                        ?.optString("browser_download_url")
+                } ?: "https://github.com/Ismartyx/5Messages/releases/latest/download/5Messages.apk"
+
+                AlertDialog.Builder(this)
+                    .setTitle("🔄 نسخه جدید موجود است")
+                    .setMessage("نسخه فعلی شما: $currentVersion\nنسخه جدید: $latestTag\n\nآیا مایل به دانلود و نصب هستید؟")
+                    .setPositiveButton("دانلود و به‌روزرسانی") { _, _ ->
+                        startAppUpdateDownload(assetUrl, latestTag)
+                    }
+                    .setNegativeButton("انصراف", null)
+                    .show()
+            } else {
+                Toast.makeText(this, "✅ برنامه شما به‌روز است (نسخه $currentVersion)", Toast.LENGTH_LONG).show()
+            }
+        }, { error ->
+            Toast.makeText(this, "خطا در بررسی نسخه: ${error.message}", Toast.LENGTH_LONG).show()
+        })
+    }
+
+    private fun isNewerVersion(latest: String, current: String): Boolean {
+        try {
+            val lParts = latest.split(".").mapNotNull { it.toIntOrNull() }
+            val cParts = current.split(".").mapNotNull { it.toIntOrNull() }
+            val maxLen = maxOf(lParts.size, cParts.size)
+            for (i in 0 until maxLen) {
+                val l = lParts.getOrElse(i) { 0 }
+                val c = cParts.getOrElse(i) { 0 }
+                if (l > c) return true
+                if (l < c) return false
+            }
+        } catch (_: Exception) {}
+        return false
+    }
+
+    private fun startAppUpdateDownload(downloadUrl: String, newVersion: String) {
+        Toast.makeText(this, "در حال دریافت نسخه $newVersion در اعلان‌ها...", Toast.LENGTH_LONG).show()
 
         try {
             val dm = getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
             val request = DownloadManager.Request(Uri.parse(downloadUrl)).apply {
-                setTitle("5Messages Update")
-                setDescription("در حال دریافت نسخه جدید برنامه...")
+                setTitle("5Messages v$newVersion")
+                setDescription("در حال دانلود به‌روزرسانی...")
                 setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
-                setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, "5Messages.apk")
+                setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, "5Messages-v$newVersion.apk")
                 setMimeType("application/vnd.android.package-archive")
             }
             dm.enqueue(request)

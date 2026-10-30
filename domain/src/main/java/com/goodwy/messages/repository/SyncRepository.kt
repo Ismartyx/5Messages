@@ -37,4 +37,6 @@ interface SyncRepository {
 
     fun syncContacts()
 
+    fun mergeContactConversations()
+
 }

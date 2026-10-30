@@ -209,13 +209,13 @@ class SyncRepositoryImpl @Inject constructor(
 
         syncProgress.onNext(SyncRepository.SyncProgress.Running(0, 0, true))
 
-        // Merge multiple conversations that belong to the same contact
-        tryOrNull {
-            mergeSameContactConversations(realm)
-        }
-
         realm.insert(SyncLog())
         realm.commitTransaction()
+
+        // Merge multiple conversations that belong to the same contact
+        tryOrNull {
+            mergeContactConversations()
+        }
 
         // Only delete this after the sync has successfully completed
         oldBlockedSenders.delete()
@@ -304,6 +304,9 @@ class SyncRepositoryImpl @Inject constructor(
                 realm.insertOrUpdate(recipients)
             }
 
+            tryOrNull {
+                mergeContactConversations()
+            }
         }
     }
 
@@ -362,60 +365,110 @@ class SyncRepositoryImpl @Inject constructor(
         return groups
     }
 
-    private fun mergeSameContactConversations(realm: Realm) {
-        val conversations = realm.where(Conversation::class.java).findAll()
-        val contactToConvs = mutableMapOf<String, MutableList<Long>>()
-        for (conv in conversations) {
-            val contactKeys = conv.recipients.mapNotNull { it.contact?.lookupKey }.filter { it.isNotBlank() }.distinct()
-            if (contactKeys.size == 1 && conv.recipients.isNotEmpty()) {
-                val key = contactKeys.first()
-                contactToConvs.getOrPut(key) { mutableListOf() }.add(conv.id)
-            }
-        }
+    override fun mergeContactConversations() {
+        val realm = Realm.getDefaultInstance() ?: return
+        try {
+            realm.executeTransaction { r ->
+                val allContacts = r.where(Contact::class.java).findAll()
+                val conversations = r.where(Conversation::class.java).findAll()
 
-        contactToConvs.values.filter { it.size > 1 }.forEach { threadIds ->
-            var primaryId = threadIds[0]
-            var latestDate = realm.where(Conversation::class.java).equalTo("id", primaryId).findFirst()?.lastMessage?.date ?: 0L
-
-            for (i in 1 until threadIds.size) {
-                val tid = threadIds[i]
-                val d = realm.where(Conversation::class.java).equalTo("id", tid).findFirst()?.lastMessage?.date ?: 0L
-                if (d > latestDate) {
-                    latestDate = d
-                    primaryId = tid
+                fun normalizePhone(phone: String?): String {
+                    if (phone.isNullOrBlank()) return ""
+                    val digits = phone.filter { it.isDigit() }
+                    return if (digits.length >= 10) digits.takeLast(10) else digits
                 }
-            }
 
-            val secondaryIds = threadIds.filter { it != primaryId }
-            val primaryConv = realm.where(Conversation::class.java).equalTo("id", primaryId).findFirst() ?: return@forEach
+                val contactToConvs = mutableMapOf<String, MutableList<Long>>()
+                for (conv in conversations) {
+                    if (conv.recipients.isEmpty()) continue
 
-            for (secId in secondaryIds) {
-                val secConv = realm.where(Conversation::class.java).equalTo("id", secId).findFirst() ?: continue
+                    var key: String? = null
 
-                secConv.recipients.forEach { rec ->
-                    if (primaryConv.recipients.none { it.id == rec.id || it.address == rec.address }) {
-                        primaryConv.recipients.add(rec)
+                    // 1. Check lookupKey of recipients
+                    val lookupKey = conv.recipients.mapNotNull { it.contact?.lookupKey }.firstOrNull { it.isNotBlank() }
+                    if (lookupKey != null) {
+                        key = lookupKey
+                    }
+
+                    // 2. Check contact display name of recipients
+                    if (key == null) {
+                        val name = conv.recipients.mapNotNull { it.contact?.name?.trim() }.firstOrNull { it.isNotBlank() }
+                        if (name != null) {
+                            key = "name_$name"
+                        }
+                    }
+
+                    // 3. Match against all contacts' phone numbers in Realm
+                    if (key == null && conv.recipients.size == 1) {
+                        val addr = conv.recipients.first().address
+                        val normAddr = normalizePhone(addr)
+                        if (normAddr.isNotEmpty()) {
+                            val matched = allContacts.find { contact ->
+                                contact.numbers.any { num ->
+                                    phoneNumberUtils.compare(num.address, addr) || normalizePhone(num.address) == normAddr
+                                }
+                            }
+                            if (matched != null) {
+                                conv.recipients.first().contact = matched
+                                key = matched.lookupKey.takeIf { it.isNotBlank() } ?: "name_${matched.name.trim()}"
+                            }
+                        }
+                    }
+
+                    if (!key.isNullOrBlank()) {
+                        contactToConvs.getOrPut(key) { mutableListOf() }.add(conv.id)
                     }
                 }
 
-                if (secConv.pinned) primaryConv.pinned = true
-                if (primaryConv.name.isEmpty() && secConv.name.isNotEmpty()) {
-                    primaryConv.name = secConv.name
-                }
+                contactToConvs.values.filter { it.size > 1 }.forEach { threadIds ->
+                    var primaryId = threadIds[0]
+                    var latestDate = r.where(Conversation::class.java).equalTo("id", primaryId).findFirst()?.lastMessage?.date ?: 0L
 
-                val secMessages = realm.where(Message::class.java).equalTo("threadId", secId).findAll()
-                val messageIds = secMessages.map { it.id }
-                for (msgId in messageIds) {
-                    realm.where(Message::class.java).equalTo("id", msgId).findFirst()?.threadId = primaryId
-                }
+                    for (i in 1 until threadIds.size) {
+                        val tid = threadIds[i]
+                        val d = r.where(Conversation::class.java).equalTo("id", tid).findFirst()?.lastMessage?.date ?: 0L
+                        if (d > latestDate) {
+                            latestDate = d
+                            primaryId = tid
+                        }
+                    }
 
-                secConv.deleteFromRealm()
+                    val secondaryIds = threadIds.filter { it != primaryId }
+                    val primaryConv = r.where(Conversation::class.java).equalTo("id", primaryId).findFirst() ?: return@forEach
+
+                    for (secId in secondaryIds) {
+                        val secConv = r.where(Conversation::class.java).equalTo("id", secId).findFirst() ?: continue
+
+                        secConv.recipients.forEach { rec ->
+                            if (primaryConv.recipients.none { it.id == rec.id || it.address == rec.address }) {
+                                primaryConv.recipients.add(rec)
+                            }
+                        }
+
+                        if (secConv.pinned) primaryConv.pinned = true
+                        if (primaryConv.name.isEmpty() && secConv.name.isNotEmpty()) {
+                            primaryConv.name = secConv.name
+                        }
+
+                        val secMessages = r.where(Message::class.java).equalTo("threadId", secId).findAll()
+                        val messageIds = secMessages.map { it.id }
+                        for (msgId in messageIds) {
+                            r.where(Message::class.java).equalTo("id", msgId).findFirst()?.threadId = primaryId
+                        }
+
+                        secConv.deleteFromRealm()
+                    }
+
+                    primaryConv.lastMessage = r.where(Message::class.java)
+                        .equalTo("threadId", primaryId)
+                        .sort("date", Sort.DESCENDING)
+                        .findFirst()
+                }
             }
-
-            primaryConv.lastMessage = realm.where(Message::class.java)
-                .equalTo("threadId", primaryId)
-                .sort("date", Sort.DESCENDING)
-                .findFirst()
+        } catch (e: Throwable) {
+            Timber.e(e, "Error merging contact conversations")
+        } finally {
+            realm.close()
         }
     }
 
