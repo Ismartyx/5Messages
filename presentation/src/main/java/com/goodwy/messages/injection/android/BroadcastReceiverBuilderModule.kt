@@ -25,6 +25,7 @@ import com.goodwy.messages.receiver.BootReceiver
 import com.goodwy.messages.receiver.DefaultSmsChangedReceiver
 import com.goodwy.messages.receiver.DeleteMessagesReceiver
 import com.goodwy.messages.receiver.MarkArchivedReceiver
+import com.goodwy.messages.receiver.CopyCodeReceiver
 import com.goodwy.messages.receiver.MarkReadReceiver
 import com.goodwy.messages.receiver.MarkSeenReceiver
 import com.goodwy.messages.receiver.MmsReceivedReceiver
@@ -63,6 +64,10 @@ abstract class BroadcastReceiverBuilderModule {
     @ActivityScope
     @ContributesAndroidInjector
     abstract fun bindMarkArchivedReceiver(): MarkArchivedReceiver
+
+    @ActivityScope
+    @ContributesAndroidInjector()
+    abstract fun bindCopyCodeReceiver(): CopyCodeReceiver
 
     @ActivityScope
     @ContributesAndroidInjector()

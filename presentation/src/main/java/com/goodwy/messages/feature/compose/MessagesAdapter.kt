@@ -358,7 +358,7 @@ class MessagesAdapter @Inject constructor(
 
                     chip.setOnClickListener {
                         val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
-                        val clip = ClipData.newPlainText("code", item.copyValue)
+                        val clip = ClipData.newPlainText("code", com.goodwy.messages.util.NumberExtractor.toAsciiDigits(item.copyValue))
                         clipboard?.setPrimaryClip(clip)
                         tryOrNull(false) {
                             it.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)

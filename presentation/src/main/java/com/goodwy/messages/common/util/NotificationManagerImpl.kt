@@ -45,6 +45,8 @@ import com.goodwy.messages.feature.compose.ComposeActivity
 import com.goodwy.messages.feature.qkreply.QkReplyActivity
 import com.goodwy.messages.manager.PermissionManager
 import com.goodwy.messages.mapper.CursorToPartImpl
+import com.goodwy.messages.receiver.CopyCodeReceiver
+import com.goodwy.messages.util.NumberExtractor
 import com.goodwy.messages.receiver.BlockThreadReceiver
 import com.goodwy.messages.receiver.DeleteMessagesReceiver
 import com.goodwy.messages.receiver.MarkArchivedReceiver
@@ -221,6 +223,35 @@ class NotificationManagerImpl @Inject constructor(
         // appropriately bypass DND mode
         conversation.recipients.forEach { recipient ->
             notification.addPerson("tel:${recipient.address}")
+        }
+
+        // Add smart copy code/number action button if any message has numbers/OTP
+        val latestMessageText = messages.lastOrNull()?.getText() ?: ""
+        val extractedNumbers = NumberExtractor.extract(latestMessageText)
+        if (extractedNumbers.isNotEmpty()) {
+            val item = extractedNumbers.first()
+            val intent = Intent(context, CopyCodeReceiver::class.java).apply {
+                putExtra(CopyCodeReceiver.EXTRA_CODE, item.copyValue)
+                putExtra(CopyCodeReceiver.EXTRA_IS_OTP, item.type == NumberExtractor.NumberType.OTP)
+                putExtra(CopyCodeReceiver.EXTRA_THREAD_ID, threadId)
+            }
+            val pi = PendingIntent.getBroadcast(
+                context,
+                (threadId + 30000).toInt(),
+                intent,
+                PendingIntent.FLAG_UPDATE_CURRENT
+            )
+            val actionTitle = when (item.type) {
+                NumberExtractor.NumberType.OTP -> context.getString(R.string.copy_code, item.displayValue)
+                NumberExtractor.NumberType.CARD -> context.getString(R.string.copy_card, item.displayValue)
+                else -> context.getString(R.string.copy_number, item.displayValue)
+            }
+            val copyAction = NotificationCompat.Action.Builder(
+                R.drawable.ic_content_copy_white_24dp,
+                actionTitle,
+                pi
+            ).build()
+            notification.addAction(copyAction)
         }
 
         // Add the action buttons
