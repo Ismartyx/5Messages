@@ -608,7 +608,7 @@ saveBackupBtn.setOnClickListener {
                     .observeOn(AndroidSchedulers.mainThread())
                     .subscribe({ count ->
                         if (count > 0) {
-                            Toast.makeText(this, "✅ $count پیام تکراری حذف شد", Toast.LENGTH_LONG).show()
+                            Toast.makeText(this, "✅ $count پیام تکراری حذف و لیست پیام‌ها به‌روز شد", Toast.LENGTH_LONG).show()
                         } else {
                             Toast.makeText(this, "هیچ پیام تکراری یافت نشد", Toast.LENGTH_SHORT).show()
                         }

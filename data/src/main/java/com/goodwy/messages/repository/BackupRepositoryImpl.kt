@@ -1,5 +1,6 @@
 package com.goodwy.messages.repository
 
+import android.content.ContentUris
 import android.content.Context
 import android.provider.Telephony
 import android.util.Base64
@@ -457,6 +458,14 @@ class BackupRepositoryImpl @Inject constructor(
         Timer().schedule(1000) { restoreProgress.onNext(BackupRepository.Progress.Idle()) }
     }
 
+    private data class SmsDupEntry(
+        val id: Long,
+        val normAddr: String,
+        val date: Long,
+        val type: Int,
+        val body: String
+    )
+
     override fun deduplicateMessages(): Int {
         var deletedCount = 0
         val projection = arrayOf(
@@ -466,7 +475,7 @@ class BackupRepositoryImpl @Inject constructor(
             Telephony.Sms.BODY,
             Telephony.Sms.TYPE
         )
-        val seen = HashSet<String>()
+        val seenEntries = ArrayList<SmsDupEntry>()
         val idsToDelete = ArrayList<Long>()
 
         tryOrNull {
@@ -487,22 +496,31 @@ class BackupRepositoryImpl @Inject constructor(
                     val id = if (idIdx != -1) cursor.getLong(idIdx) else continue
                     val addr = if (addressIdx != -1) cursor.getString(addressIdx).orEmpty() else ""
                     val date = if (dateIdx != -1) cursor.getLong(dateIdx) else 0L
-                    val body = if (bodyIdx != -1) cursor.getString(bodyIdx).orEmpty() else ""
+                    val body = if (bodyIdx != -1) cursor.getString(bodyIdx).orEmpty().trim() else ""
                     val type = if (typeIdx != -1) cursor.getInt(typeIdx) else -1
-                    val key = "$addr|$date|$type|$body"
+                    val normAddr = addr.replace(Regex("[^0-9+]"), "").takeLast(10)
 
-                    if (!seen.add(key)) {
+                    val isDup = seenEntries.any { seen ->
+                        seen.type == type &&
+                        seen.body == body &&
+                        (seen.normAddr == normAddr || (normAddr.isNotEmpty() && seen.normAddr.endsWith(normAddr))) &&
+                        Math.abs(seen.date - date) < 60000L
+                    }
+
+                    if (isDup) {
                         idsToDelete.add(id)
+                    } else {
+                        seenEntries.add(SmsDupEntry(id, normAddr, date, type, body))
                     }
                 }
             }
         }
 
         if (idsToDelete.isNotEmpty()) {
-            idsToDelete.chunked(100).forEach { chunk ->
-                val selection = "${Telephony.Sms._ID} IN (${chunk.joinToString(",")})"
+            idsToDelete.forEach { id ->
                 tryOrNull {
-                    val count = context.contentResolver.delete(Telephony.Sms.CONTENT_URI, selection, null)
+                    val uri = ContentUris.withAppendedId(Telephony.Sms.CONTENT_URI, id)
+                    val count = context.contentResolver.delete(uri, null, null)
                     deletedCount += count
                 }
             }
@@ -523,12 +541,21 @@ class BackupRepositoryImpl @Inject constructor(
         tryOrNull {
             Realm.getDefaultInstance().use { realm ->
                 val allMessages = realm.where(Message::class.java).sort("date").findAll()
-                val realmSeen = HashSet<String>()
+                val realmSeen = ArrayList<SmsDupEntry>()
                 val realmIdsToDelete = ArrayList<Long>()
                 for (msg in allMessages) {
-                    val key = "${msg.address}|${msg.date}|${msg.boxId}|${msg.body}"
-                    if (!realmSeen.add(key)) {
+                    val body = msg.body.trim()
+                    val normAddr = msg.address.replace(Regex("[^0-9+]"), "").takeLast(10)
+                    val isDup = realmSeen.any { seen ->
+                        seen.type == msg.boxId &&
+                        seen.body == body &&
+                        (seen.normAddr == normAddr || (normAddr.isNotEmpty() && seen.normAddr.endsWith(normAddr))) &&
+                        Math.abs(seen.date - msg.date) < 60000L
+                    }
+                    if (isDup) {
                         realmIdsToDelete.add(msg.id)
+                    } else {
+                        realmSeen.add(SmsDupEntry(msg.id, normAddr, msg.date, msg.boxId, body))
                     }
                 }
                 if (realmIdsToDelete.isNotEmpty()) {
@@ -543,6 +570,11 @@ class BackupRepositoryImpl @Inject constructor(
                     }
                 }
             }
+        }
+
+        // Immediately trigger sync so Realm conversations, snippets, and UI listeners update
+        tryOrNull {
+            syncRepo.syncMessages()
         }
 
         return deletedCount

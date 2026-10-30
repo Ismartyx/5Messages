@@ -45,8 +45,8 @@ object NumberExtractor {
         val results = mutableListOf<ExtractedNumber>()
         val seenCopyValues = mutableSetOf<String>()
 
-        // 1. Check for Sheba / IBAN: IR + 24 digits
-        val ibanRegex = Regex("\\bIR[0-9]{24}\\b", RegexOption.IGNORE_CASE)
+        // 1. Check for Sheba / IBAN: IR + 24 digits (supports glued letters/names)
+        val ibanRegex = Regex("(?<![a-zA-Z0-9])IR[0-9]{24}(?![0-9])", RegexOption.IGNORE_CASE)
         for (match in ibanRegex.findAll(normalizedText)) {
             val iban = match.value.toUpperCase()
             if (seenCopyValues.add(iban)) {
@@ -54,18 +54,19 @@ object NumberExtractor {
             }
         }
 
-        // 2. Check for Bank Card (16 digits, with optional spaces or dashes)
-        val cardRegex = Regex("\\b(?:\\d{4}[ -]?){3}\\d{4}\\b")
+        // 2. Check for Bank Card (16 digits, with optional spaces or dashes, supports glued letters/names)
+        val cardRegex = Regex("(?<!\\d)(?:(?:\\d{4}[ -]?){3}\\d{4}|\\d{16})(?!\\d)")
         for (match in cardRegex.findAll(normalizedText)) {
             val raw = match.value
             val clean = raw.replace(" ", "").replace("-", "")
             if (clean.length == 16 && seenCopyValues.add(clean)) {
-                results.add(ExtractedNumber(clean, clean, NumberType.CARD))
+                val displayFormatted = clean.chunked(4).joinToString(" ")
+                results.add(ExtractedNumber(displayFormatted, clean, NumberType.CARD))
             }
         }
 
-        // 3. Check for standalone numbers (4 to 12 digits)
-        val numberRegex = Regex("\\b\\d{4,12}\\b")
+        // 3. Check for standalone numbers/OTPs (4 to 12 digits, supports glued letters/words)
+        val numberRegex = Regex("(?<!\\d)\\d{4,12}(?!\\d)")
         for (match in numberRegex.findAll(normalizedText)) {
             val num = match.value
             if (seenCopyValues.any { it.contains(num) } || seenCopyValues.contains(num)) {

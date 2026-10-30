@@ -44,7 +44,9 @@ open class Conversation(
     val me: Boolean get() = lastMessage?.isMe() == true
 
     fun getTitle(): String {
-        return name.takeIf { it.isNotBlank() } ?: recipients.joinToString { recipient -> recipient.getDisplayName() }
+        if (name.isNotBlank()) return name
+        val distinctNames = recipients.map { it.getDisplayName() }.distinct()
+        return if (distinctNames.isNotEmpty()) distinctNames.joinToString(", ") else ""
     }
 
 }
