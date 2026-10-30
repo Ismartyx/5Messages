@@ -400,7 +400,8 @@ class SyncRepositoryImpl @Inject constructor(
 
                     // 3. Match against all contacts' phone numbers in Realm
                     if (key == null && conv.recipients.size == 1) {
-                        val addr = conv.recipients.first().address
+                        val firstRec = conv.recipients.firstOrNull()
+                        val addr = firstRec?.address.orEmpty()
                         val normAddr = normalizePhone(addr)
                         if (normAddr.isNotEmpty()) {
                             val matched = allContacts.find { contact ->
@@ -409,7 +410,7 @@ class SyncRepositoryImpl @Inject constructor(
                                 }
                             }
                             if (matched != null) {
-                                conv.recipients.first().contact = matched
+                                firstRec?.contact = matched
                                 key = matched.lookupKey.takeIf { it.isNotBlank() } ?: "name_${matched.name.trim()}"
                             }
                         }
