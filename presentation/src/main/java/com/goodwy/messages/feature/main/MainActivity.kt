@@ -62,6 +62,7 @@ import com.uber.autodispose.autoDisposable
 import dagger.android.AndroidInjection
 import io.reactivex.Completable
 import io.reactivex.Observable
+import io.reactivex.Single
 import io.reactivex.android.schedulers.AndroidSchedulers
 import io.reactivex.disposables.CompositeDisposable
 import io.reactivex.schedulers.Schedulers
@@ -521,6 +522,19 @@ class MainActivity : QkThemedActivity(), MainView {
         buttonsRow.addView(saveBackupBtn)
         card.addView(buttonsRow)
 
+        val dedupBtn = Button(this).apply {
+            text = "🧹 حذف پیام‌های تکراری"
+            setTextColor(Color.WHITE)
+            textSize = 13f
+            setTypeface(null, Typeface.BOLD)
+            isAllCaps = false
+            background = makeRoundedBg("#DC2626", null, 12)
+            layoutParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(44)).apply {
+                topMargin = dp(12)
+            }
+        }
+        card.addView(dedupBtn)
+
         val localFilesBtn = Button(this).apply {
             text = "📂 فایل‌های بکاپ محلی"
             setTextColor(Color.parseColor("#94A3B8"))
@@ -584,6 +598,23 @@ saveBackupBtn.setOnClickListener {
             }, { error ->
                 Toast.makeText(this, "❌ خطا: ${error.message}", Toast.LENGTH_LONG).show()
             })
+        }
+
+        dedupBtn.setOnClickListener {
+            dialog.dismiss()
+            Toast.makeText(this, "در حال بررسی و حذف پیام‌های تکراری...", Toast.LENGTH_SHORT).show()
+            Single.fromCallable { backupRepo.deduplicateMessages() }
+                    .subscribeOn(Schedulers.io())
+                    .observeOn(AndroidSchedulers.mainThread())
+                    .subscribe({ count ->
+                        if (count > 0) {
+                            Toast.makeText(this, "✅ $count پیام تکراری حذف شد", Toast.LENGTH_LONG).show()
+                        } else {
+                            Toast.makeText(this, "هیچ پیام تکراری یافت نشد", Toast.LENGTH_SHORT).show()
+                        }
+                    }, { error ->
+                        Toast.makeText(this, "❌ خطا: ${error.message}", Toast.LENGTH_LONG).show()
+                    })
         }
 
         localFilesBtn.setOnClickListener {

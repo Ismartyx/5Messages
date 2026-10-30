@@ -4,7 +4,10 @@ import android.content.Context
 import android.provider.Telephony
 import android.util.Base64
 import androidx.core.content.contentValuesOf
+import com.goodwy.messages.extensions.anyOf
 import com.goodwy.messages.model.BackupFile
+import com.goodwy.messages.model.BlockedNumber
+import com.goodwy.messages.model.BlockedRegex
 import com.goodwy.messages.model.Message
 import com.goodwy.messages.util.Preferences
 import com.goodwy.messages.util.QkFileObserver
@@ -43,7 +46,9 @@ class BackupRepositoryImpl @Inject constructor(
         val messageCount: Int = 0,
         val messages: List<BackupMessage> = listOf(),
         val preferences: Map<String, String> = mapOf(),
-        val manualCategories: Map<String, String> = mapOf()
+        val manualCategories: Map<String, String> = mapOf(),
+        val blockedNumbers: List<String> = listOf(),
+        val blockedRegexps: List<String> = listOf()
     )
 
     data class BackupMetadata(
@@ -96,11 +101,26 @@ class BackupRepositoryImpl @Inject constructor(
 
         backupProgress.onNext(BackupRepository.Progress.Saving())
 
-        val exportedPrefs = exportSharedPrefs("${context.packageName}_preferences", excludePrefix = "nc_")
+        val blockedNumbers = Realm.getDefaultInstance().use { realm ->
+            realm.where(BlockedNumber::class.java).findAll().map { it.address }
+        }
+        val blockedRegexps = Realm.getDefaultInstance().use { realm ->
+            realm.where(BlockedRegex::class.java).findAll().map { it.regex }
+        }
+
+        val exportedPrefs = exportSharedPrefs("${context.packageName}_preferences", excludeKeys = setOf("nc_pass"))
         val exportedCategories = exportSharedPrefs("manual_message_categories")
 
         val adapter = moshi.adapter(Backup::class.java).indent("\t")
-        val json = adapter.toJson(Backup(messageCount, backupMessages, exportedPrefs, exportedCategories)).toByteArray()
+        val backupData = Backup(
+            messageCount = messageCount,
+            messages = backupMessages,
+            preferences = exportedPrefs,
+            manualCategories = exportedCategories,
+            blockedNumbers = blockedNumbers,
+            blockedRegexps = blockedRegexps
+        )
+        val json = adapter.toJson(backupData).toByteArray()
 
         try {
             val dir = File(BACKUP_DIRECTORY).apply { mkdirs() }
@@ -121,18 +141,19 @@ class BackupRepositoryImpl @Inject constructor(
         Timer().schedule(1000) { backupProgress.onNext(BackupRepository.Progress.Idle()) }
     }
 
-    private fun exportSharedPrefs(prefsName: String, excludePrefix: String? = null): Map<String, String> {
+    private fun exportSharedPrefs(prefsName: String, excludeKeys: Set<String> = emptySet()): Map<String, String> {
         val result = mutableMapOf<String, String>()
         try {
             val sp = context.getSharedPreferences(prefsName, Context.MODE_PRIVATE)
             for ((key, value) in sp.all) {
-                if (excludePrefix != null && key.startsWith(excludePrefix)) continue
+                if (excludeKeys.contains(key)) continue
                 val serialized = when (value) {
                     is Boolean -> "B:$value"
                     is Int -> "I:$value"
                     is Long -> "L:$value"
                     is Float -> "F:$value"
                     is String -> "S:$value"
+                    is Set<*> -> "SET:" + (value as Set<*>).joinToString(";;;")
                     else -> null
                 }
                 if (serialized != null) result[key] = serialized
@@ -155,9 +176,13 @@ class BackupRepositoryImpl @Inject constructor(
                     raw.startsWith("L:") -> raw.removePrefix("L:").toLongOrNull()?.let { editor.putLong(key, it) }
                     raw.startsWith("F:") -> raw.removePrefix("F:").toFloatOrNull()?.let { editor.putFloat(key, it) }
                     raw.startsWith("S:") -> editor.putString(key, raw.removePrefix("S:"))
+                    raw.startsWith("SET:") -> {
+                        val set = raw.removePrefix("SET:").split(";;;").filter { it.isNotEmpty() }.toSet()
+                        editor.putStringSet(key, set)
+                    }
                 }
             }
-            editor.apply()
+            editor.commit()
         } catch (e: Exception) {
             Timber.w(e)
         }
@@ -179,7 +204,6 @@ class BackupRepositoryImpl @Inject constructor(
     private fun uploadToNextcloud(data: ByteArray) {
         val cfg = getNextcloudConfig() ?: throw RuntimeException("لطفاً تنظیمات نکست‌کلاد را کامل کنید")
         
-        // اطمینان از اینکه قبل از نام فایل / قرار نگیرد
         val safePath = cfg.remoteFilePath.trimStart('/')
         val targetFileUrl = "${cfg.serverUrl}/remote.php/dav/files/${cfg.user}/$safePath"
         
@@ -295,8 +319,77 @@ class BackupRepositoryImpl @Inject constructor(
                 moshi.adapter(Backup::class.java).fromJson(source)
             }
 
+            // Clean up existing duplicates before restoring
+            deduplicateMessages()
+
+            // Fetch existing messages from system ContentProvider to never insert duplicates
+            val existingMessages = HashSet<String>()
+            val projection = arrayOf(
+                Telephony.Sms.ADDRESS,
+                Telephony.Sms.DATE,
+                Telephony.Sms.BODY,
+                Telephony.Sms.TYPE
+            )
+            tryOrNull {
+                context.contentResolver.query(Telephony.Sms.CONTENT_URI, projection, null, null, null)?.use { cursor ->
+                    val addressIdx = cursor.getColumnIndex(Telephony.Sms.ADDRESS)
+                    val dateIdx = cursor.getColumnIndex(Telephony.Sms.DATE)
+                    val bodyIdx = cursor.getColumnIndex(Telephony.Sms.BODY)
+                    val typeIdx = cursor.getColumnIndex(Telephony.Sms.TYPE)
+
+                    while (cursor.moveToNext()) {
+                        val addr = if (addressIdx != -1) cursor.getString(addressIdx).orEmpty() else ""
+                        val date = if (dateIdx != -1) cursor.getLong(dateIdx) else 0L
+                        val body = if (bodyIdx != -1) cursor.getString(bodyIdx).orEmpty() else ""
+                        val type = if (typeIdx != -1) cursor.getInt(typeIdx) else -1
+                        existingMessages.add("$addr|$date|$type|$body")
+                    }
+                }
+            }
+
+            // Restore preferences and manual categories
             importSharedPrefs("${context.packageName}_preferences", backup?.preferences)
             importSharedPrefs("manual_message_categories", backup?.manualCategories)
+
+            // Restore blocked numbers
+            if (!backup?.blockedNumbers.isNullOrEmpty()) {
+                tryOrNull {
+                    Realm.getDefaultInstance().use { realm ->
+                        val currentBlocked = realm.where(BlockedNumber::class.java).findAll()
+                        val toAdd = backup!!.blockedNumbers.filter { addr ->
+                            currentBlocked.none { it.address == addr }
+                        }
+                        if (toAdd.isNotEmpty()) {
+                            val maxId = realm.where(BlockedNumber::class.java).max("id")?.toLong() ?: -1L
+                            realm.executeTransaction {
+                                realm.insert(toAdd.mapIndexed { idx, addr ->
+                                    BlockedNumber(maxId + 1 + idx, addr)
+                                })
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Restore blocked regexps
+            if (!backup?.blockedRegexps.isNullOrEmpty()) {
+                tryOrNull {
+                    Realm.getDefaultInstance().use { realm ->
+                        val currentRegexps = realm.where(BlockedRegex::class.java).findAll()
+                        val toAdd = backup!!.blockedRegexps.filter { reg ->
+                            currentRegexps.none { it.regex == reg }
+                        }
+                        if (toAdd.isNotEmpty()) {
+                            val maxId = realm.where(BlockedRegex::class.java).max("id")?.toLong() ?: -1L
+                            realm.executeTransaction {
+                                realm.insert(toAdd.mapIndexed { idx, reg ->
+                                    BlockedRegex(maxId + 1 + idx, reg)
+                                })
+                            }
+                        }
+                    }
+                }
+            }
 
             val messageCount = backup?.messages?.size ?: 0
             var errorCount = 0
@@ -310,6 +403,13 @@ class BackupRepositoryImpl @Inject constructor(
 
                 restoreProgress.onNext(BackupRepository.Progress.Running(messageCount, index))
                 timer.cancel()
+
+                val msgKey = "${message.address}|${message.date}|${message.type}|${message.body}"
+                if (existingMessages.contains(msgKey)) {
+                    // Message already exists in system SMS, do not duplicate!
+                    return@forEachIndexed
+                }
+                existingMessages.add(msgKey)
 
                 try {
                     val values = contentValuesOf(
@@ -341,6 +441,9 @@ class BackupRepositoryImpl @Inject constructor(
                 Timber.w(Exception("Failed to restore $errorCount/$messageCount messages"))
             }
 
+            // Deduplicate again after insertion
+            deduplicateMessages()
+
             restoreProgress.onNext(BackupRepository.Progress.Syncing())
             syncRepo.syncMessages()
 
@@ -352,6 +455,97 @@ class BackupRepositoryImpl @Inject constructor(
 
         restoreProgress.onNext(BackupRepository.Progress.Finished())
         Timer().schedule(1000) { restoreProgress.onNext(BackupRepository.Progress.Idle()) }
+    }
+
+    override fun deduplicateMessages(): Int {
+        var deletedCount = 0
+        val projection = arrayOf(
+            Telephony.Sms._ID,
+            Telephony.Sms.ADDRESS,
+            Telephony.Sms.DATE,
+            Telephony.Sms.BODY,
+            Telephony.Sms.TYPE
+        )
+        val seen = HashSet<String>()
+        val idsToDelete = ArrayList<Long>()
+
+        tryOrNull {
+            context.contentResolver.query(
+                Telephony.Sms.CONTENT_URI,
+                projection,
+                null,
+                null,
+                "${Telephony.Sms.DATE} ASC, ${Telephony.Sms._ID} ASC"
+            )?.use { cursor ->
+                val idIdx = cursor.getColumnIndex(Telephony.Sms._ID)
+                val addressIdx = cursor.getColumnIndex(Telephony.Sms.ADDRESS)
+                val dateIdx = cursor.getColumnIndex(Telephony.Sms.DATE)
+                val bodyIdx = cursor.getColumnIndex(Telephony.Sms.BODY)
+                val typeIdx = cursor.getColumnIndex(Telephony.Sms.TYPE)
+
+                while (cursor.moveToNext()) {
+                    val id = if (idIdx != -1) cursor.getLong(idIdx) else continue
+                    val addr = if (addressIdx != -1) cursor.getString(addressIdx).orEmpty() else ""
+                    val date = if (dateIdx != -1) cursor.getLong(dateIdx) else 0L
+                    val body = if (bodyIdx != -1) cursor.getString(bodyIdx).orEmpty() else ""
+                    val type = if (typeIdx != -1) cursor.getInt(typeIdx) else -1
+                    val key = "$addr|$date|$type|$body"
+
+                    if (!seen.add(key)) {
+                        idsToDelete.add(id)
+                    }
+                }
+            }
+        }
+
+        if (idsToDelete.isNotEmpty()) {
+            idsToDelete.chunked(100).forEach { chunk ->
+                val selection = "${Telephony.Sms._ID} IN (${chunk.joinToString(",")})"
+                tryOrNull {
+                    val count = context.contentResolver.delete(Telephony.Sms.CONTENT_URI, selection, null)
+                    deletedCount += count
+                }
+            }
+
+            tryOrNull {
+                Realm.getDefaultInstance().use { realm ->
+                    realm.executeTransaction {
+                        val toDeleteInRealm = realm.where(Message::class.java)
+                            .equalTo("type", "sms")
+                            .anyOf("contentId", idsToDelete.toLongArray())
+                            .findAll()
+                        toDeleteInRealm.deleteAllFromRealm()
+                    }
+                }
+            }
+        }
+
+        tryOrNull {
+            Realm.getDefaultInstance().use { realm ->
+                val allMessages = realm.where(Message::class.java).sort("date").findAll()
+                val realmSeen = HashSet<String>()
+                val realmIdsToDelete = ArrayList<Long>()
+                for (msg in allMessages) {
+                    val key = "${msg.address}|${msg.date}|${msg.boxId}|${msg.body}"
+                    if (!realmSeen.add(key)) {
+                        realmIdsToDelete.add(msg.id)
+                    }
+                }
+                if (realmIdsToDelete.isNotEmpty()) {
+                    realm.executeTransaction {
+                        realm.where(Message::class.java)
+                            .anyOf("id", realmIdsToDelete.toLongArray())
+                            .findAll()
+                            .deleteAllFromRealm()
+                    }
+                    if (deletedCount == 0) {
+                        deletedCount = realmIdsToDelete.size
+                    }
+                }
+            }
+        }
+
+        return deletedCount
     }
 
     override fun stopRestore() {

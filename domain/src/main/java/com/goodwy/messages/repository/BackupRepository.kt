@@ -47,4 +47,6 @@ interface BackupRepository {
 
     fun getRestoreProgress(): Observable<Progress>
 
+    fun deduplicateMessages(): Int
+
 }
