@@ -49,6 +49,7 @@ import com.goodwy.messages.common.base.QkThemedActivity
 import com.goodwy.messages.common.util.extensions.autoScrollToStart
 import com.goodwy.messages.common.util.extensions.dismissKeyboard
 import com.goodwy.messages.common.util.extensions.scrapViews
+import com.goodwy.messages.common.util.extensions.resolveThemeColor
 import com.goodwy.messages.common.util.extensions.setBackgroundTint
 import com.goodwy.messages.common.util.extensions.setTint
 import com.goodwy.messages.common.util.extensions.setVisible
