@@ -84,8 +84,6 @@ import kotlinx.android.synthetic.main.main_permission_hint.*
 import kotlinx.android.synthetic.main.main_syncing.*
 import java.io.File
 import java.io.FileOutputStream
-import java.net.HttpURLConnection
-import java.net.URL
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 
@@ -105,6 +103,7 @@ class MainActivity : QkThemedActivity(), MainView {
     @Inject lateinit var itemTouchCallback: ConversationItemTouchCallback
     @Inject lateinit var viewModelFactory: ViewModelProvider.Factory
     @Inject lateinit var backupRepo: BackupRepository
+    @Inject lateinit var syncRepo: SyncRepository
     @Inject lateinit var nightModeManager: NightModeManager
 
     override val onNewIntentIntent: Subject<Intent> = PublishSubject.create()
