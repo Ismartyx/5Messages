@@ -21,7 +21,7 @@
     android:color="?android:attr/colorControlHighlight">
     <item>
         <shape android:shape="rectangle">
-            <solid android:color="@color/bubbleLight" />
+            <solid android:color="@color/white" />
             <corners android:radius="18dp" />
         </shape>
     </item>

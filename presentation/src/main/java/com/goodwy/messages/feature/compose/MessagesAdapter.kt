@@ -352,6 +352,11 @@ class MessagesAdapter @Inject constructor(
                     val chipText = chip.findViewById<TextView>(R.id.copyChipText)
                     val chipIcon = chip.findViewById<ImageView>(R.id.copyChipIcon)
 
+                    val bubbleColor = context.resolveThemeColor(R.attr.bubbleColor)
+                    val textPrimary = context.resolveThemeColor(android.R.attr.textColorPrimary)
+                    chip.setBackgroundTint(bubbleColor)
+                    chipText.setTextColor(textPrimary)
+
                     val label = when (item.type) {
                         com.goodwy.messages.util.NumberExtractor.NumberType.OTP -> context.getString(R.string.copy_code, item.displayValue)
                         com.goodwy.messages.util.NumberExtractor.NumberType.CARD -> context.getString(R.string.copy_card, item.displayValue)

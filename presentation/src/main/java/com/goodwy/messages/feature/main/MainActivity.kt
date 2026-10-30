@@ -182,11 +182,10 @@ class MainActivity : QkThemedActivity(), MainView {
         AndroidInjection.inject(this)
         super.onCreate(savedInstanceState)
         setContentView(R.layout.main_activity)
-        forceWhiteStatusBarIcons()
+        updateStatusBarColor()
         viewModel.bindView(this)
         onNewIntentIntent.onNext(intent)
 
-        drawer?.setBackgroundColor(Color.parseColor("#111827"))
 
         conversationsSelectedIntent
                 .autoDisposable(scope())
@@ -227,7 +226,7 @@ class MainActivity : QkThemedActivity(), MainView {
         theme
                 .autoDisposable(scope())
                 .subscribe({
-                    forceWhiteStatusBarIcons()
+                    updateStatusBarColor()
                     val states = arrayOf(
                             intArrayOf(android.R.attr.state_activated),
                             intArrayOf(-android.R.attr.state_activated))
@@ -251,7 +250,7 @@ class MainActivity : QkThemedActivity(), MainView {
                 }, {})
 
         if (Build.VERSION.SDK_INT <= 22) {
-            toolbarSearch?.setBackgroundTint(Color.parseColor("#111827"))
+            toolbarSearch?.setBackgroundTint(resolveThemeColor(R.attr.bubbleColor))
         }
     }
 
@@ -301,31 +300,27 @@ class MainActivity : QkThemedActivity(), MainView {
         }
     }
 
-    private fun forceWhiteStatusBarIcons() {
+    private fun updateStatusBarColor() {
         try {
             val isNight = isNightModeActive()
-            if (isNight) {
-                window.statusBarColor = Color.parseColor("#0B1220")
-                window.navigationBarColor = Color.parseColor("#0B1220")
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                    var flags = window.decorView.systemUiVisibility
-                    flags = flags and View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR.inv()
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                        flags = flags and View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR.inv()
-                    }
-                    window.decorView.systemUiVisibility = flags
+            val bgColor = resolveThemeColor(android.R.attr.windowBackground)
+            window.statusBarColor = bgColor
+            window.navigationBarColor = bgColor
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                var flags = window.decorView.systemUiVisibility
+                flags = if (isNight) {
+                    flags and View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR.inv()
+                } else {
+                    flags or View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR
                 }
-            } else {
-                window.statusBarColor = Color.WHITE
-                window.navigationBarColor = Color.WHITE
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                    var flags = window.decorView.systemUiVisibility
-                    flags = flags or View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                        flags = flags or View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    flags = if (isNight) {
+                        flags and View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR.inv()
+                    } else {
+                        flags or View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR
                     }
-                    window.decorView.systemUiVisibility = flags
                 }
+                window.decorView.systemUiVisibility = flags
             }
         } catch (_: Exception) {}
     }
@@ -401,17 +396,28 @@ class MainActivity : QkThemedActivity(), MainView {
                 ?: "Backups/MessagesBackup/Messages_Backup.json"
         val currentAuto = sp.getBoolean("nc_auto_backup", true)
 
+        val isNight = isNightModeActive()
+        val cardBg = if (isNight) "#0B1220" else "#FFFFFF"
+        val cardBorder = if (isNight) "#1E293B" else "#E2E8F0"
+        val inputBg = if (isNight) "#090E1A" else "#F8FAFC"
+        val inputBorder = if (isNight) "#1E293B" else "#CBD5E1"
+        val inputTextColor = if (isNight) Color.WHITE else Color.parseColor("#0F172A")
+        val labelTextColor = if (isNight) Color.parseColor("#9CA3AF") else Color.parseColor("#64748B")
+        val checkTextColor = if (isNight) Color.WHITE else Color.parseColor("#1E293B")
+        val localBtnBg = if (isNight) "#111827" else "#F1F5F9"
+        val localBtnText = if (isNight) Color.parseColor("#94A3B8") else Color.parseColor("#475569")
+
         val scrollView = ScrollView(this)
         val card = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(dp(20), dp(20), dp(20), dp(20))
-            background = makeRoundedBg("#0B1220", "#1E293B", 18)
+            background = makeRoundedBg(cardBg, cardBorder, 18)
         }
         scrollView.addView(card)
 
         val header = TextView(this).apply {
             text = "☁️ اتصال خودکار به سرور نکست‌کلاد"
-            setTextColor(Color.parseColor("#38BDF8"))
+            setTextColor(Color.parseColor("#0EA5E9"))
             textSize = 16f
             setTypeface(null, Typeface.BOLD)
             gravity = Gravity.RIGHT
@@ -422,7 +428,7 @@ class MainActivity : QkThemedActivity(), MainView {
         fun makeLabel(textStr: String): TextView {
             return TextView(this@MainActivity).apply {
                 text = textStr
-                setTextColor(Color.parseColor("#9CA3AF"))
+                setTextColor(labelTextColor)
                 textSize = 12f
                 gravity = Gravity.RIGHT
                 setPadding(dp(4), dp(10), dp(4), dp(6))
@@ -432,12 +438,12 @@ class MainActivity : QkThemedActivity(), MainView {
         val serverInput = EditText(this).apply {
             setText(currentServer)
             hint = "https://nc.paranas.ir"
-            setTextColor(Color.WHITE)
+            setTextColor(inputTextColor)
             setHintTextColor(Color.parseColor("#64748B"))
             textSize = 14f
             gravity = Gravity.LEFT or Gravity.CENTER_VERTICAL
             setPadding(dp(14), dp(12), dp(14), dp(12))
-            background = makeRoundedBg("#090E1A", "#1E293B", 12)
+            background = makeRoundedBg(inputBg, inputBorder, 12)
             inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_URI
         }
         card.addView(makeLabel("آدرس سرور نکست‌کلاد"))
@@ -456,12 +462,12 @@ class MainActivity : QkThemedActivity(), MainView {
         val passInput = EditText(this).apply {
             setText(currentPass)
             hint = "••••••••••••"
-            setTextColor(Color.WHITE)
+            setTextColor(inputTextColor)
             setHintTextColor(Color.parseColor("#64748B"))
             textSize = 14f
             gravity = Gravity.LEFT or Gravity.CENTER_VERTICAL
             setPadding(dp(14), dp(12), dp(14), dp(12))
-            background = makeRoundedBg("#090E1A", "#1E293B", 12)
+            background = makeRoundedBg(inputBg, inputBorder, 12)
             inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD
         }
         passCol.addView(makeLabel("رمز / App Password"))
@@ -474,12 +480,12 @@ class MainActivity : QkThemedActivity(), MainView {
         val userInput = EditText(this).apply {
             setText(currentUser)
             hint = "saeed"
-            setTextColor(Color.WHITE)
+            setTextColor(inputTextColor)
             setHintTextColor(Color.parseColor("#64748B"))
             textSize = 14f
             gravity = Gravity.LEFT or Gravity.CENTER_VERTICAL
             setPadding(dp(14), dp(12), dp(14), dp(12))
-            background = makeRoundedBg("#090E1A", "#1E293B", 12)
+            background = makeRoundedBg(inputBg, inputBorder, 12)
             inputType = InputType.TYPE_CLASS_TEXT
         }
         userCol.addView(makeLabel("نام کاربری"))
@@ -492,12 +498,12 @@ class MainActivity : QkThemedActivity(), MainView {
         val pathInput = EditText(this).apply {
             setText(currentPath)
             hint = "Backups/MessagesBackup/Messages_Backup.json"
-            setTextColor(Color.WHITE)
+            setTextColor(inputTextColor)
             setHintTextColor(Color.parseColor("#64748B"))
             textSize = 13f
             gravity = Gravity.LEFT or Gravity.CENTER_VERTICAL
             setPadding(dp(14), dp(12), dp(14), dp(12))
-            background = makeRoundedBg("#090E1A", "#1E293B", 12)
+            background = makeRoundedBg(inputBg, inputBorder, 12)
             inputType = InputType.TYPE_CLASS_TEXT
         }
         card.addView(makeLabel("نام فایل در نکست‌کلاد"))
@@ -505,7 +511,7 @@ class MainActivity : QkThemedActivity(), MainView {
 
         val autoCheck = CheckBox(this).apply {
             text = "بکاپ اتوماتیک پس از هر تغییر"
-            setTextColor(Color.WHITE)
+            setTextColor(checkTextColor)
             textSize = 13f
             isChecked = currentAuto
             buttonTintList = ColorStateList.valueOf(Color.parseColor("#0EA5E9"))
@@ -563,10 +569,10 @@ class MainActivity : QkThemedActivity(), MainView {
 
         val localFilesBtn = Button(this).apply {
             text = "📂 فایل‌های بکاپ محلی"
-            setTextColor(Color.parseColor("#94A3B8"))
+            setTextColor(localBtnText)
             textSize = 12f
             isAllCaps = false
-            background = makeRoundedBg("#111827", "#1E293B", 10)
+            background = makeRoundedBg(localBtnBg, cardBorder, 10)
             layoutParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(40)).apply {
                 topMargin = dp(12)
             }
@@ -754,7 +760,7 @@ saveBackupBtn.setOnClickListener {
             return
         }
 
-        forceWhiteStatusBarIcons()
+        updateStatusBarColor()
 
         val addContact = when (state.page) {
             is Inbox -> state.page.addContact
@@ -813,14 +819,14 @@ saveBackupBtn.setOnClickListener {
                 showBackButton(state.page.selected > 0)
                 if (state.page.selected > 0) {
                     toolbar?.setNavigationIcon(R.drawable.ic_arrow_back_24dp)
-                    toolbar?.navigationIcon?.setTint(Color.parseColor("#F9FAFB"))
+                    toolbar?.navigationIcon?.setTint(resolveThemeColor(android.R.attr.textColorSecondary))
                     toolbar?.setBackgroundResource(R.drawable.rounded_rectangle_transparent_24dp)
                     compose?.animate()?.rotation(90f)?.start()
                 } else {
                     toolbar?.setNavigationIcon(R.drawable.ic_menu_24dp)
-                    toolbar?.navigationIcon?.setTint(Color.parseColor("#F9FAFB"))
+                    toolbar?.navigationIcon?.setTint(resolveThemeColor(android.R.attr.textColorSecondary))
                     toolbar?.setBackgroundResource(R.drawable.rounded_rectangle_24dp)
-                    toolbar?.setBackgroundTint(Color.parseColor("#111827"))
+                    toolbar?.setBackgroundTint(resolveThemeColor(R.attr.bubbleColor))
                     toolbar?.elevation = prefs.searchElevation.get().toFloat()
                     compose?.animate()?.rotation(0f)?.start()
                 }
@@ -830,7 +836,7 @@ saveBackupBtn.setOnClickListener {
                 itemTouchHelper.attachToRecyclerView(recyclerView)
                 empty?.setText(R.string.inbox_empty_text)
 
-                val inactiveBg = Color.parseColor("#111827")
+                val inactiveBg = resolveThemeColor(R.attr.bubbleColor)
                 val activeCategoryColor = categoryColors[state.page.category] ?: Color.parseColor("#0EA5E9")
 
                 compose?.setBackgroundTint(activeCategoryColor)
@@ -859,7 +865,7 @@ saveBackupBtn.setOnClickListener {
             is Searching -> {
                 showBackButton(true)
                 toolbar?.setNavigationIcon(R.drawable.ic_arrow_back_24dp)
-                toolbar?.navigationIcon?.setTint(Color.parseColor("#F9FAFB"))
+                toolbar?.navigationIcon?.setTint(resolveThemeColor(android.R.attr.textColorSecondary))
                 if (recyclerView?.adapter !== searchAdapter) recyclerView?.adapter = searchAdapter
                 searchAdapter.data = state.page.data ?: listOf()
                 itemTouchHelper.attachToRecyclerView(null)
@@ -870,11 +876,11 @@ saveBackupBtn.setOnClickListener {
                 showBackButton(state.page.selected > 0)
                 if (state.page.selected > 0) {
                     toolbar?.setNavigationIcon(R.drawable.ic_arrow_back_24dp)
-                    toolbar?.navigationIcon?.setTint(Color.parseColor("#F9FAFB"))
+                    toolbar?.navigationIcon?.setTint(resolveThemeColor(android.R.attr.textColorSecondary))
                     compose?.animate()?.rotation(90f)?.start()
                 } else {
                     toolbar?.setNavigationIcon(R.drawable.ic_menu_24dp)
-                    toolbar?.navigationIcon?.setTint(Color.parseColor("#F9FAFB"))
+                    toolbar?.navigationIcon?.setTint(resolveThemeColor(android.R.attr.textColorSecondary))
                     compose?.animate()?.rotation(0f)?.start()
                 }
                 toolbar?.setBackgroundResource(R.drawable.rounded_rectangle_transparent_24dp)
@@ -938,7 +944,7 @@ saveBackupBtn.setOnClickListener {
 
     override fun onResume() {
         super.onResume()
-        forceWhiteStatusBarIcons()
+        updateStatusBarColor()
         activityResumedIntent.onNext(true)
         checkAndRunAutoBackup()
     }
@@ -955,7 +961,7 @@ saveBackupBtn.setOnClickListener {
 
     override fun showBackButton(show: Boolean) {
         toggle.onDrawerSlide(drawer, if (show) 1f else 0f)
-        toggle.drawerArrowDrawable.color = Color.parseColor("#F9FAFB")
+        toggle.drawerArrowDrawable.color = resolveThemeColor(android.R.attr.textColorSecondary)
     }
 
     override fun requestDefaultSms() {
