@@ -110,7 +110,7 @@ jobs:
               with open(style_file, "w") as f:
                   f.write(s)
 
-          # ۴. طراحی آیکون مینیمال تخت سفید و طوسی
+          # ۴. طراحی آیکون طرح ۴ (موشک کاغذی مینیمال مونوکروم دارک)
           os.makedirs("presentation/src/main/res/drawable", exist_ok=True)
           os.makedirs("presentation/src/main/res/mipmap-anydpi-v26", exist_ok=True)
 
@@ -120,7 +120,7 @@ jobs:
               android:height="108dp"
               android:viewportWidth="108"
               android:viewportHeight="108">
-              <path android:fillColor="#1E293B" android:pathData="M0,0h108v108h-108z"/>
+              <path android:fillColor="#18181B" android:pathData="M0,0h108v108h-108z"/>
           </vector>"""
 
           fg_xml = """<?xml version="1.0" encoding="utf-8"?>
@@ -130,17 +130,14 @@ jobs:
               android:viewportWidth="108"
               android:viewportHeight="108">
               <path
+                  android:fillColor="#27272A"
+                  android:pathData="M54,54m-35,0a35,35 0 1,0 70,0a35,35 0 1,0 -70,0"/>
+              <path
+                  android:fillColor="#94A3B8"
+                  android:pathData="M47.5,60.5 L46.5,77 L55,67 Z"/>
+              <path
                   android:fillColor="#FFFFFF"
-                  android:pathData="M34,30 C29.58,30 26,33.58 26,38 L26,62 C26,66.42 29.58,70 34,70 L38,70 L38,78 C38,79.1 39.34,79.66 40.12,78.88 L49,70 L74,70 C78.42,70 82,66.42 82,62 L82,38 C82,33.58 78.42,30 74,30 Z"/>
-              <path
-                  android:fillColor="#64748B"
-                  android:pathData="M42,50 m -3.5,0 a 3.5,3.5 0 1,0 7,0 a 3.5,3.5 0 1,0 -7,0"/>
-              <path
-                  android:fillColor="#64748B"
-                  android:pathData="M54,50 m -3.5,0 a 3.5,3.5 0 1,0 7,0 a 3.5,3.5 0 1,0 -7,0"/>
-              <path
-                  android:fillColor="#64748B"
-                  android:pathData="M66,50 m -3.5,0 a 3.5,3.5 0 1,0 7,0 a 3.5,3.5 0 1,0 -7,0"/>
+                  android:pathData="M78,30 L30,51 L47.5,60.5 L71,39 L52,63 L68,74.5 L78,30 Z"/>
           </vector>"""
 
           adaptive_xml = """<?xml version="1.0" encoding="utf-8"?>
