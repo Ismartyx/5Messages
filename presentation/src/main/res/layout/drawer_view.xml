@@ -144,6 +144,36 @@
         </LinearLayout>
 
         <LinearLayout
+            android:id="@+id/themeToggle"
+            style="@style/DrawerRow">
+
+            <ImageView
+                style="@style/DrawerIcon"
+                android:src="@drawable/ic_color_lens_black_24dp"
+                android:tint="?android:attr/textColorSecondary" />
+
+            <com.goodwy.messages.common.widget.QkTextView
+                style="@style/DrawerText"
+                android:text="🎨 انتخاب تم / روز و شب" />
+
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/appUpdate"
+            style="@style/DrawerRow">
+
+            <ImageView
+                style="@style/DrawerIcon"
+                android:src="@drawable/ic_file_download_black_24dp"
+                android:tint="?android:attr/textColorSecondary" />
+
+            <com.goodwy.messages.common.widget.QkTextView
+                style="@style/DrawerText"
+                android:text="🔄 به‌روزرسانی برنامه" />
+
+        </LinearLayout>
+
+        <LinearLayout
             android:id="@+id/plus"
             style="@style/DrawerRow">
 

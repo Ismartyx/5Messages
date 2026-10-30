@@ -4,16 +4,16 @@
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
-    <!-- Inner Dark Graphite Circle for Depth -->
+    <!-- Inner Dark Graphite Circle for Depth with generous margin -->
     <path
-        android:fillColor="#27272A"
-        android:pathData="M54,54m-35,0a35,35 0 1,0 70,0a35,35 0 1,0 -70,0"/>
+        android:fillColor="#20232A"
+        android:pathData="M54,54m-28,0a28,28 0 1,0 56,0a28,28 0 1,0 -56,0"/>
     <!-- Fold Under Wing in Muted Silver-Gray -->
     <path
         android:fillColor="#94A3B8"
-        android:pathData="M47.5,60.5 L46.5,77 L55,67 Z"/>
+        android:pathData="M49,59 L48.5,71 L55,63.5 Z"/>
     <!-- Main Paper Plane in Crisp Flat White -->
     <path
         android:fillColor="#FFFFFF"
-        android:pathData="M78,30 L30,51 L47.5,60.5 L71,39 L52,63 L68,74.5 L78,30 Z"/>
+        android:pathData="M71,37 L37,52 L49,59 L66,43 L53,61 L64,69 L71,37 Z"/>
 </vector>

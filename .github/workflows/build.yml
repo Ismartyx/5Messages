@@ -66,25 +66,7 @@ jobs:
               with open(manifest_file, "w") as f:
                   f.write(m)
 
-          # ۳. پیش‌فرض تم تاریک و سفید ماندن آیکون‌های ساعت و آنتن بالای صفحه
-          prefs_file = "domain/src/main/java/com/goodwy/messages/util/Preferences.kt"
-          if os.path.exists(prefs_file):
-              with open(prefs_file, "r") as f:
-                  p = f.read()
-              p = p.replace('rxPrefs.getInteger("nightMode", NIGHT_MODE_SYSTEM)', 'rxPrefs.getInteger("nightMode", NIGHT_MODE_DARK)')
-              p = p.replace('rxPrefs.getInteger("nightMode", NIGHT_MODE_OFF)', 'rxPrefs.getInteger("nightMode", NIGHT_MODE_DARK)')
-              with open(prefs_file, "w") as f:
-                  f.write(p)
-
-          themed_act = "presentation/src/main/java/com/goodwy/messages/common/base/QkThemedActivity.kt"
-          if os.path.exists(themed_act):
-              with open(themed_act, "r") as f:
-                  ta = f.read()
-              ta = ta.replace("View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR", "0")
-              ta = ta.replace("View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR", "0")
-              with open(themed_act, "w") as f:
-                  f.write(ta)
-
+          # ۳. رنگ‌های اختصاصی حالت تاریک (حفظ کامل تم روشن و روز)
           colors_file = "presentation/src/main/res/values/colors.xml"
           if os.path.exists(colors_file):
               with open(colors_file, "r") as f:
@@ -94,23 +76,7 @@ jobs:
               with open(colors_file, "w") as f:
                   f.write(c)
 
-          for style_file in glob.glob("presentation/src/main/res/values*/styles.xml"):
-              with open(style_file, "r") as f:
-                  s = f.read()
-              s = s.replace('parent="Theme.AppCompat.Light.NoActionBar"', 'parent="Theme.AppCompat.NoActionBar"')
-              s = s.replace('parent="Theme.AppCompat.Light.Dialog"', 'parent="Theme.AppCompat.Dialog"')
-              s = s.replace('parent="Widget.AppCompat.Light.PopupMenu"', 'parent="Widget.AppCompat.PopupMenu"')
-              s = s.replace('<item name="android:windowLightStatusBar">true</item>', '<item name="android:windowLightStatusBar">false</item>')
-              s = s.replace('<item name="android:windowLightNavigationBar">true</item>', '<item name="android:windowLightNavigationBar">false</item>')
-              s = s.replace('@color/backgroundLight', '@color/backgroundDark')
-              s = s.replace('@color/bubbleLight', '@color/bubbleDark')
-              s = s.replace('@color/textPrimary', '@color/textPrimaryDark')
-              s = s.replace('@color/textSecondary', '@color/textSecondaryDark')
-              s = s.replace('@color/textTertiary', '@color/textTertiaryDark')
-              with open(style_file, "w") as f:
-                  f.write(s)
-
-          # ۴. طراحی آیکون طرح ۴ (موشک کاغذی مینیمال مونوکروم دارک)
+          # ۴. طراحی آیکون طرح ۴ بهینه‌شده (موشک با حاشیه و ابعاد متناسب)
           os.makedirs("presentation/src/main/res/drawable", exist_ok=True)
           os.makedirs("presentation/src/main/res/mipmap-anydpi-v26", exist_ok=True)
 
@@ -120,7 +86,7 @@ jobs:
               android:height="108dp"
               android:viewportWidth="108"
               android:viewportHeight="108">
-              <path android:fillColor="#18181B" android:pathData="M0,0h108v108h-108z"/>
+              <path android:fillColor="#101214" android:pathData="M0,0h108v108h-108z"/>
           </vector>"""
 
           fg_xml = """<?xml version="1.0" encoding="utf-8"?>
@@ -130,14 +96,14 @@ jobs:
               android:viewportWidth="108"
               android:viewportHeight="108">
               <path
-                  android:fillColor="#27272A"
-                  android:pathData="M54,54m-35,0a35,35 0 1,0 70,0a35,35 0 1,0 -70,0"/>
+                  android:fillColor="#20232A"
+                  android:pathData="M54,54m-28,0a28,28 0 1,0 56,0a28,28 0 1,0 -56,0"/>
               <path
                   android:fillColor="#94A3B8"
-                  android:pathData="M47.5,60.5 L46.5,77 L55,67 Z"/>
+                  android:pathData="M49,59 L48.5,71 L55,63.5 Z"/>
               <path
                   android:fillColor="#FFFFFF"
-                  android:pathData="M78,30 L30,51 L47.5,60.5 L71,39 L52,63 L68,74.5 L78,30 Z"/>
+                  android:pathData="M71,37 L37,52 L49,59 L66,43 L53,61 L64,69 L71,37 Z"/>
           </vector>"""
 
           adaptive_xml = """<?xml version="1.0" encoding="utf-8"?>
@@ -190,9 +156,42 @@ jobs:
           echo "=== LAST 40 LINES ==="
           tail -n 40 build_log.txt
 
+      - name: Sign APK with Permanent Keystore
+        if: success()
+        run: |
+          BUILD_TOOLS=$(find $ANDROID_HOME/build-tools -name "34.*" -o -name "33.*" -o -name "30.*" | sort -V | tail -n 1)
+          if [ -z "$BUILD_TOOLS" ]; then
+            BUILD_TOOLS=$(ls -d $ANDROID_HOME/build-tools/* | sort -V | tail -n 1)
+          fi
+          ZIPALIGN="$BUILD_TOOLS/zipalign"
+          APKSIGNER="$BUILD_TOOLS/apksigner"
+          RAW_APK=$(find presentation/build/outputs/apk/ -name "*.apk" | head -n 1)
+          echo "Found raw APK: $RAW_APK"
+          mkdir -p signed_out
+          $ZIPALIGN -f -p 4 "$RAW_APK" signed_out/aligned.apk
+          $APKSIGNER sign --v1-signing-enabled true --v2-signing-enabled true --v3-signing-enabled true \
+            --ks signing/release.keystore --ks-key-alias mecav \
+            --ks-pass pass:mecavworkshop --key-pass pass:mecavworkshop \
+            --out signed_out/5Messages.apk signed_out/aligned.apk
+          $APKSIGNER verify --verbose signed_out/5Messages.apk
+
+      - name: Create or Update GitHub Release
+        if: success()
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERSION_NAME="1.1.5"
+          TAG_NAME="v${VERSION_NAME}"
+          gh release delete "$TAG_NAME" --yes || true
+          git tag -d "$TAG_NAME" || true
+          gh release create "$TAG_NAME" signed_out/5Messages.apk \
+            --title "5Messages v${VERSION_NAME}" \
+            --notes "نسخه 1.1.5 با قابلیت به‌روزرسانی مستقیم، تم روز و شب و آیکون بهینه‌شده" \
+            --latest
+
       - name: Upload APK
         if: success()
         uses: actions/upload-artifact@v4
         with:
           name: Messages-APK
-          path: "**/*.apk"
+          path: signed_out/5Messages.apk

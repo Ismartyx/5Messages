@@ -3,6 +3,7 @@ package com.goodwy.messages.feature.main
 import android.Manifest
 import android.animation.ObjectAnimator
 import android.app.AlertDialog
+import android.app.DownloadManager
 import android.content.ClipData
 import android.content.Context
 import android.content.Intent
@@ -10,8 +11,10 @@ import android.content.res.ColorStateList
 import android.graphics.Color
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.os.Environment
 import android.text.InputType
 import android.util.Base64
 import android.view.DragEvent
@@ -57,6 +60,7 @@ import com.goodwy.messages.feature.conversations.ConversationsAdapter
 import com.goodwy.messages.manager.ChangelogManager
 import com.goodwy.messages.repository.BackupRepository
 import com.goodwy.messages.repository.SyncRepository
+import com.goodwy.messages.util.NightModeManager
 import com.uber.autodispose.android.lifecycle.scope
 import com.uber.autodispose.autoDisposable
 import dagger.android.AndroidInjection
@@ -97,6 +101,7 @@ class MainActivity : QkThemedActivity(), MainView {
     @Inject lateinit var itemTouchCallback: ConversationItemTouchCallback
     @Inject lateinit var viewModelFactory: ViewModelProvider.Factory
     @Inject lateinit var backupRepo: BackupRepository
+    @Inject lateinit var nightModeManager: NightModeManager
 
     override val onNewIntentIntent: Subject<Intent> = PublishSubject.create()
     override val activityResumedIntent: Subject<Boolean> = PublishSubject.create()
@@ -120,6 +125,14 @@ class MainActivity : QkThemedActivity(), MainView {
                 scheduled.clicks().map { NavItem.SCHEDULED },
                 blocking.clicks().map { NavItem.BLOCKING },
                 settings.clicks().map { NavItem.SETTINGS },
+                themeToggle.clicks().doOnNext {
+                    drawerLayout?.closeDrawer(GravityCompat.START)
+                    showThemeSelectionDialog()
+                }.filter { false }.map { NavItem.SETTINGS },
+                appUpdate.clicks().doOnNext {
+                    drawerLayout?.closeDrawer(GravityCompat.START)
+                    startAppUpdateDownload()
+                }.filter { false }.map { NavItem.SETTINGS },
                 plus.clicks().map { NavItem.PLUS },
                 help.clicks().map { NavItem.HELP },
                 invite.clicks().map { NavItem.INVITE }))
@@ -624,6 +637,66 @@ saveBackupBtn.setOnClickListener {
         }
 
         dialog.show()
+    }
+
+    private fun showThemeSelectionDialog() {
+        val options = arrayOf("☀️ حالت روز (تم روشن)", "🌙 حالت شب (تم تاریک)", "📱 هماهنگ با تم سیستم گوشی", "🎨 تغییر رنگ تم اصلی")
+        val currentMode = prefs.nightMode.get()
+        val checkedItem = when (currentMode) {
+            Preferences.NIGHT_MODE_OFF -> 0
+            Preferences.NIGHT_MODE_ON -> 1
+            Preferences.NIGHT_MODE_SYSTEM -> 2
+            else -> 2
+        }
+
+        AlertDialog.Builder(this)
+                .setTitle("🎨 انتخاب تم و ظاهر برنامه")
+                .setSingleChoiceItems(options, checkedItem) { dialog, which ->
+                    dialog.dismiss()
+                    when (which) {
+                        0 -> {
+                            nightModeManager.updateNightMode(Preferences.NIGHT_MODE_OFF)
+                            recreate()
+                        }
+                        1 -> {
+                            nightModeManager.updateNightMode(Preferences.NIGHT_MODE_ON)
+                            recreate()
+                        }
+                        2 -> {
+                            nightModeManager.updateNightMode(Preferences.NIGHT_MODE_SYSTEM)
+                            recreate()
+                        }
+                        3 -> {
+                            navigator.showSettings()
+                        }
+                    }
+                }
+                .setNegativeButton("انصراف", null)
+                .show()
+    }
+
+    private fun startAppUpdateDownload() {
+        val downloadUrl = "https://github.com/Ismartyx/5Messages/releases/latest/download/5Messages.apk"
+        Toast.makeText(this, "در حال شروع دانلود به‌روزرسانی در اعلان‌ها...", Toast.LENGTH_LONG).show()
+
+        try {
+            val dm = getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
+            val request = DownloadManager.Request(Uri.parse(downloadUrl)).apply {
+                setTitle("5Messages Update")
+                setDescription("در حال دریافت نسخه جدید برنامه...")
+                setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
+                setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, "5Messages.apk")
+                setMimeType("application/vnd.android.package-archive")
+            }
+            dm.enqueue(request)
+        } catch (e: Exception) {
+            Toast.makeText(this, "خطا در دانلود خودکار: ${e.message} - باز کردن لینک در مرورگر...", Toast.LENGTH_LONG).show()
+            try {
+                startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(downloadUrl)))
+            } catch (ex: Exception) {
+                // ignore
+            }
+        }
     }
 
     override fun onNewIntent(intent: Intent?) {
