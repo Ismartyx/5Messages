@@ -86,6 +86,7 @@ class ConversationsAdapter @Inject constructor(
 
     override fun onBindViewHolder(holder: QkViewHolder, position: Int) {
         val conversation = getItem(position) ?: return
+        if (!conversation.isValid) return
 
         // If the last message wasn't incoming, then the colour doesn't really matter anyway
         val lastMessage = conversation.lastMessage

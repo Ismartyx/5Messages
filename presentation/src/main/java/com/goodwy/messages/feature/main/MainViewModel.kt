@@ -215,6 +215,7 @@ class MainViewModel @Inject constructor(
         )
 
         for (conv in allActive) {
+            if (!conv.isValid) continue
             if (conv.lastMessage == null && conv.draft.isEmpty()) continue
 
             val cat = classifyConversation(conv)

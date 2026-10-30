@@ -38,14 +38,15 @@ open class Conversation(
     var name: String = "" // For group chats, the user is allowed to set a custom title for the conversation
 ) : RealmObject() {
 
-    val date: Long get() = lastMessage?.date ?: 0
-    val snippet: String? get() = lastMessage?.getSummary()
-    val unread: Boolean get() = lastMessage?.read == false
-    val me: Boolean get() = lastMessage?.isMe() == true
+    val date: Long get() = if (isValid && lastMessage?.isValid == true) lastMessage?.date ?: 0L else 0L
+    val snippet: String? get() = if (isValid && lastMessage?.isValid == true) lastMessage?.getSummary() else null
+    val unread: Boolean get() = if (isValid && lastMessage?.isValid == true) lastMessage?.read == false else false
+    val me: Boolean get() = if (isValid && lastMessage?.isValid == true) lastMessage?.isMe() == true else false
 
     fun getTitle(): String {
+        if (!isValid) return ""
         if (name.isNotBlank()) return name
-        val distinctNames = recipients.map { it.getDisplayName() }.distinct()
+        val distinctNames = recipients.filter { it.isValid }.map { it.getDisplayName() }.distinct()
         return if (distinctNames.isNotEmpty()) distinctNames.joinToString(", ") else ""
     }
 

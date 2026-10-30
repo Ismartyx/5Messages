@@ -12,7 +12,11 @@
     <item>
         <selector>
             <item android:state_activated="true">
-                <color android:color="@color/separatorDark" />
+                <color android:color="#4038BDF8" />
+            </item>
+
+            <item android:state_selected="true">
+                <color android:color="#4038BDF8" />
             </item>
 
             <item>
