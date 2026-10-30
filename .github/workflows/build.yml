@@ -8,6 +8,8 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
 
     steps:
       - name: Checkout code
@@ -184,10 +186,11 @@ jobs:
           TAG_NAME="v${VERSION_NAME}"
           gh release delete "$TAG_NAME" --yes || true
           git tag -d "$TAG_NAME" || true
+          git push origin ":refs/tags/$TAG_NAME" || true
           gh release create "$TAG_NAME" signed_out/5Messages.apk \
             --title "5Messages v${VERSION_NAME}" \
             --notes "نسخه 1.1.5 با قابلیت به‌روزرسانی مستقیم، تم روز و شب و آیکون بهینه‌شده" \
-            --latest
+            --latest || gh release upload "$TAG_NAME" signed_out/5Messages.apk --clobber
 
       - name: Upload APK
         if: success()

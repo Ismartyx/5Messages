@@ -61,6 +61,7 @@ import com.goodwy.messages.manager.ChangelogManager
 import com.goodwy.messages.repository.BackupRepository
 import com.goodwy.messages.repository.SyncRepository
 import com.goodwy.messages.util.NightModeManager
+import com.goodwy.messages.util.Preferences
 import com.uber.autodispose.android.lifecycle.scope
 import com.uber.autodispose.autoDisposable
 import dagger.android.AndroidInjection
