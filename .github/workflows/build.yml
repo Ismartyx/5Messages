@@ -182,14 +182,14 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          VERSION_NAME="1.1.6"
+          VERSION_NAME="1.1.7"
           TAG_NAME="v${VERSION_NAME}"
           gh release delete "$TAG_NAME" --yes || true
           git tag -d "$TAG_NAME" || true
           git push origin ":refs/tags/$TAG_NAME" || true
           gh release create "$TAG_NAME" signed_out/5Messages.apk \
             --title "5Messages v${VERSION_NAME}" \
-            --notes "نسخه 1.1.6 با رفع کرش اولیه سینک پیام‌ها و اصلاح بک‌گراند انتخاب آیتم‌ها" \
+            --notes "نسخه 1.1.7 با ادغام مخاطبین چندشماره‌ای، فعال‌سازی تم روز و شب در تنظیمات و هایلایت انتخاب" \
             --latest || gh release upload "$TAG_NAME" signed_out/5Messages.apk --clobber
 
       - name: Upload APK

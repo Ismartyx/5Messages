@@ -137,6 +137,15 @@ abstract class QkThemedActivity : QkActivity() {
     }
 
     open fun isNightModeActive(): Boolean {
+        when (prefs.nightMode.get()) {
+            Preferences.NIGHT_MODE_OFF -> return false
+            Preferences.NIGHT_MODE_ON -> return true
+            Preferences.NIGHT_MODE_AUTO -> return prefs.night.get()
+            Preferences.NIGHT_MODE_SYSTEM -> {
+                val currentNightMode: Int = (resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK)
+                return currentNightMode == Configuration.UI_MODE_NIGHT_YES
+            }
+        }
         val defaultNightMode = AppCompatDelegate.getDefaultNightMode()
         if (defaultNightMode == AppCompatDelegate.MODE_NIGHT_YES) {
             return true
@@ -144,14 +153,8 @@ abstract class QkThemedActivity : QkActivity() {
         if (defaultNightMode == AppCompatDelegate.MODE_NIGHT_NO) {
             return false
         }
-        val currentNightMode: Int = (getResources().getConfiguration().uiMode
-                and Configuration.UI_MODE_NIGHT_MASK)
-        when (currentNightMode) {
-            Configuration.UI_MODE_NIGHT_NO -> return false
-            Configuration.UI_MODE_NIGHT_YES -> return true
-            Configuration.UI_MODE_NIGHT_UNDEFINED -> return false
-        }
-        return false
+        val currentNightMode: Int = (resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK)
+        return currentNightMode == Configuration.UI_MODE_NIGHT_YES
     }
 
     override fun onPostCreate(savedInstanceState: Bundle?) {

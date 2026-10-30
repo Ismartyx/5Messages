@@ -36,6 +36,8 @@
 
     <color name="separatorLight">#0C000000</color>
     <color name="separatorDark">#1AFFFFFF</color>
+    <color name="itemSelectedDark">#4038BDF8</color>
+    <color name="itemSelectedLight">#280284C7</color>
 
     <color name="switchThumbEnabledLight">#ECECEC</color>
     <color name="switchThumbEnabledGray">#FFFFFF</color>

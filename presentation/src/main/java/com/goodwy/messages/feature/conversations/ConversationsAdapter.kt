@@ -70,7 +70,10 @@ class ConversationsAdapter @Inject constructor(
             view.setOnClickListener {
                 val conversation = getItem(adapterPosition) ?: return@setOnClickListener
                 when (toggleSelection(conversation.id, false)) {
-                    true -> view.isActivated = isSelected(conversation.id)
+                    true -> {
+                        view.isActivated = isSelected(conversation.id)
+                        notifyItemChanged(adapterPosition)
+                    }
                     false -> navigator.showConversation(conversation.id)
                 }
             }
@@ -79,6 +82,7 @@ class ConversationsAdapter @Inject constructor(
                 val conversation = getItem(adapterPosition) ?: return@setOnLongClickListener true
                 toggleSelection(conversation.id)
                 view.isActivated = isSelected(conversation.id)
+                notifyItemChanged(adapterPosition)
                 true
             }
         }

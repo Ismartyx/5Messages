@@ -209,6 +209,11 @@ class SyncRepositoryImpl @Inject constructor(
 
         syncProgress.onNext(SyncRepository.SyncProgress.Running(0, 0, true))
 
+        // Merge multiple conversations that belong to the same contact
+        tryOrNull {
+            mergeSameContactConversations(realm)
+        }
+
         realm.insert(SyncLog())
         realm.commitTransaction()
 
@@ -355,6 +360,63 @@ class SyncRepositoryImpl @Inject constructor(
         }
 
         return groups
+    }
+
+    private fun mergeSameContactConversations(realm: Realm) {
+        val conversations = realm.where(Conversation::class.java).findAll()
+        val contactToConvs = mutableMapOf<String, MutableList<Long>>()
+        for (conv in conversations) {
+            val contactKeys = conv.recipients.mapNotNull { it.contact?.lookupKey }.filter { it.isNotBlank() }.distinct()
+            if (contactKeys.size == 1 && conv.recipients.isNotEmpty()) {
+                val key = contactKeys.first()
+                contactToConvs.getOrPut(key) { mutableListOf() }.add(conv.id)
+            }
+        }
+
+        contactToConvs.values.filter { it.size > 1 }.forEach { threadIds ->
+            var primaryId = threadIds[0]
+            var latestDate = realm.where(Conversation::class.java).equalTo("id", primaryId).findFirst()?.lastMessage?.date ?: 0L
+
+            for (i in 1 until threadIds.size) {
+                val tid = threadIds[i]
+                val d = realm.where(Conversation::class.java).equalTo("id", tid).findFirst()?.lastMessage?.date ?: 0L
+                if (d > latestDate) {
+                    latestDate = d
+                    primaryId = tid
+                }
+            }
+
+            val secondaryIds = threadIds.filter { it != primaryId }
+            val primaryConv = realm.where(Conversation::class.java).equalTo("id", primaryId).findFirst() ?: return@forEach
+
+            for (secId in secondaryIds) {
+                val secConv = realm.where(Conversation::class.java).equalTo("id", secId).findFirst() ?: continue
+
+                secConv.recipients.forEach { rec ->
+                    if (primaryConv.recipients.none { it.id == rec.id || it.address == rec.address }) {
+                        primaryConv.recipients.add(rec)
+                    }
+                }
+
+                if (secConv.pinned) primaryConv.pinned = true
+                if (primaryConv.name.isEmpty() && secConv.name.isNotEmpty()) {
+                    primaryConv.name = secConv.name
+                }
+
+                val secMessages = realm.where(Message::class.java).equalTo("threadId", secId).findAll()
+                val messageIds = secMessages.map { it.id }
+                for (msgId in messageIds) {
+                    realm.where(Message::class.java).equalTo("id", msgId).findFirst()?.threadId = primaryId
+                }
+
+                secConv.deleteFromRealm()
+            }
+
+            primaryConv.lastMessage = realm.where(Message::class.java)
+                .equalTo("threadId", primaryId)
+                .sort("date", Sort.DESCENDING)
+                .findFirst()
+        }
     }
 
 }

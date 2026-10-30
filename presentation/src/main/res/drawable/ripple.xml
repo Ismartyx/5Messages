@@ -29,17 +29,9 @@
 
     <item>
         <selector>
-            <item android:state_activated="true">
-                <color android:color="#350284C7" />
-            </item>
-
-            <item android:state_selected="true">
-                <color android:color="#350284C7" />
-            </item>
-
-            <item>
-                <color android:color="@android:color/transparent" />
-            </item>
+            <item android:state_activated="true" android:drawable="@color/itemSelectedLight" />
+            <item android:state_selected="true" android:drawable="@color/itemSelectedLight" />
+            <item android:drawable="@android:color/transparent" />
         </selector>
     </item>
 

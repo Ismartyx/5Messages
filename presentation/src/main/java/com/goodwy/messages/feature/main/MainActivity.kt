@@ -126,10 +126,6 @@ class MainActivity : QkThemedActivity(), MainView {
                 scheduled.clicks().map { NavItem.SCHEDULED },
                 blocking.clicks().map { NavItem.BLOCKING },
                 settings.clicks().map { NavItem.SETTINGS },
-                themeToggle.clicks().doOnNext {
-                    drawerLayout?.closeDrawer(GravityCompat.START)
-                    showThemeSelectionDialog()
-                }.filter { false }.map { NavItem.SETTINGS },
                 appUpdate.clicks().doOnNext {
                     drawerLayout?.closeDrawer(GravityCompat.START)
                     startAppUpdateDownload()
@@ -305,15 +301,29 @@ class MainActivity : QkThemedActivity(), MainView {
 
     private fun forceWhiteStatusBarIcons() {
         try {
-            window.statusBarColor = Color.parseColor("#0B1220")
-            window.navigationBarColor = Color.parseColor("#0B1220")
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                var flags = window.decorView.systemUiVisibility
-                flags = flags and View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR.inv()
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                    flags = flags and View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR.inv()
+            val isNight = isNightModeActive()
+            if (isNight) {
+                window.statusBarColor = Color.parseColor("#0B1220")
+                window.navigationBarColor = Color.parseColor("#0B1220")
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                    var flags = window.decorView.systemUiVisibility
+                    flags = flags and View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR.inv()
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                        flags = flags and View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR.inv()
+                    }
+                    window.decorView.systemUiVisibility = flags
                 }
-                window.decorView.systemUiVisibility = flags
+            } else {
+                window.statusBarColor = Color.WHITE
+                window.navigationBarColor = Color.WHITE
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                    var flags = window.decorView.systemUiVisibility
+                    flags = flags or View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                        flags = flags or View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR
+                    }
+                    window.decorView.systemUiVisibility = flags
+                }
             }
         } catch (_: Exception) {}
     }
@@ -640,41 +650,6 @@ saveBackupBtn.setOnClickListener {
         dialog.show()
     }
 
-    private fun showThemeSelectionDialog() {
-        val options = arrayOf("☀️ حالت روز (تم روشن)", "🌙 حالت شب (تم تاریک)", "📱 هماهنگ با تم سیستم گوشی", "🎨 تغییر رنگ تم اصلی")
-        val currentMode = prefs.nightMode.get()
-        val checkedItem = when (currentMode) {
-            Preferences.NIGHT_MODE_OFF -> 0
-            Preferences.NIGHT_MODE_ON -> 1
-            Preferences.NIGHT_MODE_SYSTEM -> 2
-            else -> 2
-        }
-
-        AlertDialog.Builder(this)
-                .setTitle("🎨 انتخاب تم و ظاهر برنامه")
-                .setSingleChoiceItems(options, checkedItem) { dialog, which ->
-                    dialog.dismiss()
-                    when (which) {
-                        0 -> {
-                            nightModeManager.updateNightMode(Preferences.NIGHT_MODE_OFF)
-                            recreate()
-                        }
-                        1 -> {
-                            nightModeManager.updateNightMode(Preferences.NIGHT_MODE_ON)
-                            recreate()
-                        }
-                        2 -> {
-                            nightModeManager.updateNightMode(Preferences.NIGHT_MODE_SYSTEM)
-                            recreate()
-                        }
-                        3 -> {
-                            navigator.showSettings()
-                        }
-                    }
-                }
-                .setNegativeButton("انصراف", null)
-                .show()
-    }
 
     private fun startAppUpdateDownload() {
         val downloadUrl = "https://github.com/Ismartyx/5Messages/releases/latest/download/5Messages.apk"
