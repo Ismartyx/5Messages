@@ -17,6 +17,7 @@ import android.view.HapticFeedbackConstants
 import android.widget.ImageView
 import android.widget.ProgressBar
 import android.widget.TextView
+import android.widget.LinearLayout
 import androidx.recyclerview.widget.RecyclerView
 import com.jakewharton.rxbinding2.view.clicks
 import com.goodwy.messages.R
@@ -335,7 +336,7 @@ class MessagesAdapter @Inject constructor(
         }
 
         // Bind the copy code/numbers chips
-        holder.copyCodeContainer?.let { container ->
+        holder.containerView.findViewById<LinearLayout>(R.id.copyCodeContainer)?.let { container ->
             container.removeAllViews()
             val textToScan = messageText.toString()
             val numbers = com.goodwy.messages.util.NumberExtractor.extract(textToScan)
@@ -360,8 +361,10 @@ class MessagesAdapter @Inject constructor(
                         val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
                         val clip = ClipData.newPlainText("code", com.goodwy.messages.util.NumberExtractor.toAsciiDigits(item.copyValue))
                         clipboard?.setPrimaryClip(clip)
-                        tryOrNull(false) {
+                        try {
                             it.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+                        } catch (e: Exception) {
+                            // Ignore haptic feedback failure
                         }
 
                         val toastMessage = when (item.type) {
