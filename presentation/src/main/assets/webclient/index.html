@@ -4,16 +4,24 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Messages Web</title>
+  <!-- Modern Persian Font (Vazirmatn) from CDN & Google Fonts -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/Vazirmatn-font-face.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Vazirmatn", Tahoma, sans-serif;
+      font-family: "Vazirmatn", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "IRANSans", Tahoma, sans-serif;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
       background-color: #0B1220;
       color: #F8FAFC;
       height: 100vh;
       display: flex;
       overflow: hidden;
       user-select: none;
+      letter-spacing: -0.2px;
     }
 
     /* Layout */
@@ -71,32 +79,70 @@
       box-shadow: 0 0 8px #10B981;
     }
 
-    /* Category Bar (Exact match to phone app) */
-    .category-scroll {
+    /* Category Bar Wrapper with Drag & Arrows */
+    .category-wrapper {
       display: flex;
-      gap: 6px;
-      padding: 10px 14px;
+      align-items: center;
       background-color: #0F172A;
       border-bottom: 1px solid #1F2937;
+      position: relative;
+      padding: 0 4px;
+    }
+    .cat-nav-btn {
+      width: 24px;
+      height: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: transparent;
+      border: none;
+      color: #94A3B8;
+      cursor: pointer;
+      border-radius: 6px;
+      transition: all 0.15s;
+      flex-shrink: 0;
+      z-index: 2;
+    }
+    .cat-nav-btn:hover {
+      background: #1E293B;
+      color: #38BDF8;
+    }
+    .cat-nav-btn svg { width: 18px; height: 18px; fill: currentColor; }
+
+    .category-scroll {
+      flex: 1;
+      display: flex;
+      gap: 6px;
+      padding: 9px 4px;
       overflow-x: auto;
       scrollbar-width: none;
       -ms-overflow-style: none;
+      cursor: grab;
+      user-select: none;
+      scroll-behavior: smooth;
+    }
+    .category-scroll.dragging {
+      cursor: grabbing;
+      scroll-behavior: auto;
     }
     .category-scroll::-webkit-scrollbar { display: none; }
+
     .cat-pill {
       display: flex;
       align-items: center;
       gap: 6px;
-      padding: 6px 13px;
+      padding: 5px 11px;
       background: #1E293B;
       border: 1px solid #334155;
-      border-radius: 20px;
-      font-size: 12.5px;
+      border-radius: 18px;
+      font-size: 12px;
       font-weight: 600;
+      font-family: inherit;
       color: #94A3B8;
       cursor: pointer;
       white-space: nowrap;
       transition: all 0.2s;
+      flex-shrink: 0;
     }
     .cat-pill:hover {
       background: #334155;
@@ -713,37 +759,47 @@
         <input type="text" id="searchInput" class="search-input" placeholder="جستجو در پیام‌ها و مخاطبین..." oninput="handleSearch()">
       </div>
 
-      <!-- Categories matching Phone App -->
-      <div class="category-scroll" id="categoryScroll">
-        <button class="cat-pill active" data-cat="CONTACTS" onclick="selectCategory('CONTACTS')">
-          <span class="cat-dot contacts"></span>
-          <span>مخاطبین</span>
-          <span class="cat-badge" id="badge-CONTACTS" style="display:none">0</span>
+      <!-- Categories matching Phone App (with smooth arrows & drag) -->
+      <div class="category-wrapper">
+        <button class="cat-nav-btn" onclick="scrollCategories('right')" title="قبلی">
+          <svg viewBox="0 0 24 24"><path d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6-1.41-1.41z"/></svg>
         </button>
-        <button class="cat-pill" data-cat="UNKNOWN" onclick="selectCategory('UNKNOWN')">
-          <span class="cat-dot unknown"></span>
-          <span>شخصی ناشناس</span>
-          <span class="cat-badge" id="badge-UNKNOWN" style="display:none">0</span>
-        </button>
-        <button class="cat-pill" data-cat="BANK" onclick="selectCategory('BANK')">
-          <span class="cat-dot bank"></span>
-          <span>بانکی</span>
-          <span class="cat-badge" id="badge-BANK" style="display:none">0</span>
-        </button>
-        <button class="cat-pill" data-cat="OTP" onclick="selectCategory('OTP')">
-          <span class="cat-dot otp"></span>
-          <span>رمز و کد</span>
-          <span class="cat-badge" id="badge-OTP" style="display:none">0</span>
-        </button>
-        <button class="cat-pill" data-cat="OTHER" onclick="selectCategory('OTHER')">
-          <span class="cat-dot other"></span>
-          <span>متفرقه</span>
-          <span class="cat-badge" id="badge-OTHER" style="display:none">0</span>
-        </button>
-        <button class="cat-pill" data-cat="ARCHIVED" onclick="selectCategory('ARCHIVED')">
-          <span class="cat-dot archived"></span>
-          <span>آرشیو شده</span>
-          <span class="cat-badge" id="badge-ARCHIVED" style="display:none">0</span>
+
+        <div class="category-scroll" id="categoryScroll">
+          <button class="cat-pill active" data-cat="CONTACTS" onclick="selectCategory('CONTACTS')">
+            <span class="cat-dot contacts"></span>
+            <span>مخاطبین</span>
+            <span class="cat-badge" id="badge-CONTACTS" style="display:none">0</span>
+          </button>
+          <button class="cat-pill" data-cat="UNKNOWN" onclick="selectCategory('UNKNOWN')">
+            <span class="cat-dot unknown"></span>
+            <span>شخصی ناشناس</span>
+            <span class="cat-badge" id="badge-UNKNOWN" style="display:none">0</span>
+          </button>
+          <button class="cat-pill" data-cat="BANK" onclick="selectCategory('BANK')">
+            <span class="cat-dot bank"></span>
+            <span>بانکی</span>
+            <span class="cat-badge" id="badge-BANK" style="display:none">0</span>
+          </button>
+          <button class="cat-pill" data-cat="OTP" onclick="selectCategory('OTP')">
+            <span class="cat-dot otp"></span>
+            <span>رمز و کد</span>
+            <span class="cat-badge" id="badge-OTP" style="display:none">0</span>
+          </button>
+          <button class="cat-pill" data-cat="OTHER" onclick="selectCategory('OTHER')">
+            <span class="cat-dot other"></span>
+            <span>متفرقه</span>
+            <span class="cat-badge" id="badge-OTHER" style="display:none">0</span>
+          </button>
+          <button class="cat-pill" data-cat="ARCHIVED" onclick="selectCategory('ARCHIVED')">
+            <span class="cat-dot archived"></span>
+            <span>آرشیو شده</span>
+            <span class="cat-badge" id="badge-ARCHIVED" style="display:none">0</span>
+          </button>
+        </div>
+
+        <button class="cat-nav-btn" onclick="scrollCategories('left')" title="بعدی">
+          <svg viewBox="0 0 24 24"><path d="M15.41 16.59L10.83 12l4.58-4.59L14 6l-6 6 6 6 1.41-1.41z"/></svg>
         </button>
       </div>
 
@@ -961,6 +1017,9 @@
       setInterval(pollNewMessages, 3000);
       initAudio();
 
+      const catScroll = document.getElementById('categoryScroll');
+      if (catScroll) makeHorizontalScrollable(catScroll);
+
       // Reset tab title on focus
       window.addEventListener('focus', () => {
         if (titleFlashInterval) {
@@ -969,6 +1028,65 @@
           document.title = defaultPageTitle;
         }
       });
+    }
+
+    function scrollCategories(dir) {
+      const el = document.getElementById('categoryScroll');
+      if (!el) return;
+      const amount = dir === 'left' ? -150 : 150;
+      el.scrollBy({ left: amount, behavior: 'smooth' });
+    }
+
+    function makeHorizontalScrollable(container) {
+      if (!container || container._hasScrollHelper) return;
+      container._hasScrollHelper = true;
+
+      // Mouse wheel horizontal scrolling
+      container.addEventListener('wheel', (e) => {
+        if (e.deltaY !== 0) {
+          e.preventDefault();
+          container.scrollLeft -= e.deltaY;
+        }
+      }, { passive: false });
+
+      // Mouse drag-to-scroll
+      let isDown = false;
+      let startX = 0;
+      let startScroll = 0;
+      let isMoved = false;
+
+      container.addEventListener('mousedown', (e) => {
+        isDown = true;
+        isMoved = false;
+        container.classList.add('dragging');
+        startX = e.pageX;
+        startScroll = container.scrollLeft;
+      });
+
+      window.addEventListener('mouseup', () => {
+        if (isDown) {
+          isDown = false;
+          container.classList.remove('dragging');
+        }
+      });
+
+      container.addEventListener('mousemove', (e) => {
+        if (!isDown) return;
+        const diff = e.pageX - startX;
+        if (Math.abs(diff) > 4) {
+          isMoved = true;
+          e.preventDefault();
+          container.scrollLeft = startScroll - diff;
+        }
+      });
+
+      container.addEventListener('click', (e) => {
+        if (isMoved) {
+          e.stopPropagation();
+          e.preventDefault();
+          isMoved = false;
+        }
+      }, true);
     }
 
     // Audio Synthesizer (Apple-style 2-tone pleasant bell)
@@ -1243,6 +1361,7 @@
       });
 
       container.scrollTop = container.scrollHeight;
+      container.querySelectorAll('.smart-chips-wrapper').forEach(makeHorizontalScrollable);
     }
 
     function getChipIcon(type) {
