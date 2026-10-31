@@ -67,6 +67,7 @@ class WebClientServer(
     private fun handleConnection(socket: Socket) {
         try {
             socket.soTimeout = 10000
+            try { socket.setSoLinger(true, 3) } catch (e: Exception) {}
             val input = BufferedReader(InputStreamReader(socket.getInputStream(), Charsets.UTF_8))
             val output = BufferedOutputStream(socket.getOutputStream())
 
@@ -113,6 +114,11 @@ class WebClientServer(
 
             // Routes
             when {
+                // Ping test
+                (method == "GET" && path == "/ping") -> {
+                    sendResponse(output, 200, "OK", "text/plain", "pong")
+                }
+
                 // Serve HTML SPA
                 (method == "GET" && (path == "/" || path == "/index.html")) -> {
                     val html = WebClientHtml.getHtml(context)

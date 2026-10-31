@@ -671,15 +671,17 @@ saveBackupBtn.setOnClickListener {
         val isNight = isNightModeActive()
         val cardBg = if (isNight) "#0B1220" else "#FFFFFF"
         val cardBorder = if (isNight) "#1E293B" else "#E2E8F0"
-        val inputBg = if (isNight) "#090E1A" else "#F8FAFC"
+        val inputBg = if (isNight) "#090E1A" else "#F1F5F9"
         val inputBorder = if (isNight) "#1E293B" else "#CBD5E1"
-        val inputTextColor = if (isNight) Color.WHITE else Color.parseColor("#0F172A")
-        val labelTextColor = if (isNight) Color.parseColor("#9CA3AF") else Color.parseColor("#64748B")
+        val textPrimary = if (isNight) Color.WHITE else Color.parseColor("#0F172A")
+        val textSecondary = if (isNight) Color.parseColor("#94A3B8") else Color.parseColor("#475569")
+        val highlightColor = if (isNight) Color.parseColor("#38BDF8") else Color.parseColor("#0284C7")
 
         val isRunning = com.goodwy.messages.feature.webserver.WebClientHelper.isServiceRunning(this)
-        val bestIp = com.goodwy.messages.feature.webserver.WebClientHelper.getBestIpAddress()
         val port = com.goodwy.messages.feature.webserver.WebClientHelper.getPort(this)
         val currentPin = com.goodwy.messages.feature.webserver.WebClientHelper.getPin(this)
+        val wifiIp = com.goodwy.messages.feature.webserver.WebClientHelper.getWifiIp()
+        var savedTsIp = com.goodwy.messages.feature.webserver.WebClientHelper.getEffectiveTailscaleIp(this)
 
         val scrollView = ScrollView(this)
         val card = LinearLayout(this).apply {
@@ -690,28 +692,19 @@ saveBackupBtn.setOnClickListener {
         scrollView.addView(card)
 
         val header = TextView(this).apply {
-            text = "💻 وب‌کلاینت کامپیوتر (Tailscale)"
-            setTextColor(Color.parseColor("#0EA5E9"))
-            textSize = 16f
+            text = "💻 Web Client (Tailscale / PC)"
+            setTextColor(highlightColor)
+            textSize = 17f
             setTypeface(null, Typeface.BOLD)
             gravity = Gravity.RIGHT
-            setPadding(0, 0, 0, dp(12))
+            setPadding(0, 0, 0, dp(10))
         }
         card.addView(header)
 
-        val desc = TextView(this).apply {
-            text = "با فعال‌سازی این بخش، می‌توانید از طریق مرورگر کامپیوتر (روی شبکه Tailscale یا وای‌فای) پیامک‌ها را زنده ببینید، نوتیفیکیشن بگیرید و پیام بفرستید."
-            setTextColor(labelTextColor)
-            textSize = 12f
-            gravity = Gravity.RIGHT
-            setPadding(0, 0, 0, dp(14))
-        }
-        card.addView(desc)
-
         // Status Banner
         val statusText = TextView(this).apply {
-            text = if (isRunning) "🟢 وضعیت: فعال و در حال سرویس‌دهی" else "⚪ وضعیت: غیرفعال (خاموش)"
-            setTextColor(if (isRunning) Color.parseColor("#10B981") else Color.parseColor("#94A3B8"))
+            text = if (isRunning) "🟢 وضعیت: در حال اجرا" else "⚪ وضعیت: خاموش"
+            setTextColor(if (isRunning) Color.parseColor("#10B981") else textSecondary)
             textSize = 13f
             setTypeface(null, Typeface.BOLD)
             gravity = Gravity.RIGHT
@@ -720,83 +713,178 @@ saveBackupBtn.setOnClickListener {
         }
         card.addView(statusText)
 
-        // Address list
-        val addresses = com.goodwy.messages.feature.webserver.WebClientHelper.getDetectedAddresses()
-        val addressesLabel = TextView(this).apply {
-            text = "آدرس‌های اتصال در مرورگر کامپیوتر:"
-            setTextColor(labelTextColor)
-            textSize = 12f
+        // Live Health Check
+        if (isRunning) {
+            val pingStatus = TextView(this).apply {
+                text = "⏳ در حال بررسی سلامت سرور داخلی..."
+                setTextColor(textSecondary)
+                textSize = 11f
+                gravity = Gravity.RIGHT
+                setPadding(dp(4), dp(4), dp(4), dp(4))
+            }
+            card.addView(pingStatus)
+            Thread {
+                try {
+                    val conn = (URL("http://127.0.0.1:$port/ping").openConnection() as HttpURLConnection).apply {
+                        connectTimeout = 1500
+                        readTimeout = 1500
+                    }
+                    val code = conn.responseCode
+                    val text = conn.inputStream.bufferedReader().use { it.readText() }.trim()
+                    runOnUiThread {
+                        if (code == 200 && text == "pong") {
+                            pingStatus.text = "✅ سرور داخلی فعال و آماده اتصال است"
+                            pingStatus.setTextColor(Color.parseColor("#10B981"))
+                        } else {
+                            pingStatus.text = "⚠️ پورت پاسخ نداد (کد $code)"
+                            pingStatus.setTextColor(Color.parseColor("#F59E0B"))
+                        }
+                    }
+                } catch (e: Exception) {
+                    runOnUiThread {
+                        pingStatus.text = "⚠️ سرور در انتظار درخواست است"
+                    }
+                }
+            }.start()
+        }
+
+        // Section 1: Tailscale (Primary & Recommended)
+        val tsCard = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(14), dp(12), dp(14), dp(12))
+            background = makeRoundedBg(inputBg, inputBorder, 14)
+            val p = LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply {
+                topMargin = dp(14)
+            }
+            layoutParams = p
+        }
+        val tsLabel = TextView(this).apply {
+            text = "⚡ روش اول: اتصال با Tailscale (پیشنهادی)"
+            setTextColor(highlightColor)
+            textSize = 13f
+            setTypeface(null, Typeface.BOLD)
             gravity = Gravity.RIGHT
-            setPadding(0, dp(12), 0, dp(4))
         }
-        card.addView(addressesLabel)
-
-        if (addresses.isNotEmpty()) {
-            for (addr in addresses) {
-                val fullUrl = "http://${addr.ip}:$port"
-                val row = LinearLayout(this).apply {
-                    orientation = LinearLayout.VERTICAL
-                    setPadding(dp(12), dp(10), dp(12), dp(10))
-                    background = makeRoundedBg(inputBg, inputBorder, 10)
-                    val p = LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply {
-                        topMargin = dp(6)
-                    }
-                    layoutParams = p
-                }
-                val label = TextView(this).apply {
-                    text = if (addr.isTailscale) "⚡ " + addr.label + " (پیشنهادی برای اتصال به کامپیوتر):" else addr.label + ":"
-                    setTextColor(if (addr.isTailscale) Color.parseColor("#38BDF8") else labelTextColor)
-                    textSize = 11f
-                    gravity = Gravity.RIGHT
-                }
-                val valText = TextView(this).apply {
-                    text = fullUrl
-                    setTextColor(Color.WHITE)
-                    textSize = 14f
-                    setTypeface(Typeface.MONOSPACE, Typeface.BOLD)
-                    setPadding(0, dp(2), 0, dp(6))
-                }
-                val copyBtn = Button(this).apply {
-                    text = "کپی آدرس (${addr.label})"
-                    setTextColor(Color.WHITE)
-                    textSize = 11f
-                    background = makeRoundedBg(if (addr.isTailscale) "#0284C7" else "#475569", null, 6)
-                    val p = LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(34))
-                    layoutParams = p
-                    setOnClickListener {
-                        val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
-                        clipboard?.setPrimaryClip(ClipData.newPlainText("url", fullUrl))
-                        Toast.makeText(this@MainActivity, "آدرس کپی شد: $fullUrl", Toast.LENGTH_SHORT).show()
-                    }
-                }
-                row.addView(label)
-                row.addView(valText)
-                row.addView(copyBtn)
-                card.addView(row)
-            }
-        } else {
-            val emptyAddr = TextView(this).apply {
-                text = "http://127.0.0.1:$port"
-                setTextColor(Color.WHITE)
-                textSize = 14f
-                setPadding(dp(8), dp(8), dp(8), dp(8))
-            }
-            card.addView(emptyAddr)
-        }
-
-        val tailscaleHint = TextView(this).apply {
-            text = "💡 نکته: برای اتصال از سیستم، مطمئن شوید Tailscale روی هر دو دستگاه روشن است و آدرس Tailscale را در مرورگر سیستم باز کنید."
-            setTextColor(Color.parseColor("#94A3B8"))
+        val tsDesc = TextView(this).apply {
+            text = "آی‌پی 100 گوشی را از برنامه Tailscale بردارید و وارد کنید:"
+            setTextColor(textSecondary)
             textSize = 11f
             gravity = Gravity.RIGHT
-            setPadding(dp(2), dp(10), dp(2), dp(6))
+            setPadding(0, dp(4), 0, dp(6))
         }
-        card.addView(tailscaleHint)
+        val tsInput = EditText(this).apply {
+            setText(savedTsIp)
+            hint = "مثلاً 100.85.20.15"
+            setTextColor(textPrimary)
+            setHintTextColor(textSecondary)
+            textSize = 14f
+            gravity = Gravity.LEFT or Gravity.CENTER_VERTICAL
+            setPadding(dp(12), dp(8), dp(12), dp(8))
+            background = makeRoundedBg(if (isNight) "#111827" else "#FFFFFF", inputBorder, 8)
+            inputType = InputType.TYPE_CLASS_TEXT
+        }
+        val tsUrlPreview = TextView(this).apply {
+            val ipToUse = savedTsIp.ifBlank { "100.x.y.z" }
+            text = "http://$ipToUse:$port"
+            setTextColor(highlightColor)
+            textSize = 14f
+            setTypeface(Typeface.MONOSPACE, Typeface.BOLD)
+            setPadding(0, dp(6), 0, dp(6))
+            gravity = Gravity.LEFT
+        }
+        tsInput.addTextChangedListener(object : android.text.TextWatcher {
+            override fun afterTextChanged(s: android.text.Editable?) {
+                val ip = s?.toString()?.trim() ?: ""
+                tsUrlPreview.text = "http://${ip.ifBlank { "100.x.y.z" }}:$port"
+            }
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+        })
+        val copyTsBtn = Button(this).apply {
+            text = "📋 کپی آدرس Tailscale برای کامپیوتر"
+            setTextColor(Color.WHITE)
+            textSize = 12f
+            background = makeRoundedBg("#0284C7", null, 8)
+            val p = LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(38)).apply {
+                topMargin = dp(4)
+            }
+            layoutParams = p
+            setOnClickListener {
+                val ip = tsInput.text.toString().trim()
+                if (ip.isNotBlank()) {
+                    com.goodwy.messages.feature.webserver.WebClientHelper.setSavedTailscaleIp(this@MainActivity, ip)
+                }
+                val urlToCopy = "http://${ip.ifBlank { "100.x.y.z" }}:$port"
+                val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
+                clipboard?.setPrimaryClip(ClipData.newPlainText("url", urlToCopy))
+                Toast.makeText(this@MainActivity, "آدرس کپی شد: $urlToCopy", Toast.LENGTH_SHORT).show()
+            }
+        }
+        tsCard.addView(tsLabel)
+        tsCard.addView(tsDesc)
+        tsCard.addView(tsInput)
+        tsCard.addView(tsUrlPreview)
+        tsCard.addView(copyTsBtn)
+        card.addView(tsCard)
 
-        // PIN Setting
+        // Section 2: Wi-Fi (LAN)
+        if (!wifiIp.isNullOrBlank()) {
+            val wifiCard = LinearLayout(this).apply {
+                orientation = LinearLayout.VERTICAL
+                setPadding(dp(14), dp(12), dp(14), dp(12))
+                background = makeRoundedBg(inputBg, inputBorder, 14)
+                val p = LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply {
+                    topMargin = dp(12)
+                }
+                layoutParams = p
+            }
+            val wifiLabel = TextView(this).apply {
+                text = "📶 روش دوم: اتصال مستقیم از مودم Wi-Fi"
+                setTextColor(textPrimary)
+                textSize = 13f
+                setTypeface(null, Typeface.BOLD)
+                gravity = Gravity.RIGHT
+            }
+            val wifiUrlText = "http://$wifiIp:$port"
+            val wifiUrlView = TextView(this).apply {
+                text = wifiUrlText
+                setTextColor(highlightColor)
+                textSize = 14f
+                setTypeface(Typeface.MONOSPACE, Typeface.BOLD)
+                setPadding(0, dp(4), 0, dp(6))
+                gravity = Gravity.LEFT
+            }
+            val copyWifiBtn = Button(this).apply {
+                text = "📋 کپی آدرس Wi-Fi"
+                setTextColor(Color.WHITE)
+                textSize = 12f
+                background = makeRoundedBg("#475569", null, 8)
+                val p = LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(38))
+                layoutParams = p
+                setOnClickListener {
+                    val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
+                    clipboard?.setPrimaryClip(ClipData.newPlainText("url", wifiUrlText))
+                    Toast.makeText(this@MainActivity, "آدرس کپی شد: $wifiUrlText", Toast.LENGTH_SHORT).show()
+                }
+            }
+            val wifiNote = TextView(this).apply {
+                text = "نکته: برای اتصال با وای‌فای، فیلترشکن گوشی را موقتاً قطع کنید."
+                setTextColor(textSecondary)
+                textSize = 10f
+                gravity = Gravity.RIGHT
+                setPadding(0, dp(4), 0, 0)
+            }
+            wifiCard.addView(wifiLabel)
+            wifiCard.addView(wifiUrlView)
+            wifiCard.addView(copyWifiBtn)
+            wifiCard.addView(wifiNote)
+            card.addView(wifiCard)
+        }
+
+        // Section 3: PIN Setting
         val pinLabel = TextView(this).apply {
             text = "پین‌کد امنیتی ورود (محرمانه):"
-            setTextColor(labelTextColor)
+            setTextColor(textSecondary)
             textSize = 12f
             gravity = Gravity.RIGHT
             setPadding(dp(4), dp(14), dp(4), dp(6))
@@ -806,8 +894,8 @@ saveBackupBtn.setOnClickListener {
         val pinInput = EditText(this).apply {
             setText(currentPin)
             hint = "••••"
-            setTextColor(inputTextColor)
-            setHintTextColor(Color.parseColor("#64748B"))
+            setTextColor(textPrimary)
+            setHintTextColor(textSecondary)
             textSize = 15f
             gravity = Gravity.CENTER
             setPadding(dp(14), dp(10), dp(14), dp(10))
@@ -833,6 +921,10 @@ saveBackupBtn.setOnClickListener {
             setOnClickListener {
                 val newPin = pinInput.text.toString().trim().ifBlank { "1234" }
                 com.goodwy.messages.feature.webserver.WebClientHelper.setPin(this@MainActivity, newPin)
+                val tsVal = tsInput.text.toString().trim()
+                if (tsVal.isNotBlank()) {
+                    com.goodwy.messages.feature.webserver.WebClientHelper.setSavedTailscaleIp(this@MainActivity, tsVal)
+                }
                 val isCurrentlyRunning = com.goodwy.messages.feature.webserver.WebClientHelper.isServiceRunning(this@MainActivity)
                 if (isCurrentlyRunning) {
                     com.goodwy.messages.feature.webserver.WebClientHelper.stopService(this@MainActivity)
@@ -848,7 +940,7 @@ saveBackupBtn.setOnClickListener {
 
         val closeBtn = Button(this).apply {
             text = "بستن"
-            setTextColor(labelTextColor)
+            setTextColor(textSecondary)
             textSize = 13f
             background = makeRoundedBg(if (isNight) "#111827" else "#F1F5F9", null, 12)
             val p = LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(42)).apply {

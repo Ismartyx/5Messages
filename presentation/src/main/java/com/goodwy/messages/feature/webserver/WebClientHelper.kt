@@ -13,6 +13,7 @@ object WebClientHelper {
     private const val KEY_PIN = "pin"
     private const val KEY_PORT = "port"
     private const val KEY_ENABLED = "enabled"
+    private const val KEY_TAILSCALE_IP = "tailscale_ip"
 
     data class AddressItem(val label: String, val ip: String, val isTailscale: Boolean)
 
@@ -42,14 +43,15 @@ object WebClientHelper {
     }
 
     fun isServiceRunning(context: Context): Boolean {
-        val manager = context.getSystemService(Context.ACTIVITY_SERVICE) as? ActivityManager ?: return false
+        if (!isEnabled(context)) return false
+        val manager = context.getSystemService(Context.ACTIVITY_SERVICE) as? ActivityManager ?: return isEnabled(context)
         @Suppress("DEPRECATION")
         for (service in manager.getRunningServices(Int.MAX_VALUE)) {
             if (WebClientService::class.java.name == service.service.className) {
                 return true
             }
         }
-        return false
+        return isEnabled(context)
     }
 
     fun startService(context: Context) {
@@ -68,11 +70,32 @@ object WebClientHelper {
         context.startService(intent)
     }
 
-    fun getBestIpAddress(): String {
-        val items = getDetectedAddresses()
-        val tailscale = items.firstOrNull { it.isTailscale }
-        if (tailscale != null) return tailscale.ip
-        return items.firstOrNull()?.ip ?: "127.0.0.1"
+    fun getSavedTailscaleIp(context: Context): String {
+        val sp = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        return sp.getString(KEY_TAILSCALE_IP, "") ?: ""
+    }
+
+    fun setSavedTailscaleIp(context: Context, ip: String) {
+        val sp = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        sp.edit().putString(KEY_TAILSCALE_IP, ip.trim()).apply()
+    }
+
+    fun getEffectiveTailscaleIp(context: Context): String {
+        val auto = getDetectedAddresses().firstOrNull { it.isTailscale }?.ip
+        if (!auto.isNullOrBlank()) return auto
+        return getSavedTailscaleIp(context)
+    }
+
+    fun getWifiIp(): String? {
+        return getDetectedAddresses().firstOrNull { it.label.contains("Wi-Fi") || it.ip.startsWith("192.168.") }?.ip
+    }
+
+    fun getBestIpAddress(context: Context): String {
+        val ts = getEffectiveTailscaleIp(context)
+        if (ts.isNotBlank()) return ts
+        val wifi = getWifiIp()
+        if (!wifi.isNullOrBlank()) return wifi
+        return getDetectedAddresses().firstOrNull()?.ip ?: "127.0.0.1"
     }
 
     fun getDetectedAddresses(): List<AddressItem> {

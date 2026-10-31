@@ -71,7 +71,7 @@ class WebClientService : Service() {
 
         createNotificationChannel()
 
-        val ip = WebClientHelper.getBestIpAddress()
+        val ip = WebClientHelper.getBestIpAddress(this)
         val url = "http://$ip:$port"
 
         val openAppIntent = Intent(this, MainActivity::class.java)
