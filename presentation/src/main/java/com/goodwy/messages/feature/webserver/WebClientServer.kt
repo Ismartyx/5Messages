@@ -71,7 +71,7 @@ class WebClientServer(
             val parts = requestLine.split(" ")
             if (parts.size < 2) return
 
-            val method = parts[0].uppercase()
+            val method = parts[0].toUpperCase()
             val fullPath = parts[1]
             val path = if (fullPath.contains("?")) fullPath.substringBefore("?") else fullPath
             val queryString = if (fullPath.contains("?")) fullPath.substringAfter("?") else ""
@@ -81,7 +81,7 @@ class WebClientServer(
             while (!line.isNullOrEmpty()) {
                 val colon = line.indexOf(':')
                 if (colon != -1) {
-                    val k = line.substring(0, colon).trim().lowercase()
+                    val k = line.substring(0, colon).trim().toLowerCase()
                     val v = line.substring(colon + 1).trim()
                     headers[k] = v
                 }
@@ -255,7 +255,8 @@ class WebClientServer(
                                 subId = -1,
                                 threadId = threadId,
                                 addresses = listOf(address),
-                                body = text
+                                body = text,
+                                attachments = emptyList()
                             )
                         } catch (e: Exception) {
                             Timber.e(e, "Error sending SMS via repository")
