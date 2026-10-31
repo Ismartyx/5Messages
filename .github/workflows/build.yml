@@ -182,14 +182,14 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          VERSION_NAME="1.3.3"
+          VERSION_NAME="1.3.4"
           TAG_NAME="v${VERSION_NAME}"
           gh release delete "$TAG_NAME" --yes || true
           git tag -d "$TAG_NAME" || true
           git push origin ":refs/tags/$TAG_NAME" || true
           gh release create "$TAG_NAME" signed_out/5Messages.apk \
             --title "5Messages v${VERSION_NAME}" \
-            --notes "نسخه 1.3.3: رفع مشکل عدم نمایش متون و آدرس‌ها در تم روز (کنتراست بالا)، افزودن تست سلامت زنده سرور داخلی، مدیریت ورودی آی‌پی Tailscale و تنظیم سوکت LINGER" \
+            --notes "نسخه 1.3.4: اصلاح کامل خواندن بایت‌های UTF-8 در پیام‌های فارسی و حل خطای ارسال پیامک از طریق وب‌کلاینت" \
             --latest || gh release upload "$TAG_NAME" signed_out/5Messages.apk --clobber
 
       - name: Upload APK

@@ -3,6 +3,7 @@ package com.goodwy.messages.feature.webserver
 import android.content.Context
 import android.os.Handler
 import android.os.Looper
+import com.goodwy.messages.interactor.SendMessage
 import com.goodwy.messages.model.Conversation
 import com.goodwy.messages.model.Message
 import com.goodwy.messages.repository.ConversationRepository
@@ -25,6 +26,7 @@ class WebClientServer(
     private val port: Int,
     private val conversationRepo: ConversationRepository,
     private val messageRepo: MessageRepository,
+    private val sendMessage: SendMessage? = null,
     private val getPin: () -> String
 ) {
     private var serverSocket: ServerSocket? = null
@@ -66,12 +68,12 @@ class WebClientServer(
 
     private fun handleConnection(socket: Socket) {
         try {
-            socket.soTimeout = 10000
+            socket.soTimeout = 15000
             try { socket.setSoLinger(true, 3) } catch (e: Exception) {}
-            val input = BufferedReader(InputStreamReader(socket.getInputStream(), Charsets.UTF_8))
+            val rawInput = BufferedInputStream(socket.getInputStream())
             val output = BufferedOutputStream(socket.getOutputStream())
 
-            val requestLine = input.readLine() ?: return
+            val requestLine = readLine(rawInput) ?: return
             val parts = requestLine.split(" ")
             if (parts.size < 2) return
 
@@ -81,7 +83,7 @@ class WebClientServer(
             val queryString = if (fullPath.contains("?")) fullPath.substringAfter("?") else ""
 
             val headers = mutableMapOf<String, String>()
-            var line: String? = input.readLine()
+            var line = readLine(rawInput)
             while (!line.isNullOrEmpty()) {
                 val colon = line.indexOf(':')
                 if (colon != -1) {
@@ -89,21 +91,21 @@ class WebClientServer(
                     val v = line.substring(colon + 1).trim()
                     headers[k] = v
                 }
-                line = input.readLine()
+                line = readLine(rawInput)
             }
 
-            // Read Body if present
+            // Read Body as raw BYTES according to Content-Length
             var body = ""
             val contentLength = headers["content-length"]?.toIntOrNull() ?: 0
             if (contentLength > 0) {
-                val charArray = CharArray(contentLength)
-                var readTotal = 0
-                while (readTotal < contentLength) {
-                    val read = input.read(charArray, readTotal, contentLength - readTotal)
-                    if (read == -1) break
-                    readTotal += read
+                val bodyBytes = ByteArray(contentLength)
+                var bytesRead = 0
+                while (bytesRead < contentLength) {
+                    val count = rawInput.read(bodyBytes, bytesRead, contentLength - bytesRead)
+                    if (count == -1) break
+                    bytesRead += count
                 }
-                body = String(charArray, 0, readTotal)
+                body = String(bodyBytes, 0, bytesRead, Charsets.UTF_8)
             }
 
             // CORS preflight
@@ -256,20 +258,58 @@ class WebClientServer(
                 try {
                     val json = JSONObject(body)
                     val threadId = json.optLong("threadId", 0L)
-                    val address = json.getString("address")
+                    var address = json.optString("address", "").trim()
                     val text = json.getString("body")
 
-                    mainHandler.post {
+                    if (address.isBlank() && threadId != 0L) {
                         try {
+                            Realm.getDefaultInstance().use { realm ->
+                                address = realm.where(Conversation::class.java)
+                                    .equalTo("id", threadId)
+                                    .findFirst()?.recipients?.firstOrNull()?.address ?: ""
+                            }
+                        } catch (e: Exception) {
+                            Timber.e(e, "Error finding recipient address for thread $threadId")
+                        }
+                    }
+
+                    if (address.isBlank()) {
+                        val res = JSONObject().apply {
+                            put("success", false)
+                            put("error", "آدرس گیرنده یافت نشد")
+                        }
+                        sendResponse(output, 400, "Bad Request", "application/json; charset=utf-8", res.toString())
+                        return
+                    }
+
+                    // Look up latest subId for this thread (or -1)
+                    val subId = try {
+                        Realm.getDefaultInstance().use { realm ->
+                            realm.where(Message::class.java)
+                                .equalTo("threadId", threadId)
+                                .sort("date", Sort.DESCENDING)
+                                .findFirst()?.subId ?: -1
+                        }
+                    } catch (e: Exception) { -1 }
+
+                    if (sendMessage != null) {
+                        sendMessage.execute(
+                            SendMessage.Params(
+                                subId = subId,
+                                threadId = threadId,
+                                addresses = listOf(address),
+                                body = text
+                            )
+                        )
+                    } else {
+                        mainHandler.post {
                             messageRepo.sendMessage(
-                                subId = -1,
+                                subId = subId,
                                 threadId = threadId,
                                 addresses = listOf(address),
                                 body = text,
                                 attachments = emptyList()
                             )
-                        } catch (e: Exception) {
-                            Timber.e(e, "Error sending SMS via repository")
                         }
                     }
 
@@ -279,7 +319,7 @@ class WebClientServer(
                     Timber.e(e, "Error parsing send payload")
                     val res = JSONObject().apply {
                         put("success", false)
-                        put("error", e.message)
+                        put("error", e.message ?: "Unknown error")
                     }
                     sendResponse(output, 400, "Bad Request", "application/json; charset=utf-8", res.toString())
                 }
@@ -317,6 +357,26 @@ class WebClientServer(
             else -> {
                 sendResponse(output, 404, "Not Found", "text/plain", "Not Found")
             }
+        }
+    }
+
+    private fun readLine(input: InputStream): String? {
+        val sb = StringBuilder()
+        var hasData = false
+        while (true) {
+            val b = input.read()
+            if (b == -1) {
+                return if (hasData) sb.toString() else null
+            }
+            hasData = true
+            if (b == 10) { // '\n'
+                val len = sb.length
+                if (len > 0 && sb[len - 1] == '\r') {
+                    sb.setLength(len - 1)
+                }
+                return sb.toString()
+            }
+            sb.append(b.toChar())
         }
     }
 

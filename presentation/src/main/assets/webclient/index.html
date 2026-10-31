@@ -673,10 +673,10 @@
         });
         const data = await res.json();
         if (!data.success) {
-          alert('خطا در ارسال پیامک از طریق گوشی!');
+          alert('خطا در ارسال پیامک از طریق گوشی: ' + (data.error || 'نامشخص'));
         }
       } catch (e) {
-        alert('خطای اتصال به سرور گوشی!');
+        alert('خطای اتصال به سرور گوشی: ' + (e.message || e));
       }
     }
 

@@ -11,6 +11,7 @@ import android.os.IBinder
 import androidx.core.app.NotificationCompat
 import com.goodwy.messages.R
 import com.goodwy.messages.feature.main.MainActivity
+import com.goodwy.messages.interactor.SendMessage
 import com.goodwy.messages.repository.ConversationRepository
 import com.goodwy.messages.repository.MessageRepository
 import dagger.android.AndroidInjection
@@ -28,6 +29,7 @@ class WebClientService : Service() {
 
     @Inject lateinit var conversationRepo: ConversationRepository
     @Inject lateinit var messageRepo: MessageRepository
+    @Inject lateinit var sendMessage: SendMessage
 
     private var server: WebClientServer? = null
 
@@ -64,6 +66,7 @@ class WebClientService : Service() {
             port = port,
             conversationRepo = conversationRepo,
             messageRepo = messageRepo,
+            sendMessage = sendMessage,
             getPin = { WebClientHelper.getPin(this) }
         ).apply {
             start()
