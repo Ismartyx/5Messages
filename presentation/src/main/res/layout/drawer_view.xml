@@ -82,6 +82,7 @@
 
             <com.goodwy.messages.common.widget.QkTextView
                 android:id="@+id/plusBadge2"
+                android:visibility="gone"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:background="@drawable/rounded_rectangle_6dp"
@@ -109,6 +110,7 @@
 
             <com.goodwy.messages.common.widget.QkTextView
                 android:id="@+id/plusBadge1"
+                android:visibility="gone"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:background="@drawable/rounded_rectangle_6dp"
@@ -161,6 +163,7 @@
 
         <LinearLayout
             android:id="@+id/plus"
+            android:visibility="gone"
             style="@style/DrawerRow">
 
             <ImageView
@@ -208,6 +211,7 @@
 
         <androidx.constraintlayout.widget.ConstraintLayout
             android:id="@+id/plusBanner"
+            android:visibility="gone"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginStart="8dp"

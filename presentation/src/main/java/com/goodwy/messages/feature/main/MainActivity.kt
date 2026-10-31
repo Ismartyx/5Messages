@@ -803,10 +803,10 @@ saveBackupBtn.setOnClickListener {
         toolbar?.menu?.findItem(MENU_NEXTCLOUD_CONFIG)?.isVisible = selectedConversations == 0
 
         listOf(plusBadge1, plusBadge2).forEach { badge ->
-            badge?.isVisible = !state.upgraded
+            badge?.isVisible = false
         }
-        plus?.isVisible = state.upgraded
-        plusBanner?.isVisible = !state.upgraded
+        plus?.isVisible = false
+        plusBanner?.isVisible = false
         rateLayout?.setVisible(state.showRating)
 
         compose?.setVisible(state.page is Inbox || state.page is Archived)
