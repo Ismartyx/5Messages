@@ -78,13 +78,9 @@ class AvatarBiggerView @JvmOverloads constructor(
                 .filter { initial -> initial.isLetterOrDigit() }
                 .map { initial -> initial.toString() }
 
-        if (initials.isNotEmpty()) {
-            initial.text = if (initials.size > 1) initials.first() + initials.last() else initials.first()
-            icon.visibility = GONE
-        } else {
-            initial.text = null
-            icon.visibility = VISIBLE
-        }
+        initial.text = null
+        initial.visibility = GONE
+        icon.visibility = GONE
 
         photo.setImageDrawable(null)
         photoUri?.let { photoUri ->

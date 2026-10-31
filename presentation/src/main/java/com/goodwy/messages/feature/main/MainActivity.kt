@@ -210,7 +210,6 @@ class MainActivity : QkThemedActivity(), MainView {
         }
 
         itemTouchCallback.adapter = conversationsAdapter
-        conversationsAdapter.autoScrollToStart(recyclerView)
 
         setupDragAndDropForCategoryTabs()
 

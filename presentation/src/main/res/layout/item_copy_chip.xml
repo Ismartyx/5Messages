@@ -20,7 +20,7 @@
         android:layout_height="14dp"
         android:layout_marginEnd="6dp"
         android:src="@drawable/ic_content_copy_black_24dp"
-        android:tint="?android:attr/textColorSecondary" />
+        android:tint="#0F172A" />
 
     <TextView
         android:id="@+id/copyChipText"
@@ -28,7 +28,7 @@
         android:layout_height="wrap_content"
         android:ellipsize="end"
         android:maxLines="1"
-        android:textColor="?android:attr/textColorPrimary"
+        android:textColor="#0F172A"
         android:textSize="12sp"
         android:textStyle="bold"
         tools:text="کپی کد: ۱۲۳۴۵۶" />

@@ -155,7 +155,7 @@
 
             <com.goodwy.messages.common.widget.QkTextView
                 style="@style/DrawerText"
-                android:text="🔄 به‌روزرسانی برنامه" />
+                android:text="Check for updates" />
 
         </LinearLayout>
 

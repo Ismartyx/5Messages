@@ -182,14 +182,14 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          VERSION_NAME="1.1.9"
+          VERSION_NAME="1.2.0"
           TAG_NAME="v${VERSION_NAME}"
           gh release delete "$TAG_NAME" --yes || true
           git tag -d "$TAG_NAME" || true
           git push origin ":refs/tags/$TAG_NAME" || true
           gh release create "$TAG_NAME" signed_out/5Messages.apk \
             --title "5Messages v${VERSION_NAME}" \
-            --notes "نسخه 1.1.9 با اصلاح کامل تم روز و شب، رفع رنگ‌های هاردکد شده صفحه اصلی و خوانا شدن دکمه‌های کپی کد در حالت شب" \
+            --notes "نسخه 1.2.0 با اصلاح فونت دکمه کپی، رفع پرش اسکرول به بالای صفحه، حذف حروف اول آواتارها و دکمه Check for updates انگلیسی" \
             --latest || gh release upload "$TAG_NAME" signed_out/5Messages.apk --clobber
 
       - name: Upload APK
