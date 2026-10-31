@@ -112,7 +112,7 @@ class WebClientServer(
             when {
                 // Serve HTML SPA
                 (method == "GET" && (path == "/" || path == "/index.html")) -> {
-                    val html = WebClientHtml.getHtml()
+                    val html = WebClientHtml.getHtml(context)
                     sendResponse(output, 200, "OK", "text/html; charset=utf-8", html)
                 }
 
