@@ -199,7 +199,7 @@ class WebClientServer(
     private fun handleAuthenticatedRequest(
         method: String,
         path: String,
-        query: String,
+        queryString: String,
         body: String,
         output: OutputStream
     ) {
