@@ -1,8 +1,11 @@
 package com.goodwy.messages.feature.webserver
 
 import android.content.Context
+import android.os.Build
 import android.os.Handler
 import android.os.Looper
+import android.telephony.SubscriptionManager
+import com.goodwy.messages.compat.SubscriptionManagerCompat
 import com.goodwy.messages.interactor.SendMessage
 import com.goodwy.messages.model.Conversation
 import com.goodwy.messages.model.Message
@@ -26,6 +29,7 @@ class WebClientServer(
     private val port: Int,
     private val conversationRepo: ConversationRepository,
     private val messageRepo: MessageRepository,
+    private val subscriptionManager: SubscriptionManagerCompat? = null,
     private val sendMessage: SendMessage? = null,
     private val getPin: () -> String
 ) {
@@ -186,10 +190,24 @@ class WebClientServer(
         when {
             // Check auth status
             (method == "GET" && path == "/api/status") -> {
+                val subsJson = JSONArray()
+                try {
+                    subscriptionManager?.activeSubscriptionInfoList?.forEach { sub ->
+                        subsJson.put(JSONObject().apply {
+                            put("id", sub.subscriptionId)
+                            put("slot", sub.simSlotIndex + 1)
+                            put("name", sub.displayName?.toString() ?: "SIM ${sub.simSlotIndex + 1}")
+                        })
+                    }
+                } catch (e: Exception) {
+                    Timber.e(e, "Error fetching active subscriptions")
+                }
+
                 val res = JSONObject().apply {
                     put("authenticated", true)
                     put("app", "5Messages")
-                    put("version", "1.3.0")
+                    put("version", "1.3.4")
+                    put("subscriptions", subsJson)
                 }
                 sendResponse(output, 200, "OK", "application/json; charset=utf-8", res.toString())
             }
@@ -243,6 +261,8 @@ class WebClientServer(
                                 put("date", m.date)
                                 put("isMe", m.isMe())
                                 put("address", m.address)
+                                put("failed", m.boxId == android.provider.Telephony.Sms.MESSAGE_TYPE_FAILED)
+                                put("sending", m.boxId == android.provider.Telephony.Sms.MESSAGE_TYPE_OUTBOX)
                             }
                             list.put(item)
                         }
@@ -260,6 +280,7 @@ class WebClientServer(
                     val threadId = json.optLong("threadId", 0L)
                     var address = json.optString("address", "").trim()
                     val text = json.getString("body")
+                    val reqSubId = json.optInt("subId", -1)
 
                     if (address.isBlank() && threadId != 0L) {
                         try {
@@ -282,15 +303,34 @@ class WebClientServer(
                         return
                     }
 
-                    // Look up latest subId for this thread (or -1)
-                    val subId = try {
-                        Realm.getDefaultInstance().use { realm ->
-                            realm.where(Message::class.java)
-                                .equalTo("threadId", threadId)
-                                .sort("date", Sort.DESCENDING)
-                                .findFirst()?.subId ?: -1
-                        }
-                    } catch (e: Exception) { -1 }
+                    // Determine active SIM subscription ID
+                    val activeSubs = subscriptionManager?.activeSubscriptionInfoList.orEmpty()
+                    val subId = if (reqSubId != -1 && activeSubs.any { it.subscriptionId == reqSubId }) {
+                        reqSubId
+                    } else if (activeSubs.isNotEmpty()) {
+                        // Check last sent message from this thread to reuse same SIM
+                        val lastSentSubId = try {
+                            Realm.getDefaultInstance().use { realm ->
+                                realm.where(Message::class.java)
+                                    .equalTo("threadId", threadId)
+                                    .equalTo("boxId", android.provider.Telephony.Sms.MESSAGE_TYPE_SENT)
+                                    .sort("date", Sort.DESCENDING)
+                                    .findFirst()?.subId ?: -1
+                            }
+                        } catch (e: Exception) { -1 }
+
+                        activeSubs.firstOrNull { it.subscriptionId == lastSentSubId }?.subscriptionId
+                            ?: if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N_MR1) {
+                                val defSubId = SubscriptionManager.getDefaultSmsSubscriptionId()
+                                activeSubs.firstOrNull { it.subscriptionId == defSubId }?.subscriptionId ?: activeSubs[0].subscriptionId
+                            } else {
+                                activeSubs[0].subscriptionId
+                            }
+                    } else {
+                        -1
+                    }
+
+                    Timber.i("WebClient sending SMS to $address using subId $subId")
 
                     if (sendMessage != null) {
                         sendMessage.execute(
@@ -344,6 +384,8 @@ class WebClientServer(
                                 put("date", m.date)
                                 put("isMe", m.isMe())
                                 put("address", m.address)
+                                put("failed", m.boxId == android.provider.Telephony.Sms.MESSAGE_TYPE_FAILED)
+                                put("sending", m.boxId == android.provider.Telephony.Sms.MESSAGE_TYPE_OUTBOX)
                             }
                             list.put(item)
                         }

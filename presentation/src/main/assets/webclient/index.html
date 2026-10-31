@@ -284,7 +284,19 @@
       border-top: 1px solid #1F2937;
       display: flex;
       gap: 12px;
-      align-items: flex-end;
+      align-items: center;
+    }
+    .sim-select {
+      background: #1F2937;
+      color: #38BDF8;
+      border: 1px solid #374151;
+      border-radius: 10px;
+      padding: 10px 12px;
+      font-size: 13px;
+      font-weight: 600;
+      outline: none;
+      cursor: pointer;
+      height: 44px;
     }
     .msg-input {
       flex: 1;
@@ -446,6 +458,7 @@
       </div>
 
       <div id="chatFooter" class="chat-footer" style="display: none;">
+        <select id="simSelect" class="sim-select" style="display: none;" onchange="onSimChange(this.value)"></select>
         <textarea id="msgInput" class="msg-input" placeholder="نوشتن پیامک..." rows="1" onkeydown="handleInputKey(event)"></textarea>
         <button class="send-btn" onclick="sendMessage()" title="ارسال (Enter)">
           <svg viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
@@ -462,6 +475,8 @@
     let messages = [];
     let lastPollDate = Date.now();
     let pollInterval = null;
+    let selectedSubId = -1;
+    let availableSubs = [];
 
     window.onload = function() {
       if (!token) {
@@ -493,7 +508,7 @@
           token = data.token;
           localStorage.setItem('5m_token', token);
           document.getElementById('loginModal').style.display = 'none';
-          initApp();
+          verifyAuth();
         } else {
           err.style.display = 'block';
         }
@@ -513,11 +528,42 @@
           token = '';
           showLoginModal();
         } else {
+          const data = await res.json();
+          availableSubs = data.subscriptions || [];
+          setupSimSelector();
           initApp();
         }
       } catch (e) {
         initApp();
       }
+    }
+
+    function setupSimSelector() {
+      const el = document.getElementById('simSelect');
+      if (!availableSubs || availableSubs.length <= 1) {
+        el.style.display = 'none';
+        return;
+      }
+      el.innerHTML = '';
+      availableSubs.forEach(s => {
+        const opt = document.createElement('option');
+        opt.value = s.id;
+        opt.innerText = s.name || ('SIM ' + s.slot);
+        el.appendChild(opt);
+      });
+      const saved = localStorage.getItem('5m_sub_id');
+      if (saved && availableSubs.some(s => s.id == saved)) {
+        el.value = saved;
+        selectedSubId = parseInt(saved);
+      } else {
+        selectedSubId = availableSubs[0].id;
+      }
+      el.style.display = 'inline-block';
+    }
+
+    function onSimChange(val) {
+      selectedSubId = parseInt(val);
+      localStorage.setItem('5m_sub_id', val);
     }
 
     function initApp() {
@@ -630,10 +676,17 @@
         row.className = 'msg-row ' + (m.isMe ? 'out' : 'in');
         
         const timeStr = formatFullTime(m.date);
+        let statusBadge = '';
+        if (m.failed) {
+          statusBadge = '<span style="color:#EF4444; font-size:11px; margin-right:6px;">⚠️ ارسال ناموفق</span>';
+        } else if (m.sending) {
+          statusBadge = '<span style="color:#9CA3AF; font-size:11px; margin-right:6px;">⏳ در حال ارسال...</span>';
+        }
+
         row.innerHTML = `
           <div class="bubble">` + escapeHtml(m.body) + `</div>
           <div class="msg-meta">
-            <span>` + timeStr + `</span>
+            <span>` + timeStr + statusBadge + `</span>
             <button class="copy-chip-btn" onclick="copyText('` + escapeQuotes(m.body) + `')">کپی</button>
           </div>
         `;
@@ -650,26 +703,34 @@
 
       input.value = '';
       
+      const tempId = Date.now();
       messages.push({
-        id: Date.now(),
+        id: tempId,
         body: text,
         date: Date.now(),
-        isMe: true
+        isMe: true,
+        _optimistic: true,
+        sending: true
       });
       renderMessages(messages);
 
       try {
+        const payload = {
+          threadId: currentThreadId,
+          address: currentAddress,
+          body: text
+        };
+        if (selectedSubId !== -1) {
+          payload.subId = selectedSubId;
+        }
+
         const res = await fetch('/api/send', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
             'Authorization': 'Bearer ' + token
           },
-          body: JSON.stringify({
-            threadId: currentThreadId,
-            address: currentAddress,
-            body: text
-          })
+          body: JSON.stringify(payload)
         });
         const data = await res.json();
         if (!data.success) {
@@ -696,15 +757,33 @@
           const newItems = await res.json();
           if (newItems && newItems.length > 0) {
             lastPollDate = Date.now();
+            let changed = false;
             newItems.forEach(msg => {
               if (!msg.isMe) {
                 notifyDesktop(msg.address || 'پیامک جدید', msg.body);
               }
               if (currentThreadId && msg.threadId === currentThreadId) {
+                const existingIdx = messages.findIndex(m => m.id === msg.id);
+                if (existingIdx !== -1) {
+                  messages[existingIdx] = msg;
+                  changed = true;
+                  return;
+                }
+                if (msg.isMe) {
+                  const optIndex = messages.findIndex(m => m._optimistic && m.body === msg.body);
+                  if (optIndex !== -1) {
+                    messages[optIndex] = msg;
+                    changed = true;
+                    return;
+                  }
+                }
                 messages.push(msg);
-                renderMessages(messages);
+                changed = true;
               }
             });
+            if (changed) {
+              renderMessages(messages);
+            }
             loadConversations();
           }
         }

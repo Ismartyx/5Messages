@@ -10,6 +10,7 @@ import android.os.Build
 import android.os.IBinder
 import androidx.core.app.NotificationCompat
 import com.goodwy.messages.R
+import com.goodwy.messages.compat.SubscriptionManagerCompat
 import com.goodwy.messages.feature.main.MainActivity
 import com.goodwy.messages.interactor.SendMessage
 import com.goodwy.messages.repository.ConversationRepository
@@ -29,6 +30,7 @@ class WebClientService : Service() {
 
     @Inject lateinit var conversationRepo: ConversationRepository
     @Inject lateinit var messageRepo: MessageRepository
+    @Inject lateinit var subscriptionManager: SubscriptionManagerCompat
     @Inject lateinit var sendMessage: SendMessage
 
     private var server: WebClientServer? = null
@@ -66,6 +68,7 @@ class WebClientService : Service() {
             port = port,
             conversationRepo = conversationRepo,
             messageRepo = messageRepo,
+            subscriptionManager = subscriptionManager,
             sendMessage = sendMessage,
             getPin = { WebClientHelper.getPin(this) }
         ).apply {
