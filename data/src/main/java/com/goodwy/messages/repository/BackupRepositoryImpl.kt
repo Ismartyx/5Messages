@@ -191,8 +191,8 @@ class BackupRepositoryImpl @Inject constructor(
 
     private fun getNextcloudConfig(): NextcloudConfig? {
         val sp = context.getSharedPreferences("${context.packageName}_preferences", Context.MODE_PRIVATE)
-        val server = (sp.getString("nc_server", "https://nc.paranas.ir") ?: "https://nc.paranas.ir").trim().trimEnd('/')
-        val user = (sp.getString("nc_user", "saeed") ?: "saeed").trim()
+        val server = (sp.getString("nc_server", "") ?: "").trim().trimEnd('/')
+        val user = (sp.getString("nc_user", "") ?: "").trim()
         val pass = (sp.getString("nc_pass", "") ?: "").trim()
         val path = (sp.getString("nc_path", "Backups/MessagesBackup/Messages_Backup.json")
                 ?: "Backups/MessagesBackup/Messages_Backup.json").trim().trimStart('/')

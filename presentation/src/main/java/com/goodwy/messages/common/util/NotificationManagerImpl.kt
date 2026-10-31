@@ -226,6 +226,7 @@ class NotificationManagerImpl @Inject constructor(
         }
 
         // Add smart copy code/number action button if any message has numbers/OTP
+        var copyAction: NotificationCompat.Action? = null
         val latestMessageText = messages.lastOrNull()?.getText() ?: ""
         val extractedNumbers = NumberExtractor.extract(latestMessageText)
         if (extractedNumbers.isNotEmpty()) {
@@ -246,20 +247,35 @@ class NotificationManagerImpl @Inject constructor(
                 NumberExtractor.NumberType.CARD -> context.getString(R.string.copy_card, item.displayValue)
                 else -> context.getString(R.string.copy_number, item.displayValue)
             }
-            val copyAction = NotificationCompat.Action.Builder(
+            copyAction = NotificationCompat.Action.Builder(
                 R.drawable.ic_content_copy_white_24dp,
                 actionTitle,
                 pi
             ).build()
-            notification.addAction(copyAction)
         }
 
-        // Add the action buttons
+        // Add the action buttons (Android supports maximum 3 actions per notification)
         val actionLabels = context.resources.getStringArray(R.array.notification_actions)
-        listOf(prefs.notifAction1, prefs.notifAction2, prefs.notifAction3)
+        var userActionCodes = listOf(prefs.notifAction1, prefs.notifAction2, prefs.notifAction3)
                 .map { preference -> preference.get() }
+                .filter { it != Preferences.NOTIFICATION_ACTION_NONE }
                 .distinct()
-                .mapNotNull { action ->
+
+        if (copyAction != null) {
+            notification.addAction(copyAction)
+            // If copy button is added, max 2 user actions can be shown (total 3 actions).
+            // Always ensure DELETE is preserved if configured!
+            if (userActionCodes.size > 2) {
+                if (userActionCodes.contains(Preferences.NOTIFICATION_ACTION_DELETE)) {
+                    val other = userActionCodes.firstOrNull { it != Preferences.NOTIFICATION_ACTION_DELETE }
+                    userActionCodes = listOfNotNull(other, Preferences.NOTIFICATION_ACTION_DELETE)
+                } else {
+                    userActionCodes = userActionCodes.take(2)
+                }
+            }
+        }
+
+        userActionCodes.mapNotNull { action ->
                     when (action) {
                         Preferences.NOTIFICATION_ACTION_ARCHIVE -> {
                             val intent = Intent(context, MarkArchivedReceiver::class.java).putExtra("threadId", threadId)

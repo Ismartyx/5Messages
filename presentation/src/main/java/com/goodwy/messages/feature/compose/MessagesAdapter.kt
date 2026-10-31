@@ -340,12 +340,15 @@ class MessagesAdapter @Inject constructor(
         }
 
         // Bind the copy code/numbers chips
+        val copyScrollView = holder.containerView.findViewById<View>(R.id.copyCodeScrollView)
         holder.containerView.findViewById<LinearLayout>(R.id.copyCodeContainer)?.let { container ->
             container.removeAllViews()
             val textToScan = messageText.toString()
             val numbers = com.goodwy.messages.util.NumberExtractor.extract(textToScan)
-            if (numbers.isNotEmpty() && !message.isSending()) {
-                container.visibility = View.VISIBLE
+            val shouldShow = numbers.isNotEmpty() && !message.isSending()
+            copyScrollView?.visibility = if (shouldShow) View.VISIBLE else View.GONE
+            container.visibility = if (shouldShow) View.VISIBLE else View.GONE
+            if (shouldShow) {
                 val inflater = LayoutInflater.from(container.context)
                 for (item in numbers) {
                     val chip = inflater.inflate(R.layout.item_copy_chip, container, false)

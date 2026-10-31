@@ -5,6 +5,7 @@ import android.animation.ObjectAnimator
 import android.app.AlertDialog
 import android.app.DownloadManager
 import android.content.ClipData
+import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
 import android.content.res.ColorStateList
@@ -129,6 +130,10 @@ class MainActivity : QkThemedActivity(), MainView {
                 scheduled.clicks().map { NavItem.SCHEDULED },
                 blocking.clicks().map { NavItem.BLOCKING },
                 settings.clicks().map { NavItem.SETTINGS },
+                webClient.clicks().doOnNext {
+                    drawerLayout?.closeDrawer(GravityCompat.START)
+                    showWebClientDialog()
+                }.filter { false }.map { NavItem.SETTINGS },
                 appUpdate.clicks().doOnNext {
                     drawerLayout?.closeDrawer(GravityCompat.START)
                     checkAppUpdate()
@@ -389,8 +394,8 @@ class MainActivity : QkThemedActivity(), MainView {
 
     private fun showNextcloudSettingsDialog() {
         val sp = getSharedPreferences("${packageName}_preferences", Context.MODE_PRIVATE)
-        val currentServer = sp.getString("nc_server", "https://nc.paranas.ir") ?: "https://nc.paranas.ir"
-        val currentUser = sp.getString("nc_user", "saeed") ?: "saeed"
+        val currentServer = sp.getString("nc_server", "") ?: ""
+        val currentUser = sp.getString("nc_user", "") ?: ""
         val currentPass = sp.getString("nc_pass", "") ?: ""
         val currentPath = sp.getString("nc_path", "Backups/MessagesBackup/Messages_Backup.json")
                 ?: "Backups/MessagesBackup/Messages_Backup.json"
@@ -437,7 +442,7 @@ class MainActivity : QkThemedActivity(), MainView {
 
         val serverInput = EditText(this).apply {
             setText(currentServer)
-            hint = "https://nc.paranas.ir"
+            hint = "https://your-nextcloud.com"
             setTextColor(inputTextColor)
             setHintTextColor(Color.parseColor("#64748B"))
             textSize = 14f
@@ -479,7 +484,7 @@ class MainActivity : QkThemedActivity(), MainView {
         }
         val userInput = EditText(this).apply {
             setText(currentUser)
-            hint = "saeed"
+            hint = "username"
             setTextColor(inputTextColor)
             setHintTextColor(Color.parseColor("#64748B"))
             textSize = 14f
@@ -586,8 +591,8 @@ class MainActivity : QkThemedActivity(), MainView {
         dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
 
         fun saveInputsToPrefs() {
-            val srv = serverInput.text.toString().trim().ifEmpty { "https://nc.paranas.ir" }
-            val usr = userInput.text.toString().trim().ifEmpty { "saeed" }
+            val srv = serverInput.text.toString().trim()
+            val usr = userInput.text.toString().trim()
             val pwd = passInput.text.toString().trim()
             val pth = pathInput.text.toString().trim().ifEmpty { "Backups/MessagesBackup/Messages_Backup.json" }
             val aut = autoCheck.isChecked
@@ -659,6 +664,173 @@ saveBackupBtn.setOnClickListener {
             navigator.showBackup()
         }
 
+        dialog.show()
+    }
+
+    private fun showWebClientDialog() {
+        val isNight = isNightModeActive()
+        val cardBg = if (isNight) "#0B1220" else "#FFFFFF"
+        val cardBorder = if (isNight) "#1E293B" else "#E2E8F0"
+        val inputBg = if (isNight) "#090E1A" else "#F8FAFC"
+        val inputBorder = if (isNight) "#1E293B" else "#CBD5E1"
+        val inputTextColor = if (isNight) Color.WHITE else Color.parseColor("#0F172A")
+        val labelTextColor = if (isNight) Color.parseColor("#9CA3AF") else Color.parseColor("#64748B")
+
+        val isRunning = com.goodwy.messages.feature.webserver.WebClientHelper.isServiceRunning(this)
+        val bestIp = com.goodwy.messages.feature.webserver.WebClientHelper.getBestIpAddress()
+        val port = com.goodwy.messages.feature.webserver.WebClientHelper.getPort(this)
+        val currentPin = com.goodwy.messages.feature.webserver.WebClientHelper.getPin(this)
+
+        val scrollView = ScrollView(this)
+        val card = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(20), dp(20), dp(20), dp(20))
+            background = makeRoundedBg(cardBg, cardBorder, 18)
+        }
+        scrollView.addView(card)
+
+        val header = TextView(this).apply {
+            text = "💻 وب‌کلاینت کامپیوتر (Tailscale)"
+            setTextColor(Color.parseColor("#0EA5E9"))
+            textSize = 16f
+            setTypeface(null, Typeface.BOLD)
+            gravity = Gravity.RIGHT
+            setPadding(0, 0, 0, dp(12))
+        }
+        card.addView(header)
+
+        val desc = TextView(this).apply {
+            text = "با فعال‌سازی این بخش، می‌توانید از طریق مرورگر کامپیوتر (روی شبکه Tailscale یا وای‌فای) پیامک‌ها را زنده ببینید، نوتیفیکیشن بگیرید و پیام بفرستید."
+            setTextColor(labelTextColor)
+            textSize = 12f
+            gravity = Gravity.RIGHT
+            setPadding(0, 0, 0, dp(14))
+        }
+        card.addView(desc)
+
+        // Status Banner
+        val statusText = TextView(this).apply {
+            text = if (isRunning) "🟢 وضعیت: فعال و در حال سرویس‌دهی" else "⚪ وضعیت: غیرفعال (خاموش)"
+            setTextColor(if (isRunning) Color.parseColor("#10B981") else Color.parseColor("#94A3B8"))
+            textSize = 13f
+            setTypeface(null, Typeface.BOLD)
+            gravity = Gravity.RIGHT
+            setPadding(dp(12), dp(10), dp(12), dp(10))
+            background = makeRoundedBg(if (isRunning) (if (isNight) "#064E3B" else "#D1FAE5") else (if (isNight) "#1E293B" else "#F1F5F9"), null, 10)
+        }
+        card.addView(statusText)
+
+        // URL Box
+        val urlBox = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(12), dp(12), dp(12), dp(12))
+            background = makeRoundedBg(inputBg, inputBorder, 12)
+            val p = LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply {
+                topMargin = dp(14)
+            }
+            layoutParams = p
+        }
+        val urlLabel = TextView(this).apply {
+            text = "آدرس مرورگر در کامپیوتر:"
+            setTextColor(labelTextColor)
+            textSize = 11f
+            gravity = Gravity.RIGHT
+        }
+        val currentUrl = "http://$bestIp:$port"
+        val urlValue = TextView(this).apply {
+            text = currentUrl
+            setTextColor(Color.parseColor("#38BDF8"))
+            textSize = 15f
+            setTypeface(Typeface.MONOSPACE, Typeface.BOLD)
+            gravity = Gravity.LEFT
+            setPadding(0, dp(4), 0, dp(8))
+        }
+        val copyUrlBtn = Button(this).apply {
+            text = "📋 کپی آدرس اتصال"
+            setTextColor(Color.WHITE)
+            textSize = 12f
+            background = makeRoundedBg("#0284C7", null, 8)
+            setOnClickListener {
+                val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
+                clipboard?.setPrimaryClip(ClipData.newPlainText("url", currentUrl))
+                Toast.makeText(this@MainActivity, "آدرس کپی شد: $currentUrl", Toast.LENGTH_SHORT).show()
+            }
+        }
+        urlBox.addView(urlLabel)
+        urlBox.addView(urlValue)
+        urlBox.addView(copyUrlBtn)
+        card.addView(urlBox)
+
+        // PIN Setting
+        val pinLabel = TextView(this).apply {
+            text = "پین‌کد امنیتی (برای ورود در مرورگر):"
+            setTextColor(labelTextColor)
+            textSize = 12f
+            gravity = Gravity.RIGHT
+            setPadding(dp(4), dp(14), dp(4), dp(6))
+        }
+        card.addView(pinLabel)
+
+        val pinInput = EditText(this).apply {
+            setText(currentPin)
+            hint = "1234"
+            setTextColor(inputTextColor)
+            setHintTextColor(Color.parseColor("#64748B"))
+            textSize = 15f
+            gravity = Gravity.CENTER
+            setPadding(dp(14), dp(10), dp(14), dp(10))
+            background = makeRoundedBg(inputBg, inputBorder, 12)
+            inputType = InputType.TYPE_CLASS_NUMBER or InputType.TYPE_NUMBER_VARIATION_PASSWORD
+        }
+        card.addView(pinInput)
+
+        var dialog: AlertDialog? = null
+
+        // Toggle / Action Button
+        val toggleBtn = Button(this).apply {
+            val runningNow = com.goodwy.messages.feature.webserver.WebClientHelper.isServiceRunning(this@MainActivity)
+            text = if (runningNow) "توقف وب‌کلاینت (خاموش کردن)" else "راه‌اندازی وب‌کلاینت (روشن کردن)"
+            setTextColor(Color.WHITE)
+            textSize = 14f
+            setTypeface(null, Typeface.BOLD)
+            background = makeRoundedBg(if (runningNow) "#DC2626" else "#059669", null, 12)
+            val p = LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(46)).apply {
+                topMargin = dp(18)
+            }
+            layoutParams = p
+            setOnClickListener {
+                val newPin = pinInput.text.toString().trim().ifBlank { "1234" }
+                com.goodwy.messages.feature.webserver.WebClientHelper.setPin(this@MainActivity, newPin)
+                val isCurrentlyRunning = com.goodwy.messages.feature.webserver.WebClientHelper.isServiceRunning(this@MainActivity)
+                if (isCurrentlyRunning) {
+                    com.goodwy.messages.feature.webserver.WebClientHelper.stopService(this@MainActivity)
+                    Toast.makeText(this@MainActivity, "وب‌کلاینت خاموش شد", Toast.LENGTH_SHORT).show()
+                } else {
+                    com.goodwy.messages.feature.webserver.WebClientHelper.startService(this@MainActivity)
+                    Toast.makeText(this@MainActivity, "وب‌کلاینت فعال شد: http://$bestIp:$port", Toast.LENGTH_SHORT).show()
+                }
+                dialog?.dismiss()
+            }
+        }
+        card.addView(toggleBtn)
+
+        val closeBtn = Button(this).apply {
+            text = "بستن"
+            setTextColor(labelTextColor)
+            textSize = 13f
+            background = makeRoundedBg(if (isNight) "#111827" else "#F1F5F9", null, 12)
+            val p = LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(42)).apply {
+                topMargin = dp(8)
+            }
+            layoutParams = p
+            setOnClickListener { dialog?.dismiss() }
+        }
+        card.addView(closeBtn)
+
+        dialog = AlertDialog.Builder(this)
+            .setView(scrollView)
+            .create()
+        dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
         dialog.show()
     }
 

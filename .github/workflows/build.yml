@@ -182,14 +182,14 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          VERSION_NAME="1.2.1"
+          VERSION_NAME="1.3.1"
           TAG_NAME="v${VERSION_NAME}"
           gh release delete "$TAG_NAME" --yes || true
           git tag -d "$TAG_NAME" || true
           git push origin ":refs/tags/$TAG_NAME" || true
           gh release create "$TAG_NAME" signed_out/5Messages.apk \
             --title "5Messages v${VERSION_NAME}" \
-            --notes "نسخه 1.2.1 با حذف کامل گزینه Messages+ و بنر پلاس از منوی کشویی" \
+            --notes "نسخه 1.3.1: اضافه شدن وب‌کلاینت کامپیوتر (Tailscale/LAN) با رمز امنیتی و نوتیفیکیشن دسکتاپ، رفع مشکل عدم نمایش دکمه Delete در اعلانات با کپی هوشمند، و اسکرول افقی دکمه‌های کپی چندگانه" \
             --latest || gh release upload "$TAG_NAME" signed_out/5Messages.apk --clobber
 
       - name: Upload APK

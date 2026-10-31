@@ -147,6 +147,21 @@
 
 
         <LinearLayout
+            android:id="@+id/webClient"
+            style="@style/DrawerRow">
+
+            <ImageView
+                style="@style/DrawerIcon"
+                android:src="@drawable/ic_laptop_black_24dp"
+                android:tint="?android:attr/textColorSecondary" />
+
+            <com.goodwy.messages.common.widget.QkTextView
+                style="@style/DrawerText"
+                android:text="وب‌کلاینت کامپیوتر" />
+
+        </LinearLayout>
+
+        <LinearLayout
             android:id="@+id/appUpdate"
             style="@style/DrawerRow">
 

@@ -168,6 +168,10 @@
         <service android:name="com.android.mms.transaction.TransactionService" />
         <service android:name=".feature.backup.RestoreBackupService" />
         <service
+            android:name=".feature.webserver.WebClientService"
+            android:enabled="true"
+            android:exported="false" />
+        <service
             android:name=".feature.widget.WidgetService"
             android:permission="android.permission.BIND_REMOTEVIEWS" />
         <service
