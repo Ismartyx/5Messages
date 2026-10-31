@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>5Messages Web</title>
+  <title>Messages Web</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
@@ -51,7 +51,7 @@
       font-weight: 800;
       color: #38BDF8;
     }
-    .brand svg { width: 28px; height: 28px; fill: #38BDF8; }
+    .brand svg { width: 26px; height: 26px; fill: #38BDF8; }
     .status-badge {
       display: flex;
       align-items: center;
@@ -71,58 +71,78 @@
       box-shadow: 0 0 8px #10B981;
     }
 
-    /* Category Tabs */
-    .tabs-bar {
+    /* Category Bar (Exact match to phone app) */
+    .category-scroll {
       display: flex;
+      gap: 6px;
+      padding: 10px 14px;
       background-color: #0F172A;
       border-bottom: 1px solid #1F2937;
-      padding: 4px 8px;
+      overflow-x: auto;
+      scrollbar-width: none;
+      -ms-overflow-style: none;
     }
-    .tab-item {
-      flex: 1;
-      padding: 10px 14px;
-      text-align: center;
-      font-size: 13px;
-      font-weight: 600;
-      color: #94A3B8;
-      background: transparent;
-      border: none;
-      cursor: pointer;
-      border-radius: 8px;
-      transition: all 0.2s;
+    .category-scroll::-webkit-scrollbar { display: none; }
+    .cat-pill {
       display: flex;
       align-items: center;
-      justify-content: center;
       gap: 6px;
+      padding: 6px 13px;
+      background: #1E293B;
+      border: 1px solid #334155;
+      border-radius: 20px;
+      font-size: 12.5px;
+      font-weight: 600;
+      color: #94A3B8;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all 0.2s;
     }
-    .tab-item:hover { color: #F8FAFC; background-color: #1E293B; }
-    .tab-item.active {
-      color: #38BDF8;
-      background-color: #1E293B;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+    .cat-pill:hover {
+      background: #334155;
+      color: #F8FAFC;
     }
-    .tab-badge {
-      background-color: #0284C7;
+    .cat-pill.active {
+      background: #0284C7;
+      border-color: #38BDF8;
+      color: #FFFFFF;
+      box-shadow: 0 2px 8px rgba(2, 132, 199, 0.4);
+    }
+    .cat-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+    }
+    .cat-dot.contacts { background-color: #0EA5E9; }
+    .cat-dot.unknown { background-color: #F59E0B; }
+    .cat-dot.bank { background-color: #22C55E; }
+    .cat-dot.otp { background-color: #A855F7; }
+    .cat-dot.other { background-color: #EF4444; }
+    .cat-dot.archived { background-color: #94A3B8; }
+
+    .cat-badge {
+      background: rgba(255, 255, 255, 0.25);
       color: #FFF;
-      font-size: 11px;
+      font-size: 10.5px;
       font-weight: 700;
-      padding: 2px 7px;
+      padding: 1px 6px;
       border-radius: 10px;
+      margin-right: 2px;
     }
 
     .search-box {
-      padding: 12px 16px;
+      padding: 10px 16px;
       background-color: #111827;
       border-bottom: 1px solid #1F2937;
     }
     .search-input {
       width: 100%;
-      padding: 10px 14px;
+      padding: 9px 14px;
       background: #1E293B;
       border: 1px solid #334155;
       border-radius: 10px;
       color: #F8FAFC;
-      font-size: 14px;
+      font-size: 13.5px;
       outline: none;
       transition: border-color 0.2s;
     }
@@ -170,6 +190,7 @@
       display: flex;
       justify-content: space-between;
       margin-bottom: 4px;
+      align-items: center;
     }
     .conv-title {
       font-size: 15px;
@@ -186,7 +207,7 @@
       width: 14px;
       height: 14px;
       fill: #38BDF8;
-      flex-shrink: 0;
+      transform: rotate(45deg);
     }
     .conv-time {
       font-size: 11px;
@@ -211,9 +232,10 @@
       color: #FFF;
       font-size: 11px;
       font-weight: 700;
-      padding: 2px 8px;
+      padding: 2px 7px;
       border-radius: 10px;
       margin-right: 6px;
+      flex-shrink: 0;
     }
 
     /* Main Chat Panel */
@@ -226,64 +248,79 @@
       position: relative;
     }
     .chat-header {
-      padding: 12px 20px;
+      padding: 14px 24px;
       background-color: #111827;
       border-bottom: 1px solid #1F2937;
       display: flex;
       align-items: center;
       justify-content: space-between;
-      min-height: 68px;
+      z-index: 5;
     }
     .chat-header-info {
       display: flex;
       align-items: center;
-      gap: 12px;
+      gap: 14px;
     }
     .chat-title {
-      font-size: 16px;
+      font-size: 17px;
       font-weight: 700;
-      color: #F9FAFB;
+      color: #F8FAFC;
     }
     .chat-subtitle {
-      font-size: 12px;
+      font-size: 12.5px;
       color: #94A3B8;
       direction: ltr;
       text-align: right;
     }
     .chat-header-actions {
       display: flex;
-      gap: 8px;
       align-items: center;
+      gap: 10px;
     }
-    .action-btn {
+    .sim-selector {
       background: #1E293B;
+      color: #38BDF8;
       border: 1px solid #334155;
-      color: #CBD5E1;
-      padding: 8px 12px;
-      border-radius: 10px;
-      cursor: pointer;
-      font-size: 12px;
+      padding: 6px 12px;
+      border-radius: 8px;
+      font-size: 12.5px;
       font-weight: 600;
+      outline: none;
+      cursor: pointer;
+    }
+    .header-btn {
+      background: #1E293B;
+      color: #94A3B8;
+      border: 1px solid #334155;
+      padding: 6px 12px;
+      border-radius: 8px;
+      font-size: 12.5px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
       display: flex;
       align-items: center;
       gap: 6px;
-      transition: all 0.15s;
     }
-    .action-btn:hover { background: #334155; color: #FFF; border-color: #475569; }
+    .header-btn:hover {
+      background: #334155;
+      color: #F8FAFC;
+    }
 
     .messages-container {
       flex: 1;
-      padding: 20px;
       overflow-y: auto;
+      padding: 20px 28px;
       display: flex;
       flex-direction: column;
       gap: 14px;
+      background: radial-gradient(circle at 50% 20%, #111827 0%, #0B1220 100%);
     }
+
     .msg-row {
       display: flex;
       flex-direction: column;
       max-width: 68%;
-      position: relative;
     }
     .msg-row.in {
       align-self: flex-start;
@@ -291,446 +328,590 @@
     .msg-row.out {
       align-self: flex-end;
     }
+
     .bubble {
       padding: 12px 16px;
-      border-radius: 18px;
+      border-radius: 16px;
       font-size: 14.5px;
-      line-height: 1.6;
+      line-height: 1.55;
       word-break: break-word;
-      white-space: pre-wrap;
+      user-select: text;
+      position: relative;
     }
     .msg-row.in .bubble {
-      background-color: #1E293B;
+      background-color: #1F2937;
       color: #F8FAFC;
       border-bottom-right-radius: 4px;
-      border: 1px solid #334155;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.2);
     }
     .msg-row.out .bubble {
-      background-color: #0284C7;
+      background: linear-gradient(135deg, #0284C7 0%, #0369A1 100%);
       color: #FFFFFF;
       border-bottom-left-radius: 4px;
+      box-shadow: 0 1px 3px rgba(2, 132, 199, 0.3);
     }
-    
+
+    /* Smart Copy Chips Under Bubble (Exact match to phone app) */
+    .smart-chips-wrapper {
+      display: flex;
+      gap: 6px;
+      margin-top: 6px;
+      overflow-x: auto;
+      scrollbar-width: none;
+      -ms-overflow-style: none;
+      padding: 2px 0;
+    }
+    .smart-chips-wrapper::-webkit-scrollbar { display: none; }
+    .smart-chip-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: #F1F5F9;
+      color: #0F172A;
+      border: none;
+      border-radius: 18px;
+      padding: 5px 12px;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.15);
+      white-space: nowrap;
+      transition: all 0.15s;
+    }
+    .smart-chip-btn:hover {
+      background: #E2E8F0;
+      transform: translateY(-1px);
+    }
+    .smart-chip-btn:active {
+      transform: scale(0.97);
+    }
+    .smart-chip-btn.copied {
+      background: #10B981 !important;
+      color: #FFFFFF !important;
+    }
+
     .msg-meta {
       display: flex;
       align-items: center;
-      gap: 8px;
+      gap: 6px;
+      margin-top: 4px;
       font-size: 11px;
-      color: #94A3B8;
-      margin-top: 5px;
+      color: #64748B;
       padding: 0 4px;
     }
     .msg-row.out .msg-meta {
       justify-content: flex-end;
     }
+    .send-status-icon {
+      width: 14px;
+      height: 14px;
+    }
+    .send-status-icon.failed { fill: #EF4444; }
+    .send-status-icon.sending { fill: #94A3B8; animation: spin 1s linear infinite; }
+    @keyframes spin { 100% { transform: rotate(360deg); } }
 
-    /* Smart Chips Container (Horizontal Scrollable) */
-    .smart-chips-wrapper {
-      display: flex;
-      gap: 6px;
-      overflow-x: auto;
-      margin-top: 8px;
-      padding-bottom: 4px;
-      scrollbar-width: thin;
-    }
-    .smart-chip-btn {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      padding: 6px 12px;
-      border-radius: 16px;
-      font-size: 12px;
-      font-weight: 700;
-      cursor: pointer;
-      border: none;
-      white-space: nowrap;
-      transition: transform 0.1s, opacity 0.15s;
-    }
-    .smart-chip-btn:hover {
-      transform: translateY(-1px);
-      opacity: 0.92;
-    }
-    .smart-chip-btn.otp {
-      background-color: #F59E0B;
-      color: #000;
-    }
-    .smart-chip-btn.card {
-      background-color: #10B981;
-      color: #000;
-    }
-    .smart-chip-btn.iban {
-      background-color: #8B5CF6;
-      color: #FFF;
-    }
-    .smart-chip-btn.general {
-      background-color: #38BDF8;
-      color: #000;
-    }
-    .smart-chip-btn.copy-all {
-      background-color: #334155;
-      color: #E2E8F0;
-    }
-
-    /* Footer & Input */
+    /* Input Footer */
     .chat-footer {
-      padding: 14px 20px;
+      padding: 14px 24px;
       background-color: #111827;
       border-top: 1px solid #1F2937;
       display: flex;
-      gap: 10px;
-      align-items: center;
-    }
-    .sim-select {
-      background: #1E293B;
-      color: #38BDF8;
-      border: 1px solid #334155;
-      border-radius: 10px;
-      padding: 10px 12px;
-      font-size: 13px;
-      font-weight: 700;
-      outline: none;
-      cursor: pointer;
-      height: 46px;
+      align-items: flex-end;
+      gap: 12px;
     }
     .msg-input {
       flex: 1;
       padding: 12px 16px;
-      background: #1E293B;
+      background-color: #1E293B;
       border: 1px solid #334155;
       border-radius: 12px;
       color: #F8FAFC;
       font-size: 14.5px;
-      font-family: inherit;
-      outline: none;
+      line-height: 1.4;
       resize: none;
+      outline: none;
       max-height: 120px;
       min-height: 46px;
-      line-height: 1.4;
       transition: border-color 0.2s;
     }
     .msg-input:focus { border-color: #38BDF8; }
     .send-btn {
+      background: linear-gradient(135deg, #0284C7 0%, #0369A1 100%);
+      border: none;
       width: 46px;
       height: 46px;
       border-radius: 12px;
-      background-color: #0284C7;
-      border: none;
-      cursor: pointer;
       display: flex;
       align-items: center;
       justify-content: center;
+      cursor: pointer;
+      transition: all 0.2s;
       flex-shrink: 0;
-      transition: background 0.15s, transform 0.1s;
     }
-    .send-btn:hover { background-color: #0369A1; transform: scale(1.02); }
-    .send-btn:active { transform: scale(0.96); }
-    .send-btn svg { width: 22px; height: 22px; fill: #FFF; }
+    .send-btn:hover {
+      background: linear-gradient(135deg, #0369A1 0%, #075985 100%);
+      transform: translateY(-1px);
+    }
+    .send-btn svg { width: 20px; height: 20px; fill: #FFF; }
 
-    /* Modals */
-    .modal-overlay {
-      position: fixed;
-      top: 0; left: 0; right: 0; bottom: 0;
-      background: rgba(0, 0, 0, 0.75);
-      backdrop-filter: blur(4px);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      z-index: 1000;
-    }
-    .modal-card {
-      background: #111827;
-      border: 1px solid #1F2937;
-      border-radius: 20px;
-      padding: 30px;
-      width: 420px;
-      max-width: 90vw;
-      text-align: center;
-      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);
-    }
-    .modal-icon {
-      width: 60px;
-      height: 60px;
-      background: #1E293B;
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      margin: 0 auto 16px;
-      color: #38BDF8;
-    }
-    .modal-icon svg { width: 32px; height: 32px; fill: #38BDF8; }
-    .modal-title { font-size: 18px; font-weight: 700; margin-bottom: 8px; color: #F9FAFB; }
-    .modal-subtitle { font-size: 13px; color: #94A3B8; margin-bottom: 22px; line-height: 1.6; }
-    .pin-input {
-      width: 100%;
-      padding: 14px;
-      background: #1E293B;
-      border: 1px solid #334155;
-      border-radius: 12px;
-      color: #FFF;
-      font-size: 22px;
-      text-align: center;
-      letter-spacing: 6px;
-      outline: none;
-      margin-bottom: 16px;
-    }
-    .pin-input:focus { border-color: #38BDF8; }
-    .primary-btn {
-      width: 100%;
-      padding: 14px;
-      background: #0284C7;
-      border: none;
-      border-radius: 12px;
-      color: #FFF;
-      font-size: 15px;
-      font-weight: 700;
-      cursor: pointer;
-      transition: background 0.15s;
-    }
-    .primary-btn:hover { background: #0369A1; }
-    .secondary-btn {
-      width: 100%;
-      padding: 12px;
-      background: #1E293B;
-      border: 1px solid #334155;
-      border-radius: 12px;
-      color: #CBD5E1;
-      font-size: 14px;
-      font-weight: 600;
-      cursor: pointer;
-      margin-top: 8px;
-    }
-    .secondary-btn:hover { background: #334155; color: #FFF; }
-    .error-msg { color: #EF4444; font-size: 13px; margin-top: 10px; display: none; }
-
-    /* Toast Notification Banner */
-    .toast-banner {
-      position: fixed;
-      top: 20px;
-      left: 50%;
-      transform: translateX(-50%) translateY(-100px);
-      background: #1E293B;
-      border: 1px solid #38BDF8;
-      border-radius: 14px;
-      padding: 12px 20px;
-      box-shadow: 0 10px 25px rgba(0,0,0,0.5);
-      z-index: 2000;
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      transition: transform 0.3s cubic-bezier(0.18, 0.89, 0.32, 1.28);
-    }
-    .toast-banner.show {
-      transform: translateX(-50%) translateY(0);
-    }
-    .toast-content {
-      display: flex;
-      flex-direction: column;
-    }
-    .toast-title { font-size: 14px; font-weight: 700; color: #38BDF8; }
-    .toast-text { font-size: 12px; color: #CBD5E1; max-width: 320px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .toast-btn {
-      background: #0284C7;
-      color: #FFF;
-      border: none;
-      padding: 6px 12px;
-      border-radius: 8px;
-      font-size: 12px;
-      font-weight: 700;
-      cursor: pointer;
-    }
-
+    /* Empty States */
     .empty-state {
-      flex: 1;
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
+      height: 100%;
       color: #64748B;
-      gap: 16px;
       text-align: center;
-      padding: 20px;
+      gap: 12px;
     }
     .empty-state svg { width: 56px; height: 56px; fill: #475569; }
 
-    /* Scrollbars */
-    ::-webkit-scrollbar { width: 6px; height: 6px; }
-    ::-webkit-scrollbar-track { background: transparent; }
-    ::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
-    ::-webkit-scrollbar-thumb:hover { background: #475569; }
+    /* Apple-Style Dynamic Notification Banner */
+    .apple-banner {
+      position: fixed;
+      top: -120px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 90%;
+      max-width: 480px;
+      background: rgba(17, 24, 39, 0.94);
+      backdrop-filter: blur(24px);
+      -webkit-backdrop-filter: blur(24px);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 20px;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.05);
+      padding: 14px 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      z-index: 10000;
+      transition: top 0.4s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.3s;
+      opacity: 0;
+    }
+    .apple-banner.show {
+      top: 18px;
+      opacity: 1;
+    }
+    .apple-banner-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .apple-banner-brand {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12.5px;
+      font-weight: 700;
+      color: #38BDF8;
+    }
+    .apple-banner-brand svg { width: 16px; height: 16px; fill: #38BDF8; }
+    .apple-banner-time {
+      font-size: 11px;
+      color: #94A3B8;
+    }
+    .apple-banner-body {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+    }
+    .apple-banner-avatar {
+      width: 38px;
+      height: 38px;
+      border-radius: 50%;
+      background: #0284C7;
+      color: #FFF;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 15px;
+      font-weight: 700;
+      flex-shrink: 0;
+    }
+    .apple-banner-content {
+      flex: 1;
+      min-width: 0;
+    }
+    .apple-banner-sender {
+      font-size: 14px;
+      font-weight: 700;
+      color: #F8FAFC;
+      margin-bottom: 2px;
+    }
+    .apple-banner-text {
+      font-size: 12.5px;
+      color: #CBD5E1;
+      line-height: 1.4;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+    .apple-banner-actions {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 8px;
+      padding-top: 4px;
+      border-top: 1px solid rgba(255, 255, 255, 0.08);
+    }
+    .apple-copy-btn {
+      background: linear-gradient(135deg, #0284C7 0%, #0369A1 100%);
+      color: #FFFFFF;
+      border: none;
+      border-radius: 14px;
+      padding: 6px 14px;
+      font-size: 12.5px;
+      font-weight: 700;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      box-shadow: 0 2px 8px rgba(2, 132, 199, 0.4);
+      transition: all 0.15s;
+    }
+    .apple-copy-btn:hover {
+      background: #0284C7;
+      transform: translateY(-1px);
+    }
+    .apple-copy-btn:active { transform: scale(0.96); }
+
+    /* Mini In-App Toast */
+    .toast-pill {
+      position: fixed;
+      bottom: -60px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #1E293B;
+      color: #F8FAFC;
+      border: 1px solid #334155;
+      padding: 9px 18px;
+      border-radius: 20px;
+      font-size: 13px;
+      font-weight: 600;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+      z-index: 10001;
+      transition: bottom 0.3s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.2s;
+      opacity: 0;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .toast-pill.show {
+      bottom: 24px;
+      opacity: 1;
+    }
+
+    /* Modal */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background-color: rgba(0, 0, 0, 0.75);
+      backdrop-filter: blur(8px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 9999;
+    }
+    .modal-card {
+      background-color: #111827;
+      border: 1px solid #334155;
+      border-radius: 20px;
+      width: 90%;
+      max-width: 400px;
+      padding: 28px;
+      text-align: center;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.6);
+    }
+    .modal-card h2 {
+      font-size: 20px;
+      font-weight: 800;
+      color: #F8FAFC;
+      margin-bottom: 8px;
+    }
+    .modal-card p {
+      font-size: 13.5px;
+      color: #94A3B8;
+      line-height: 1.5;
+      margin-bottom: 20px;
+    }
+    .pin-input {
+      width: 100%;
+      padding: 14px;
+      font-size: 24px;
+      text-align: center;
+      letter-spacing: 8px;
+      background: #1E293B;
+      border: 2px solid #334155;
+      border-radius: 12px;
+      color: #38BDF8;
+      outline: none;
+      margin-bottom: 20px;
+    }
+    .pin-input:focus { border-color: #38BDF8; }
+    .btn-primary {
+      width: 100%;
+      padding: 12px;
+      background: linear-gradient(135deg, #0284C7 0%, #0369A1 100%);
+      color: #FFF;
+      border: none;
+      border-radius: 12px;
+      font-size: 15px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .btn-primary:hover {
+      background: linear-gradient(135deg, #0369A1 0%, #075985 100%);
+    }
+
+    /* Notif Guide Box */
+    .guide-box {
+      background: #0F172A;
+      border: 1px solid #1E293B;
+      border-radius: 12px;
+      padding: 14px;
+      margin: 16px 0;
+      text-align: right;
+      font-size: 12.5px;
+      color: #CBD5E1;
+      line-height: 1.6;
+    }
+    .code-pill {
+      background: #1E293B;
+      color: #38BDF8;
+      padding: 3px 8px;
+      border-radius: 6px;
+      font-family: monospace;
+      font-size: 11.5px;
+      display: inline-block;
+      margin: 4px 0;
+      word-break: break-all;
+      user-select: all;
+    }
   </style>
 </head>
 <body>
 
-  <!-- Floating Toast -->
-  <div id="toastBanner" class="toast-banner">
-    <div class="toast-content">
-      <div id="toastTitle" class="toast-title"></div>
-      <div id="toastText" class="toast-text"></div>
-    </div>
-    <button id="toastActionBtn" class="toast-btn" style="display:none;"></button>
-  </div>
-
-  <!-- Lock Modal -->
-  <div id="loginModal" class="modal-overlay" style="display: none;">
-    <div class="modal-card">
-      <div class="modal-icon">
-        <svg viewBox="0 0 24 24"><path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"/></svg>
-      </div>
-      <div class="modal-title">ورود امن به 5Messages</div>
-      <div class="modal-subtitle">پین‌کد امنیتی نمایش داده شده در منوی Web client گوشی را وارد کرده و Enter را بزنید:</div>
-      <input type="password" id="pinInput" class="pin-input" placeholder="••••" maxlength="8" autofocus autocomplete="off" onkeydown="if(event.key==='Enter') submitLogin()">
-      <button id="loginBtn" class="primary-btn" onclick="submitLogin()">ورود به برنامه (Enter)</button>
-      <div id="errorMsg" class="error-msg">پین‌کد اشتباه است!</div>
-    </div>
-  </div>
-
-  <!-- Notification Info Modal -->
-  <div id="notifModal" class="modal-overlay" style="display: none;">
-    <div class="modal-card" style="text-align: right;">
-      <div class="modal-title" style="text-align: center; margin-bottom: 12px;">🔔 راهنمای اعلان‌های دسکتاپ</div>
-      <div class="modal-subtitle" style="text-align: right; color: #CBD5E1; font-size: 13.5px;">
-        مرورگر کروم و اج به دلایل امنیتی، نوتیفیکیشن سیستمی را روی آدرس‌های HTTP معمولی محدود می‌کنند. با این حال <b>صدای زنگ هوشمند، چشمک‌زدن تب مرورگر و بنر شناور</b> روی این صفحه همیشه فعال است!
-        <br><br>
-        <b>روش فعال‌سازی نوتیفیکیشن رسمی ویندوز در کروم (اختیاری):</b>
-        <br>
-        ۱. در یک تب جدید آدرس <code>chrome://flags/#unsafely-treat-insecure-origin-as-secure</code> را باز کنید.
-        <br>
-        ۲. آدرس <code id="currentOriginCode" style="color:#38BDF8;"></code> را در کادر آن وارد و فعال کنید.
-      </div>
-      <button class="primary-btn" onclick="testNotificationChime()">🔊 تست صدای زنگ دریافت پیامک</button>
-      <button class="secondary-btn" onclick="document.getElementById('notifModal').style.display='none'">بستن</button>
-    </div>
-  </div>
-
   <div class="app-container">
+
     <!-- Sidebar -->
     <div class="sidebar">
       <div class="sidebar-header">
         <div class="brand">
-          <svg viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
-          <span>5Messages</span>
+          <svg viewBox="0 0 24 24"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H5.17L4 17.17V4h16v12z"/></svg>
+          <span>Messages</span>
         </div>
         <div class="status-badge">
-          <div class="status-dot"></div>
-          <span>متصل به گوشی</span>
+          <span class="status-dot"></span>
+          <span>آنلاین</span>
         </div>
-      </div>
-
-      <!-- Categories Tabs -->
-      <div class="tabs-bar">
-        <button id="tabInbox" class="tab-item active" onclick="switchTab(false)">
-          <span>صندوق ورودی</span>
-          <span id="inboxCount" class="tab-badge" style="display:none;"></span>
-        </button>
-        <button id="tabArchived" class="tab-item" onclick="switchTab(true)">
-          <span>آرشیو شده</span>
-          <span id="archivedCount" class="tab-badge" style="display:none;"></span>
-        </button>
       </div>
 
       <div class="search-box">
-        <input type="text" id="searchInput" class="search-input" placeholder="جستجو در مخاطبین و پیام‌ها..." oninput="filterConversations()">
+        <input type="text" id="searchInput" class="search-input" placeholder="جستجو در پیام‌ها و مخاطبین..." oninput="handleSearch()">
       </div>
-      <ul id="convList" class="conv-list"></ul>
+
+      <!-- Categories matching Phone App -->
+      <div class="category-scroll" id="categoryScroll">
+        <button class="cat-pill active" data-cat="CONTACTS" onclick="selectCategory('CONTACTS')">
+          <span class="cat-dot contacts"></span>
+          <span>مخاطبین</span>
+          <span class="cat-badge" id="badge-CONTACTS" style="display:none">0</span>
+        </button>
+        <button class="cat-pill" data-cat="UNKNOWN" onclick="selectCategory('UNKNOWN')">
+          <span class="cat-dot unknown"></span>
+          <span>شخصی ناشناس</span>
+          <span class="cat-badge" id="badge-UNKNOWN" style="display:none">0</span>
+        </button>
+        <button class="cat-pill" data-cat="BANK" onclick="selectCategory('BANK')">
+          <span class="cat-dot bank"></span>
+          <span>بانکی</span>
+          <span class="cat-badge" id="badge-BANK" style="display:none">0</span>
+        </button>
+        <button class="cat-pill" data-cat="OTP" onclick="selectCategory('OTP')">
+          <span class="cat-dot otp"></span>
+          <span>رمز و کد</span>
+          <span class="cat-badge" id="badge-OTP" style="display:none">0</span>
+        </button>
+        <button class="cat-pill" data-cat="OTHER" onclick="selectCategory('OTHER')">
+          <span class="cat-dot other"></span>
+          <span>متفرقه</span>
+          <span class="cat-badge" id="badge-OTHER" style="display:none">0</span>
+        </button>
+        <button class="cat-pill" data-cat="ARCHIVED" onclick="selectCategory('ARCHIVED')">
+          <span class="cat-dot archived"></span>
+          <span>آرشیو شده</span>
+          <span class="cat-badge" id="badge-ARCHIVED" style="display:none">0</span>
+        </button>
+      </div>
+
+      <!-- Conversations List -->
+      <ul class="conv-list" id="convList">
+        <li class="empty-state">
+          <p>در حال بارگذاری گفتگوها...</p>
+        </li>
+      </ul>
     </div>
 
-    <!-- Main Chat Area -->
-    <div class="chat-panel">
-      <div id="chatHeader" class="chat-header" style="display: none;">
+    <!-- Main Chat Panel -->
+    <div class="chat-panel" id="chatPanel">
+      <div class="chat-header" id="chatHeader" style="display: none;">
         <div class="chat-header-info">
-          <div id="headerAvatar" class="avatar"></div>
+          <div class="avatar" id="headerAvatar">?</div>
           <div>
-            <div id="headerTitle" class="chat-title"></div>
-            <div id="headerAddress" class="chat-subtitle"></div>
+            <div class="chat-title" id="headerTitle">نام مخاطب</div>
+            <div class="chat-subtitle" id="headerAddress">0912...</div>
           </div>
         </div>
+
         <div class="chat-header-actions">
-          <button id="archiveActionBtn" class="action-btn" onclick="toggleArchiveCurrentChat()">📦 آرشیو گفتگو</button>
-          <button class="action-btn" onclick="openNotifModal()">🔔 تنظیمات اعلان</button>
-          <button class="action-btn" onclick="logout()">🚪 خروج</button>
+          <!-- Dual SIM Selector -->
+          <select id="simSelector" class="sim-selector" style="display: none;" onchange="onSimChanged(this.value)">
+            <option value="-1">سیم‌کارت پیش‌فرض</option>
+          </select>
+          <button class="header-btn" onclick="openNotifHelp()">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.9 2 2 2zm6-6v-5c0-3.07-1.63-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.64 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2zm-2 1H8v-6c0-2.48 1.51-4.5 4-4.5s4 2.02 4 4.5v6z"/></svg>
+            <span>تنظیم اعلان ویندوز</span>
+          </button>
         </div>
       </div>
 
-      <div id="messagesContainer" class="messages-container">
+      <!-- Messages Stream -->
+      <div class="messages-container" id="messagesContainer">
         <div class="empty-state">
-          <svg viewBox="0 0 24 24"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H6l-2 2V4h16v12z"/></svg>
-          <p>یک گفتگو را از فهرست سمت راست انتخاب کنید</p>
+          <svg viewBox="0 0 24 24"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H5.17L4 17.17V4h16v12z"/></svg>
+          <p>گفتگویی را از ستون کناری انتخاب کنید</p>
         </div>
       </div>
 
-      <div id="chatFooter" class="chat-footer" style="display: none;">
-        <select id="simSelect" class="sim-select" style="display: none;" onchange="onSimChange(this.value)"></select>
+      <!-- Input Footer -->
+      <div class="chat-footer" id="chatFooter" style="display: none;">
         <textarea id="msgInput" class="msg-input" placeholder="نوشتن پیامک..." rows="1" onkeydown="handleInputKey(event)"></textarea>
-        <button class="send-btn" onclick="sendMessage()" title="ارسال پیامک (Enter)">
+        <button class="send-btn" onclick="sendMessage()" title="ارسال پیامک">
           <svg viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
         </button>
       </div>
+    </div>
+
+  </div>
+
+  <!-- Apple-Style Dynamic Island Notification Banner -->
+  <div class="apple-banner" id="appleBanner">
+    <div class="apple-banner-header">
+      <div class="apple-banner-brand">
+        <svg viewBox="0 0 24 24"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H5.17L4 17.17V4h16v12z"/></svg>
+        <span>پیام جدید • Messages</span>
+      </div>
+      <div class="apple-banner-time" id="appleBannerTime">الان</div>
+    </div>
+    <div class="apple-banner-body">
+      <div class="apple-banner-avatar" id="appleBannerAvatar">?</div>
+      <div class="apple-banner-content">
+        <div class="apple-banner-sender" id="appleBannerSender">فرستنده</div>
+        <div class="apple-banner-text" id="appleBannerText">متن پیامک...</div>
+      </div>
+    </div>
+    <div class="apple-banner-actions" id="appleBannerActions" style="display: none;">
+      <button class="apple-copy-btn" id="appleBannerCopyBtn" onclick="onAppleCopyClicked()">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>
+        <span id="appleBannerCopyText">کپی کد</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Mini Toast Pill -->
+  <div class="toast-pill" id="toastPill">
+    <span id="toastIcon">📋</span>
+    <span id="toastText">متن اعلان</span>
+  </div>
+
+  <!-- PIN Modal -->
+  <div class="modal-overlay" id="pinModal">
+    <div class="modal-card">
+      <h2>ورود به Messages Web</h2>
+      <p>رمز ورود ۶ رقمی را وارد کنید و کلید Enter را بزنید:</p>
+      <input type="password" id="pinInput" class="pin-input" maxlength="6" autofocus onkeydown="if(event.key==='Enter') submitLogin()">
+      <button class="btn-primary" onclick="submitLogin()">ورود</button>
+    </div>
+  </div>
+
+  <!-- Notification Setup Modal -->
+  <div class="modal-overlay" id="notifModal" style="display: none;">
+    <div class="modal-card" style="max-width: 440px;">
+      <h2>فعال‌سازی اعلان‌های دسکتاپ</h2>
+      <p>برای اینکه پیامک‌ها حتی وقتی کروم بسته یا مینی‌مایز است در گوشه دسکتاپ ویندوز ظاهر شوند:</p>
+      <div class="guide-box">
+        ۱. این آدرس را کپی کرده و در تب جدید کروم باز کنید:
+        <div class="code-pill">chrome://flags/#unsafely-treat-insecure-origin-as-secure</div>
+        <br>
+        ۲. گزینه را روی <b>Enabled</b> بگذارید و در کادر متنی، آدرس گوشی را وارد کنید:
+        <div class="code-pill" id="originUrlPill">http://192.168.1.34:8080</div>
+        <br>
+        ۳. روی دکمه <b>Relaunch</b> در پایین کروم بزنید تا فعال شود.
+      </div>
+      <button class="btn-primary" onclick="closeNotifHelp()">متوجه شدم</button>
     </div>
   </div>
 
   <script>
-    let token = localStorage.getItem('5m_token') || '';
+    // State
+    let token = localStorage.getItem('webclient_token') || '';
+    let conversations = [];
+    let currentCategory = 'CONTACTS';
     let currentThreadId = null;
     let currentAddress = '';
-    let currentIsArchived = false;
-    let currentTabIsArchived = false;
-    let conversations = [];
+    let currentTitle = '';
     let messages = [];
     let lastPollDate = Date.now();
-    let pollInterval = null;
     let selectedSubId = -1;
-    let availableSubs = [];
-    let unreadCount = 0;
-    let audioCtx = null;
+    let applePendingCopyCode = null;
+    let appleBannerTimeout = null;
+    let titleFlashInterval = null;
+    const defaultPageTitle = 'Messages Web';
 
     const AVATAR_COLORS = [
-      '#0284C7', '#0D9488', '#059669', '#16A34A', '#65A30D',
-      '#D97706', '#EA580C', '#DC2626', '#E11D48', '#9333EA', '#4F46E5'
+      '#0284C7', '#0EA5E9', '#059669', '#10B981', '#7C3AED',
+      '#8B5CF6', '#D97706', '#E11D48', '#DB2777', '#4F46E5'
     ];
 
-    window.onload = function() {
-      document.getElementById('currentOriginCode').innerText = window.location.origin;
-      if (!token) {
-        showLoginModal();
-      } else {
+    window.onload = () => {
+      document.getElementById('originUrlPill').innerText = window.location.origin;
+      if (token) {
         verifyAuth();
+      } else {
+        showPinModal();
       }
     };
 
-    window.onfocus = function() {
-      document.title = '5Messages Web';
-    };
-
-    function showLoginModal() {
-      document.getElementById('loginModal').style.display = 'flex';
+    function showPinModal() {
+      document.getElementById('pinModal').style.display = 'flex';
       setTimeout(() => document.getElementById('pinInput').focus(), 100);
     }
 
     async function submitLogin() {
       const pin = document.getElementById('pinInput').value.trim();
-      const err = document.getElementById('errorMsg');
-      err.style.display = 'none';
       if (!pin) return;
 
       try {
         const res = await fetch('/api/login', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ pin: pin })
+          body: JSON.stringify({ pin })
         });
         const data = await res.json();
         if (data.success && data.token) {
           token = data.token;
-          localStorage.setItem('5m_token', token);
-          document.getElementById('loginModal').style.display = 'none';
-          verifyAuth();
+          localStorage.setItem('webclient_token', token);
+          document.getElementById('pinModal').style.display = 'none';
+          initApp();
         } else {
-          err.style.display = 'block';
+          showToast('رمز ورود اشتباه است!', '❌');
+          document.getElementById('pinInput').value = '';
         }
       } catch (e) {
-        err.innerText = 'خطا در برقراری ارتباط با سرور گوشی!';
-        err.style.display = 'block';
+        showToast('خطا در برقراری ارتباط با گوشی!', '⚠️');
       }
     }
 
@@ -739,189 +920,259 @@
         const res = await fetch('/api/status', {
           headers: { 'Authorization': 'Bearer ' + token }
         });
-        if (res.status === 401) {
-          localStorage.removeItem('5m_token');
-          token = '';
-          showLoginModal();
-        } else {
+        if (res.status === 200) {
           const data = await res.json();
-          availableSubs = data.subscriptions || [];
-          setupSimSelector();
+          document.getElementById('pinModal').style.display = 'none';
+          setupSimSelector(data.subscriptions || []);
           initApp();
+        } else {
+          showPinModal();
         }
       } catch (e) {
-        initApp();
+        showPinModal();
       }
     }
 
-    function setupSimSelector() {
-      const el = document.getElementById('simSelect');
-      if (!availableSubs || availableSubs.length <= 1) {
-        el.style.display = 'none';
-        return;
-      }
-      el.innerHTML = '';
-      availableSubs.forEach(s => {
-        const opt = document.createElement('option');
-        opt.value = s.id;
-        opt.innerText = s.name || ('SIM ' + s.slot);
-        el.appendChild(opt);
-      });
-      const saved = localStorage.getItem('5m_sub_id');
-      if (saved && availableSubs.some(s => s.id == saved)) {
-        el.value = saved;
-        selectedSubId = parseInt(saved);
+    function setupSimSelector(subs) {
+      const sel = document.getElementById('simSelector');
+      if (subs && subs.length > 1) {
+        sel.innerHTML = '';
+        subs.forEach(s => {
+          const opt = document.createElement('option');
+          opt.value = s.id;
+          opt.text = s.name || ('سیم ' + s.slot);
+          sel.appendChild(opt);
+        });
+        sel.style.display = 'block';
+        selectedSubId = parseInt(subs[0].id);
       } else {
-        selectedSubId = availableSubs[0].id;
+        sel.style.display = 'none';
+        selectedSubId = -1;
       }
-      el.style.display = 'inline-block';
     }
 
-    function onSimChange(val) {
+    function onSimChanged(val) {
       selectedSubId = parseInt(val);
-      localStorage.setItem('5m_sub_id', val);
+      showToast('سیم‌کارت ارسال تغییر یافت', '📱');
     }
 
     function initApp() {
       loadConversations();
-      if (!pollInterval) {
-        pollInterval = setInterval(pollNewMessages, 2500);
+      setInterval(pollNewMessages, 3000);
+      initAudio();
+
+      // Reset tab title on focus
+      window.addEventListener('focus', () => {
+        if (titleFlashInterval) {
+          clearInterval(titleFlashInterval);
+          titleFlashInterval = null;
+          document.title = defaultPageTitle;
+        }
+      });
+    }
+
+    // Audio Synthesizer (Apple-style 2-tone pleasant bell)
+    let audioCtx = null;
+    function initAudio() {
+      const unlockAudio = () => {
+        if (!audioCtx) {
+          const AudioContext = window.AudioContext || window.webkitAudioContext;
+          if (AudioContext) audioCtx = new AudioContext();
+        }
+        if (audioCtx && audioCtx.state === 'suspended') {
+          audioCtx.resume();
+        }
+        document.removeEventListener('click', unlockAudio);
+        document.removeEventListener('keydown', unlockAudio);
+      };
+      document.addEventListener('click', unlockAudio);
+      document.addEventListener('keydown', unlockAudio);
+    }
+
+    function playAppleChime() {
+      try {
+        if (!audioCtx) {
+          const AudioContext = window.AudioContext || window.webkitAudioContext;
+          if (AudioContext) audioCtx = new AudioContext();
+        }
+        if (!audioCtx) return;
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+
+        const now = audioCtx.currentTime;
+        // Tone 1: 587.33 Hz (D5)
+        const osc1 = audioCtx.createOscillator();
+        const gain1 = audioCtx.createGain();
+        osc1.type = 'sine';
+        osc1.frequency.setValueAtTime(587.33, now);
+        gain1.gain.setValueAtTime(0.18, now);
+        gain1.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
+        osc1.connect(gain1);
+        gain1.connect(audioCtx.destination);
+        osc1.start(now);
+        osc1.stop(now + 0.35);
+
+        // Tone 2: 880 Hz (A5)
+        const osc2 = audioCtx.createOscillator();
+        const gain2 = audioCtx.createGain();
+        osc2.type = 'sine';
+        osc2.frequency.setValueAtTime(880, now + 0.1);
+        gain2.gain.setValueAtTime(0.22, now + 0.1);
+        gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.65);
+        osc2.connect(gain2);
+        gain2.connect(audioCtx.destination);
+        osc2.start(now + 0.1);
+        osc2.stop(now + 0.65);
+      } catch (e) {
+        // Audio suspended until gesture
       }
     }
 
-    function logout() {
-      localStorage.removeItem('5m_token');
-      token = '';
-      location.reload();
-    }
-
-    function switchTab(isArchived) {
-      currentTabIsArchived = isArchived;
-      document.getElementById('tabInbox').className = 'tab-item ' + (!isArchived ? 'active' : '');
-      document.getElementById('tabArchived').className = 'tab-item ' + (isArchived ? 'active' : '');
-      loadConversations();
+    // Categories
+    function selectCategory(cat) {
+      currentCategory = cat;
+      document.querySelectorAll('.cat-pill').forEach(pill => {
+        pill.classList.toggle('active', pill.dataset.cat === cat);
+      });
+      renderConversations();
     }
 
     async function loadConversations() {
       try {
-        const res = await fetch('/api/conversations?archived=' + currentTabIsArchived, {
+        const res = await fetch('/api/conversations', {
           headers: { 'Authorization': 'Bearer ' + token }
         });
-        conversations = await res.json();
-        renderConversations(conversations);
+        if (res.status === 200) {
+          conversations = await res.json();
+          updateCategoryBadges();
+          renderConversations();
+        }
       } catch (e) {
-        console.error("Failed to load conversations", e);
+        console.error('Error fetching conversations', e);
       }
     }
 
-    function renderConversations(list) {
-      const el = document.getElementById('convList');
-      el.innerHTML = '';
-      if (!list || list.length === 0) {
-        el.innerHTML = '<li style="padding: 30px 16px; text-align:center; color:#64748B; font-size:13px;">هیچ گفتگویی یافت نشد</li>';
+    function updateCategoryBadges() {
+      const counts = {
+        CONTACTS: 0,
+        UNKNOWN: 0,
+        BANK: 0,
+        OTP: 0,
+        OTHER: 0,
+        ARCHIVED: 0
+      };
+
+      conversations.forEach(c => {
+        if (c.unread) {
+          if (c.archived) {
+            counts.ARCHIVED++;
+          } else {
+            const cat = c.category || 'OTHER';
+            if (counts[cat] !== undefined) counts[cat]++;
+          }
+        }
+      });
+
+      for (const [cat, count] of Object.entries(counts)) {
+        const badge = document.getElementById('badge-' + cat);
+        if (badge) {
+          badge.innerText = count;
+          badge.style.display = count > 0 ? 'inline-block' : 'none';
+        }
+      }
+    }
+
+    function handleSearch() {
+      renderConversations();
+    }
+
+    function renderConversations() {
+      const query = document.getElementById('searchInput').value.trim().toLowerCase();
+      const list = document.getElementById('convList');
+      list.innerHTML = '';
+
+      let filtered = conversations.filter(c => {
+        if (currentCategory === 'ARCHIVED') {
+          return c.archived === true;
+        } else {
+          return !c.archived && (c.category || 'OTHER') === currentCategory;
+        }
+      });
+
+      if (query) {
+        filtered = filtered.filter(c => {
+          return (c.title || '').toLowerCase().includes(query) ||
+                 (c.snippet || '').toLowerCase().includes(query) ||
+                 (c.address || '').includes(query);
+        });
+      }
+
+      if (filtered.length === 0) {
+        list.innerHTML = `
+          <li class="empty-state" style="padding: 40px 16px;">
+            <p>گفتگویی در این دسته‌بندی یافت نشد</p>
+          </li>
+        `;
         return;
       }
 
-      list.forEach(c => {
+      // Pinned first, then by date descending
+      filtered.sort((a, b) => {
+        if (a.pinned !== b.pinned) return a.pinned ? -1 : 1;
+        return (b.date || 0) - (a.date || 0);
+      });
+
+      filtered.forEach(c => {
         const li = document.createElement('li');
-        li.className = 'conv-item' + (c.id === currentThreadId ? ' active' : '');
+        li.className = 'conv-item' + (currentThreadId === c.id ? ' active' : '');
         li.onclick = () => selectConversation(c);
 
-        const titleText = c.title || c.address || 'ناشناس';
-        const color = getAvatarColor(titleText);
-        const avatarLetter = titleText.trim().charAt(0);
+        const avatarColor = getAvatarColor(c.title || c.address || 'User');
+        const initial = (c.title || c.address || '?').charAt(0).toUpperCase();
         const timeStr = formatTime(c.date);
 
         li.innerHTML = `
-          <div class="avatar" style="background-color: ${color};">${escapeHtml(avatarLetter)}</div>
+          <div class="avatar" style="background-color: ${avatarColor};">${escapeHtml(initial)}</div>
           <div class="conv-details">
             <div class="conv-top">
               <span class="conv-title">
+                ${escapeHtml(c.title || c.address)}
                 ${c.pinned ? '<svg class="pin-icon" viewBox="0 0 24 24"><path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z"/></svg>' : ''}
-                ${escapeHtml(titleText)}
               </span>
               <span class="conv-time">${timeStr}</span>
             </div>
             <div class="conv-bottom">
-              <span class="conv-snippet">${escapeHtml(c.snippet || '')}</span>
+              <span class="conv-snippet">${escapeHtml(c.snippet || 'بدون پیام')}</span>
               ${c.unread ? '<span class="unread-pill">جدید</span>' : ''}
             </div>
           </div>
         `;
-        el.appendChild(li);
+        list.appendChild(li);
       });
-    }
-
-    function filterConversations() {
-      const q = document.getElementById('searchInput').value.toLowerCase().trim();
-      if (!q) {
-        renderConversations(conversations);
-        return;
-      }
-      const filtered = conversations.filter(c =>
-        (c.title && c.title.toLowerCase().includes(q)) ||
-        (c.address && c.address.includes(q)) ||
-        (c.snippet && c.snippet.toLowerCase().includes(q))
-      );
-      renderConversations(filtered);
     }
 
     async function selectConversation(c) {
       currentThreadId = c.id;
       currentAddress = c.address || '';
-      currentIsArchived = c.archived || false;
-      renderConversations(conversations);
+      currentTitle = c.title || c.address || '';
 
-      document.getElementById('chatHeader').style.display = 'flex';
-      document.getElementById('chatFooter').style.display = 'flex';
-      
-      const titleText = c.title || c.address || 'ناشناس';
-      document.getElementById('headerTitle').innerText = titleText;
-      document.getElementById('headerAddress').innerText = c.address || '';
-      
-      const avatarEl = document.getElementById('headerAvatar');
-      avatarEl.innerText = titleText.trim().charAt(0);
-      avatarEl.style.backgroundColor = getAvatarColor(titleText);
+      // Mark unread as read in memory
+      c.unread = false;
+      updateCategoryBadges();
+      renderConversations();
 
-      updateArchiveBtnState();
+      // Setup Header
+      const header = document.getElementById('chatHeader');
+      const footer = document.getElementById('chatFooter');
+      header.style.display = 'flex';
+      footer.style.display = 'flex';
+
+      document.getElementById('headerTitle').innerText = currentTitle;
+      document.getElementById('headerAddress').innerText = currentAddress;
+      const avatar = document.getElementById('headerAvatar');
+      avatar.innerText = (currentTitle || '?').charAt(0).toUpperCase();
+      avatar.style.backgroundColor = getAvatarColor(currentTitle);
+
       loadMessages(currentThreadId);
-      document.getElementById('msgInput').focus();
-    }
-
-    function updateArchiveBtnState() {
-      const btn = document.getElementById('archiveActionBtn');
-      if (currentIsArchived) {
-        btn.innerText = '📤 خروج از آرشیو';
-      } else {
-        btn.innerText = '📦 آرشیو گفتگو';
-      }
-    }
-
-    async function toggleArchiveCurrentChat() {
-      if (!currentThreadId) return;
-      const targetState = !currentIsArchived;
-      try {
-        const res = await fetch('/api/archive', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': 'Bearer ' + token
-          },
-          body: JSON.stringify({
-            threadId: currentThreadId,
-            archive: targetState
-          })
-        });
-        const data = await res.json();
-        if (data.success) {
-          currentIsArchived = targetState;
-          updateArchiveBtnState();
-          showToast(targetState ? 'گفتگو به آرشیو منتقل شد' : 'گفتگو از آرشیو خارج شد');
-          loadConversations();
-        }
-      } catch (e) {
-        showToast('خطا در تغییر وضعیت آرشیو');
-      }
     }
 
     async function loadMessages(threadId) {
@@ -952,53 +1203,111 @@
         row.className = 'msg-row ' + (m.isMe ? 'out' : 'in');
 
         const timeStr = formatFullTime(m.date);
-        let statusBadge = '';
-        if (m.failed) {
-          statusBadge = '<span style="color:#EF4444; font-size:11px; margin-right:6px;">⚠️ ارسال ناموفق</span>';
-        } else if (m.sending) {
-          statusBadge = '<span style="color:#94A3B8; font-size:11px; margin-right:6px;">⏳ در حال ارسال...</span>';
-        }
+        const chips = m.chips || extractChipsClient(m.body);
 
-        // Render smart chips
+        // Smart chips HTML (only shown if chips exist)
         let chipsHtml = '';
-        const chips = m.chips || extractSmartChips(m.body);
         if (chips && chips.length > 0) {
           chipsHtml = '<div class="smart-chips-wrapper">';
-          chips.forEach(c => {
-            let cls = 'general';
-            let icon = '📋';
-            let label = 'کپی: ' + c.display;
-            if (c.type === 'OTP') {
-              cls = 'otp';
-              icon = '🔑';
-              label = 'کپی کد: ' + c.display;
-            } else if (c.type === 'CARD') {
-              cls = 'card';
-              icon = '💳';
-              label = 'کپی کارت: ' + c.display;
-            } else if (c.type === 'IBAN') {
-              cls = 'iban';
-              icon = '🏦';
-              label = 'کپی شبا: ' + c.display;
-            }
-            chipsHtml += `<button class="smart-chip-btn ${cls}" onclick="copySmartCode('${escapeQuotes(c.copy)}')">${icon} ${escapeHtml(label)}</button>`;
+          chips.forEach(chip => {
+            const icon = getChipIcon(chip.type);
+            const label = getChipLabel(chip.type, chip.display);
+            chipsHtml += `
+              <button class="smart-chip-btn" onclick="copySmartNumber('${escapeQuotes(chip.copy)}', this)">
+                <span>${icon}</span>
+                <span>${escapeHtml(label)}</span>
+              </button>
+            `;
           });
-          chipsHtml += `<button class="smart-chip-btn copy-all" onclick="copySmartCode('${escapeQuotes(m.body)}')">کپی متن پیام</button>`;
           chipsHtml += '</div>';
+        }
+
+        let statusIcon = '';
+        if (m.isMe) {
+          if (m.failed) {
+            statusIcon = '<svg class="send-status-icon failed" viewBox="0 0 24 24" title="ارسال ناموفق"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>';
+          } else if (m.sending) {
+            statusIcon = '<svg class="send-status-icon sending" viewBox="0 0 24 24" title="در حال ارسال"><path d="M12 4V1L8 5l4 4V6c3.31 0 6 2.69 6 6 0 1.01-.25 1.97-.7 2.8l1.46 1.46A7.93 7.93 0 0020 12c0-4.42-3.58-8-8-8zm0 14c-3.31 0-6-2.69-6-6 0-1.01.25-1.97.7-2.8L5.24 7.74A7.93 7.93 0 004 12c0 4.42 3.58 8 8 8v3l4-4-4-4v3z"/></svg>';
+          }
         }
 
         row.innerHTML = `
           <div class="bubble">${escapeHtml(m.body)}</div>
           ${chipsHtml}
           <div class="msg-meta">
-            <span>${timeStr}${statusBadge}</span>
-            <button class="smart-chip-btn copy-all" style="padding:2px 8px; font-size:10px;" onclick="copySmartCode('${escapeQuotes(m.body)}')">کپی</button>
+            <span>${timeStr}</span>
+            ${statusIcon}
           </div>
         `;
         container.appendChild(row);
       });
 
       container.scrollTop = container.scrollHeight;
+    }
+
+    function getChipIcon(type) {
+      switch (type) {
+        case 'OTP': return '🔑';
+        case 'CARD': return '💳';
+        case 'IBAN': return '🏦';
+        default: return '📋';
+      }
+    }
+
+    function getChipLabel(type, val) {
+      switch (type) {
+        case 'OTP': return 'کپی کد: ' + val;
+        case 'CARD': return 'کپی کارت: ' + val;
+        case 'IBAN': return 'کپی شبا: ' + val;
+        default: return 'کپی عدد: ' + val;
+      }
+    }
+
+    // Smart Copy Function with HTTP Fallback (Copies ONLY the number in ASCII digits)
+    function copySmartNumber(rawVal, btnEl) {
+      const asciiVal = toAsciiDigits(rawVal);
+
+      // Execute fallback that works on HTTP
+      fallbackCopyText(asciiVal, () => {
+        showToast('«' + asciiVal + '» در کلیپ‌بورد کپی شد', '✓');
+        if (btnEl) {
+          const origText = btnEl.innerHTML;
+          btnEl.classList.add('copied');
+          btnEl.innerHTML = '<span>✓</span><span>کپی شد!</span>';
+          setTimeout(() => {
+            btnEl.classList.remove('copied');
+            btnEl.innerHTML = origText;
+          }, 2000);
+        }
+      });
+    }
+
+    function fallbackCopyText(text, onSuccess) {
+      // 1. Try modern clipboard if secure
+      if (navigator.clipboard && window.isSecureContext) {
+        navigator.clipboard.writeText(text).then(onSuccess).catch(() => execCopyFallback(text, onSuccess));
+      } else {
+        execCopyFallback(text, onSuccess);
+      }
+    }
+
+    function execCopyFallback(text, onSuccess) {
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.position = 'fixed';
+      ta.style.left = '-9999px';
+      ta.style.top = '-9999px';
+      ta.setAttribute('readonly', '');
+      document.body.appendChild(ta);
+      ta.focus();
+      ta.select();
+      try {
+        const ok = document.execCommand('copy');
+        if (ok && onSuccess) onSuccess();
+      } catch (err) {
+        console.error('Copy fallback failed', err);
+      }
+      document.body.removeChild(ta);
     }
 
     async function sendMessage() {
@@ -1043,7 +1352,7 @@
           optimisticMsg.failed = true;
           optimisticMsg.sending = false;
           renderMessages(messages);
-          showToast('خطا در ارسال پیامک: ' + (data.error || 'نامشخص'), 'خطای ارسال');
+          showToast('خطا در ارسال پیامک: ' + (data.error || 'نامشخص'), '❌');
         } else {
           optimisticMsg.sending = false;
           renderMessages(messages);
@@ -1052,7 +1361,7 @@
         optimisticMsg.failed = true;
         optimisticMsg.sending = false;
         renderMessages(messages);
-        showToast('خطای اتصال به سرور گوشی: ' + (e.message || e), 'خطای شبکه');
+        showToast('خطای اتصال به سرور گوشی: ' + (e.message || e), '⚠️');
       }
     }
 
@@ -1076,8 +1385,7 @@
 
             newItems.forEach(msg => {
               if (!msg.isMe) {
-                playChime();
-                triggerDesktopNotification(msg);
+                triggerIncomingNotification(msg);
               }
 
               if (currentThreadId && msg.threadId === currentThreadId) {
@@ -1107,120 +1415,94 @@
           }
         }
       } catch (e) {
-        // Ignore polling errors
+        // Polling silent catch
       }
     }
 
-    function triggerDesktopNotification(msg) {
-      const sender = msg.address || 'پیامک جدید';
-      const text = msg.body || '';
-      
-      // 1. Flash document title
-      document.title = '🔔 (۱) پیامک از ' + sender;
+    // Apple-Style Incoming Notification
+    function triggerIncomingNotification(msg) {
+      playAppleChime();
 
-      // 2. Extract code for smart copy
-      const chips = msg.chips || extractSmartChips(text);
+      // Flash Tab Title
+      let flashState = false;
+      const senderName = msg.address || 'مخاطب';
+      if (!titleFlashInterval) {
+        titleFlashInterval = setInterval(() => {
+          document.title = flashState ? `🔔 (۱) پیامک از ${senderName}` : defaultPageTitle;
+          flashState = !flashState;
+        }, 1200);
+      }
+
+      // Show Apple Dynamic Island Banner
+      const banner = document.getElementById('appleBanner');
+      const senderEl = document.getElementById('appleBannerSender');
+      const textEl = document.getElementById('appleBannerText');
+      const avatarEl = document.getElementById('appleBannerAvatar');
+      const actionsEl = document.getElementById('appleBannerActions');
+      const copyBtnText = document.getElementById('appleBannerCopyText');
+
+      senderEl.innerText = msg.address || 'پیامک جدید';
+      textEl.innerText = msg.body;
+      avatarEl.innerText = (msg.address || '?').charAt(0).toUpperCase();
+      avatarEl.style.backgroundColor = getAvatarColor(msg.address || 'User');
+
+      // Check for smart chips
+      const chips = msg.chips || extractChipsClient(msg.body);
       const otpChip = chips.find(c => c.type === 'OTP') || chips[0];
 
-      // 3. Show in-app floating banner
-      showToast(text, sender, otpChip ? otpChip.copy : null);
-
-      // 4. Native Chrome/Windows Notification
-      if ('Notification' in window && Notification.permission === 'granted') {
-        const n = new Notification(sender, {
-          body: otpChip ? `کد: ${otpChip.display}\n${text}` : text,
-          icon: 'favicon.ico'
-        });
-        n.onclick = function() {
-          window.focus();
-          if (otpChip) copySmartCode(otpChip.copy);
-        };
-      }
-    }
-
-    function playChime() {
-      try {
-        if (!audioCtx) {
-          audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        }
-        if (audioCtx.state === 'suspended') {
-          audioCtx.resume();
-        }
-        const now = audioCtx.currentTime;
-        const osc1 = audioCtx.createOscillator();
-        const osc2 = audioCtx.createOscillator();
-        const gain = audioCtx.createGain();
-
-        osc1.type = 'sine';
-        osc1.frequency.setValueAtTime(587.33, now); // D5
-        osc1.frequency.setValueAtTime(880, now + 0.12); // A5
-
-        gain.gain.setValueAtTime(0.18, now);
-        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.4);
-
-        osc1.connect(gain);
-        gain.connect(audioCtx.destination);
-
-        osc1.start(now);
-        osc1.stop(now + 0.45);
-      } catch (e) {
-        // AudioContext not allowed before user interaction
-      }
-    }
-
-    function testNotificationChime() {
-      playChime();
-      showToast('این یک پیام آزمایشی است!', 'تست اعلان', '123456');
-    }
-
-    function showToast(msg, title, copyCode) {
-      const banner = document.getElementById('toastBanner');
-      const titleEl = document.getElementById('toastTitle');
-      const textEl = document.getElementById('toastText');
-      const btn = document.getElementById('toastActionBtn');
-
-      titleEl.innerText = title || 'پیام سیستم';
-      textEl.innerText = msg;
-
-      if (copyCode) {
-        btn.style.display = 'block';
-        btn.innerText = 'کپی کد: ' + copyCode;
-        btn.onclick = () => {
-          copySmartCode(copyCode);
-          banner.classList.remove('show');
-        };
+      if (otpChip) {
+        applePendingCopyCode = otpChip.copy;
+        copyBtnText.innerText = getChipLabel(otpChip.type, otpChip.display);
+        actionsEl.style.display = 'flex';
       } else {
-        btn.style.display = 'none';
+        applePendingCopyCode = null;
+        actionsEl.style.display = 'none';
       }
 
       banner.classList.add('show');
-      setTimeout(() => banner.classList.remove('show'), 4500);
+      if (appleBannerTimeout) clearTimeout(appleBannerTimeout);
+      appleBannerTimeout = setTimeout(() => {
+        banner.classList.remove('show');
+      }, 7000);
+
+      // Also trigger native Windows Notification if permission is granted
+      if ('Notification' in window && Notification.permission === 'granted') {
+        try {
+          new Notification(senderName, {
+            body: msg.body,
+            icon: '/favicon.ico'
+          });
+        } catch (err) {}
+      }
     }
 
-    function copySmartCode(str) {
-      const ascii = toAsciiDigits(str);
-      navigator.clipboard.writeText(ascii).then(() => {
-        showToast('«' + ascii + '» در کلیپ‌بورد کپی شد!', 'کپی موفق');
-      }).catch(() => {
-        // Fallback
-        const ta = document.createElement('textarea');
-        ta.value = ascii;
-        document.body.appendChild(ta);
-        ta.select();
-        document.execCommand('copy');
-        document.body.removeChild(ta);
-        showToast('«' + ascii + '» در کلیپ‌بورد کپی شد!', 'کپی موفق');
-      });
+    function onAppleCopyClicked() {
+      if (applePendingCopyCode) {
+        copySmartNumber(applePendingCopyCode);
+        document.getElementById('appleBanner').classList.remove('show');
+      }
     }
 
-    function openNotifModal() {
+    function showToast(msg, icon) {
+      const toast = document.getElementById('toastPill');
+      document.getElementById('toastIcon').innerText = icon || 'ℹ️';
+      document.getElementById('toastText').innerText = msg;
+      toast.classList.add('show');
+      setTimeout(() => toast.classList.remove('show'), 3500);
+    }
+
+    function openNotifHelp() {
       document.getElementById('notifModal').style.display = 'flex';
       if ('Notification' in window) {
         Notification.requestPermission();
       }
     }
 
-    // Number extraction and ASCII conversion logic matching phone app
+    function closeNotifHelp() {
+      document.getElementById('notifModal').style.display = 'none';
+    }
+
+    // Number extraction & digit conversion
     function toAsciiDigits(str) {
       if (!str) return '';
       const map = {
@@ -1232,7 +1514,7 @@
       return str.replace(/[۰-۹٠-٩]/g, c => map[c] || c);
     }
 
-    function extractSmartChips(text) {
+    function extractChipsClient(text) {
       if (!text) return [];
       const ascii = toAsciiDigits(text);
       const lower = ascii.toLowerCase();
@@ -1265,7 +1547,7 @@
         });
       }
 
-      // Standalone numbers / OTP (4 to 10 digits)
+      // OTP / Numbers (4 to 10 digits)
       const numMatch = ascii.match(/(?<!\d)\d{4,10}(?!\d)/g);
       if (numMatch) {
         numMatch.forEach(raw => {
@@ -1277,7 +1559,7 @@
         });
       }
 
-      return results.slice(0, 3);
+      return results.slice(0, 4);
     }
 
     function getAvatarColor(str) {

@@ -230,18 +230,17 @@ class WebClientServer(
 
             // List conversations
             (method == "GET" && path == "/api/conversations") -> {
-                val isArchived = parseQuery(queryString)["archived"] == "true"
                 val list = JSONArray()
                 try {
                     Realm.getDefaultInstance().use { realm ->
                         val results = realm.where(Conversation::class.java)
-                            .equalTo("archived", isArchived)
                             .equalTo("blocked", false)
                             .sort("lastMessage.date", Sort.DESCENDING)
                             .findAll()
 
-                        for (c in results.take(150)) {
+                        for (c in results.take(250)) {
                             val lastMsg = c.lastMessage
+                            val cat = com.goodwy.messages.feature.main.ConversationClassifier.classifyConversation(context, c)
                             val item = JSONObject().apply {
                                 put("id", c.id)
                                 put("title", c.getTitle())
@@ -250,6 +249,7 @@ class WebClientServer(
                                 put("unread", lastMsg?.read == false)
                                 put("pinned", c.pinned)
                                 put("archived", c.archived)
+                                put("category", cat.name)
                                 put("address", c.recipients.firstOrNull()?.address ?: "")
                             }
                             list.put(item)
