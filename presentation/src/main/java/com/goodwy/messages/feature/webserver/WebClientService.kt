@@ -88,10 +88,10 @@ class WebClientService : Service() {
 
         val notification = NotificationCompat.Builder(this, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_laptop_black_24dp)
-            .setContentTitle("وب‌کلاینت پیامک فعال است")
-            .setContentText("آدرس: $url | پین: $pin")
+            .setContentTitle("Web client is running")
+            .setContentText("URL: $url")
             .setContentIntent(openPendingIntent)
-            .addAction(R.drawable.ic_stop_black_24dp, "توقف وب‌کلاینت", stopPendingIntent)
+            .addAction(R.drawable.ic_stop_black_24dp, "Stop", stopPendingIntent)
             .setOngoing(true)
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .build()

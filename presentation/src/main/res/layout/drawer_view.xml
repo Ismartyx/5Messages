@@ -157,7 +157,7 @@
 
             <com.goodwy.messages.common.widget.QkTextView
                 style="@style/DrawerText"
-                android:text="وب‌کلاینت کامپیوتر" />
+                android:text="Web client" />
 
         </LinearLayout>
 

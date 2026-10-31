@@ -720,50 +720,82 @@ saveBackupBtn.setOnClickListener {
         }
         card.addView(statusText)
 
-        // URL Box
-        val urlBox = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(dp(12), dp(12), dp(12), dp(12))
-            background = makeRoundedBg(inputBg, inputBorder, 12)
-            val p = LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply {
-                topMargin = dp(14)
-            }
-            layoutParams = p
-        }
-        val urlLabel = TextView(this).apply {
-            text = "آدرس مرورگر در کامپیوتر:"
+        // Address list
+        val addresses = com.goodwy.messages.feature.webserver.WebClientHelper.getDetectedAddresses()
+        val addressesLabel = TextView(this).apply {
+            text = "آدرس‌های اتصال در مرورگر کامپیوتر:"
             setTextColor(labelTextColor)
+            textSize = 12f
+            gravity = Gravity.RIGHT
+            setPadding(0, dp(12), 0, dp(4))
+        }
+        card.addView(addressesLabel)
+
+        if (addresses.isNotEmpty()) {
+            for (addr in addresses) {
+                val fullUrl = "http://${addr.ip}:$port"
+                val row = LinearLayout(this).apply {
+                    orientation = LinearLayout.VERTICAL
+                    setPadding(dp(12), dp(10), dp(12), dp(10))
+                    background = makeRoundedBg(inputBg, inputBorder, 10)
+                    val p = LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply {
+                        topMargin = dp(6)
+                    }
+                    layoutParams = p
+                }
+                val label = TextView(this).apply {
+                    text = if (addr.isTailscale) "⚡ " + addr.label + " (پیشنهادی برای اتصال به کامپیوتر):" else addr.label + ":"
+                    setTextColor(if (addr.isTailscale) Color.parseColor("#38BDF8") else labelTextColor)
+                    textSize = 11f
+                    gravity = Gravity.RIGHT
+                }
+                val valText = TextView(this).apply {
+                    text = fullUrl
+                    setTextColor(Color.WHITE)
+                    textSize = 14f
+                    setTypeface(Typeface.MONOSPACE, Typeface.BOLD)
+                    setPadding(0, dp(2), 0, dp(6))
+                }
+                val copyBtn = Button(this).apply {
+                    text = "کپی آدرس (${addr.label})"
+                    setTextColor(Color.WHITE)
+                    textSize = 11f
+                    background = makeRoundedBg(if (addr.isTailscale) "#0284C7" else "#475569", null, 6)
+                    val p = LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(34))
+                    layoutParams = p
+                    setOnClickListener {
+                        val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
+                        clipboard?.setPrimaryClip(ClipData.newPlainText("url", fullUrl))
+                        Toast.makeText(this@MainActivity, "آدرس کپی شد: $fullUrl", Toast.LENGTH_SHORT).show()
+                    }
+                }
+                row.addView(label)
+                row.addView(valText)
+                row.addView(copyBtn)
+                card.addView(row)
+            }
+        } else {
+            val emptyAddr = TextView(this).apply {
+                text = "http://127.0.0.1:$port"
+                setTextColor(Color.WHITE)
+                textSize = 14f
+                setPadding(dp(8), dp(8), dp(8), dp(8))
+            }
+            card.addView(emptyAddr)
+        }
+
+        val tailscaleHint = TextView(this).apply {
+            text = "💡 نکته: برای اتصال از سیستم، مطمئن شوید Tailscale روی هر دو دستگاه روشن است و آدرس Tailscale را در مرورگر سیستم باز کنید."
+            setTextColor(Color.parseColor("#94A3B8"))
             textSize = 11f
             gravity = Gravity.RIGHT
+            setPadding(dp(2), dp(10), dp(2), dp(6))
         }
-        val currentUrl = "http://$bestIp:$port"
-        val urlValue = TextView(this).apply {
-            text = currentUrl
-            setTextColor(Color.parseColor("#38BDF8"))
-            textSize = 15f
-            setTypeface(Typeface.MONOSPACE, Typeface.BOLD)
-            gravity = Gravity.LEFT
-            setPadding(0, dp(4), 0, dp(8))
-        }
-        val copyUrlBtn = Button(this).apply {
-            text = "📋 کپی آدرس اتصال"
-            setTextColor(Color.WHITE)
-            textSize = 12f
-            background = makeRoundedBg("#0284C7", null, 8)
-            setOnClickListener {
-                val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
-                clipboard?.setPrimaryClip(ClipData.newPlainText("url", currentUrl))
-                Toast.makeText(this@MainActivity, "آدرس کپی شد: $currentUrl", Toast.LENGTH_SHORT).show()
-            }
-        }
-        urlBox.addView(urlLabel)
-        urlBox.addView(urlValue)
-        urlBox.addView(copyUrlBtn)
-        card.addView(urlBox)
+        card.addView(tailscaleHint)
 
         // PIN Setting
         val pinLabel = TextView(this).apply {
-            text = "پین‌کد امنیتی (برای ورود در مرورگر):"
+            text = "پین‌کد امنیتی ورود (محرمانه):"
             setTextColor(labelTextColor)
             textSize = 12f
             gravity = Gravity.RIGHT
@@ -773,7 +805,7 @@ saveBackupBtn.setOnClickListener {
 
         val pinInput = EditText(this).apply {
             setText(currentPin)
-            hint = "1234"
+            hint = "••••"
             setTextColor(inputTextColor)
             setHintTextColor(Color.parseColor("#64748B"))
             textSize = 15f
@@ -807,7 +839,7 @@ saveBackupBtn.setOnClickListener {
                     Toast.makeText(this@MainActivity, "وب‌کلاینت خاموش شد", Toast.LENGTH_SHORT).show()
                 } else {
                     com.goodwy.messages.feature.webserver.WebClientHelper.startService(this@MainActivity)
-                    Toast.makeText(this@MainActivity, "وب‌کلاینت فعال شد: http://$bestIp:$port", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this@MainActivity, "وب‌کلاینت فعال شد", Toast.LENGTH_SHORT).show()
                 }
                 dialog?.dismiss()
             }

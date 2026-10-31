@@ -14,6 +14,8 @@ object WebClientHelper {
     private const val KEY_PORT = "port"
     private const val KEY_ENABLED = "enabled"
 
+    data class AddressItem(val label: String, val ip: String, val isTailscale: Boolean)
+
     fun getPin(context: Context): String {
         val sp = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         return sp.getString(KEY_PIN, "1234") ?: "1234"
@@ -67,35 +69,49 @@ object WebClientHelper {
     }
 
     fun getBestIpAddress(): String {
-        val ips = getAllIps()
-        // Prioritize Tailscale IP (starts with 100.)
-        val tailscale = ips.firstOrNull { it.startsWith("100.") }
-        if (tailscale != null) return tailscale
-        // Fallback to local Wi-Fi IP
-        return ips.firstOrNull { !it.startsWith("127.") } ?: "127.0.0.1"
+        val items = getDetectedAddresses()
+        val tailscale = items.firstOrNull { it.isTailscale }
+        if (tailscale != null) return tailscale.ip
+        return items.firstOrNull()?.ip ?: "127.0.0.1"
     }
 
-    fun getAllIps(): List<String> {
-        val list = mutableListOf<String>()
+    fun getDetectedAddresses(): List<AddressItem> {
+        val result = mutableListOf<AddressItem>()
         try {
-            val interfaces = NetworkInterface.getNetworkInterfaces() ?: return list
+            val interfaces = NetworkInterface.getNetworkInterfaces() ?: return result
             for (iface in interfaces) {
-                if (iface.isLoopback || !iface.isUp) continue
+                if (iface.isLoopback) continue
+                val name = iface.name.toLowerCase()
+                val isVpn = name.contains("tun") || name.contains("tap") || name.contains("tailscale") || name.contains("vpn")
+                if (!isVpn) {
+                    try {
+                        if (!iface.isUp) continue
+                    } catch (e: Exception) {}
+                }
                 val addresses = iface.inetAddresses ?: continue
                 for (addr in addresses) {
                     if (addr is Inet4Address && !addr.isLoopbackAddress) {
                         val host = addr.hostAddress ?: continue
-                        if (host.startsWith("100.")) {
-                            list.add(0, host) // tailscale first
+                        if (host.startsWith("127.")) continue
+                        val isTailscale = host.startsWith("100.")
+                        val label = when {
+                            isTailscale -> "Tailscale ($name)"
+                            name.startsWith("wlan") -> "Wi-Fi ($name)"
+                            isVpn -> "VPN ($name)"
+                            name.startsWith("rmnet") || name.startsWith("ccmni") -> "Cellular ($name)"
+                            else -> name
+                        }
+                        if (isTailscale) {
+                            result.add(0, AddressItem(label, host, true))
                         } else {
-                            list.add(host)
+                            result.add(AddressItem(label, host, false))
                         }
                     }
                 }
             }
         } catch (e: Exception) {
-            Timber.w(e, "Error obtaining IP addresses")
+            Timber.w(e, "Error detecting network addresses")
         }
-        return list
+        return result.distinctBy { it.ip }
     }
 }

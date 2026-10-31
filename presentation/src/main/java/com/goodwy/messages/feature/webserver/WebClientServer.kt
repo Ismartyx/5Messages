@@ -38,8 +38,11 @@ class WebClientServer(
         isRunning = true
         executor.execute {
             try {
-                serverSocket = ServerSocket(port)
-                Timber.i("WebClientServer started on port $port")
+                serverSocket = ServerSocket().apply {
+                    reuseAddress = true
+                    bind(java.net.InetSocketAddress("0.0.0.0", port))
+                }
+                Timber.i("WebClientServer started on 0.0.0.0:$port")
                 while (isRunning) {
                     val socket = serverSocket?.accept() ?: break
                     executor.execute { handleConnection(socket) }
@@ -160,6 +163,7 @@ class WebClientServer(
         } catch (e: Exception) {
             Timber.w(e, "Error handling client connection")
         } finally {
+            try { socket.shutdownOutput() } catch (e: Exception) {}
             try { socket.close() } catch (e: Exception) {}
         }
     }
