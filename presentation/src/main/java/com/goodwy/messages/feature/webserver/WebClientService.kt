@@ -107,12 +107,14 @@ class WebClientService : Service() {
     }
 
     private fun stopServer() {
+        WebClientServer.isLive = false
         server?.stop()
         server = null
         WebClientHelper.setEnabled(this, false)
     }
 
     override fun onDestroy() {
+        WebClientServer.isLive = false
         stopServer()
         super.onDestroy()
     }

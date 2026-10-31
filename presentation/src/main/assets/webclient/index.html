@@ -8,33 +8,35 @@
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Vazirmatn", Tahoma, sans-serif;
-      background-color: #0B0F19;
+      background-color: #0B1220;
       color: #F8FAFC;
       height: 100vh;
       display: flex;
       overflow: hidden;
       user-select: none;
     }
-    
+
     /* Layout */
     .app-container {
       display: flex;
       width: 100vw;
       height: 100vh;
+      position: relative;
     }
-    
+
     /* Sidebar */
     .sidebar {
-      width: 360px;
-      min-width: 300px;
+      width: 380px;
+      min-width: 320px;
       background-color: #111827;
       border-left: 1px solid #1F2937;
       display: flex;
       flex-direction: column;
       height: 100%;
+      z-index: 10;
     }
     .sidebar-header {
-      padding: 16px;
+      padding: 16px 20px;
       background-color: #111827;
       border-bottom: 1px solid #1F2937;
       display: flex;
@@ -45,20 +47,21 @@
       display: flex;
       align-items: center;
       gap: 10px;
-      font-size: 18px;
-      font-weight: 700;
+      font-size: 19px;
+      font-weight: 800;
       color: #38BDF8;
     }
-    .brand svg { width: 26px; height: 26px; fill: #38BDF8; }
+    .brand svg { width: 28px; height: 28px; fill: #38BDF8; }
     .status-badge {
       display: flex;
       align-items: center;
       gap: 6px;
       font-size: 12px;
       background: #1E293B;
-      padding: 4px 10px;
-      border-radius: 12px;
+      padding: 5px 12px;
+      border-radius: 14px;
       color: #10B981;
+      font-weight: 600;
     }
     .status-dot {
       width: 8px;
@@ -67,23 +70,64 @@
       background-color: #10B981;
       box-shadow: 0 0 8px #10B981;
     }
+
+    /* Category Tabs */
+    .tabs-bar {
+      display: flex;
+      background-color: #0F172A;
+      border-bottom: 1px solid #1F2937;
+      padding: 4px 8px;
+    }
+    .tab-item {
+      flex: 1;
+      padding: 10px 14px;
+      text-align: center;
+      font-size: 13px;
+      font-weight: 600;
+      color: #94A3B8;
+      background: transparent;
+      border: none;
+      cursor: pointer;
+      border-radius: 8px;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+    }
+    .tab-item:hover { color: #F8FAFC; background-color: #1E293B; }
+    .tab-item.active {
+      color: #38BDF8;
+      background-color: #1E293B;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+    }
+    .tab-badge {
+      background-color: #0284C7;
+      color: #FFF;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 2px 7px;
+      border-radius: 10px;
+    }
+
     .search-box {
-      padding: 10px 16px;
+      padding: 12px 16px;
       background-color: #111827;
       border-bottom: 1px solid #1F2937;
     }
     .search-input {
       width: 100%;
       padding: 10px 14px;
-      background: #1F2937;
-      border: 1px solid #374151;
+      background: #1E293B;
+      border: 1px solid #334155;
       border-radius: 10px;
       color: #F8FAFC;
       font-size: 14px;
       outline: none;
+      transition: border-color 0.2s;
     }
     .search-input:focus { border-color: #38BDF8; }
-    
+
     .conv-list {
       flex: 1;
       overflow-y: auto;
@@ -97,22 +141,26 @@
       cursor: pointer;
       transition: background 0.15s;
       gap: 12px;
+      position: relative;
     }
     .conv-item:hover { background-color: #1E293B; }
-    .conv-item.active { background-color: #1E293B; border-right: 4px solid #38BDF8; }
-    
+    .conv-item.active {
+      background-color: #1E293B;
+      border-right: 4px solid #38BDF8;
+    }
+
     .avatar {
-      width: 44px;
-      height: 44px;
+      width: 46px;
+      height: 46px;
       border-radius: 50%;
-      background-color: #0284C7;
       color: #FFF;
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 16px;
-      font-weight: 600;
+      font-size: 17px;
+      font-weight: 700;
       flex-shrink: 0;
+      text-shadow: 0 1px 2px rgba(0,0,0,0.3);
     }
     .conv-details {
       flex: 1;
@@ -125,15 +173,24 @@
     }
     .conv-title {
       font-size: 15px;
-      font-weight: 600;
-      color: #F3F4F6;
+      font-weight: 700;
+      color: #F8FAFC;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .pin-icon {
+      width: 14px;
+      height: 14px;
+      fill: #38BDF8;
+      flex-shrink: 0;
     }
     .conv-time {
       font-size: 11px;
-      color: #9CA3AF;
+      color: #94A3B8;
       flex-shrink: 0;
     }
     .conv-bottom {
@@ -143,7 +200,7 @@
     }
     .conv-snippet {
       font-size: 13px;
-      color: #9CA3AF;
+      color: #94A3B8;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
@@ -154,7 +211,7 @@
       color: #FFF;
       font-size: 11px;
       font-weight: 700;
-      padding: 2px 7px;
+      padding: 2px 8px;
       border-radius: 10px;
       margin-right: 6px;
     }
@@ -164,17 +221,18 @@
       flex: 1;
       display: flex;
       flex-direction: column;
-      background-color: #0B0F19;
+      background-color: #0B1220;
       height: 100%;
       position: relative;
     }
     .chat-header {
-      padding: 14px 20px;
+      padding: 12px 20px;
       background-color: #111827;
       border-bottom: 1px solid #1F2937;
       display: flex;
       align-items: center;
       justify-content: space-between;
+      min-height: 68px;
     }
     .chat-header-info {
       display: flex;
@@ -188,48 +246,43 @@
     }
     .chat-subtitle {
       font-size: 12px;
-      color: #9CA3AF;
+      color: #94A3B8;
+      direction: ltr;
+      text-align: right;
     }
     .chat-header-actions {
       display: flex;
-      gap: 10px;
+      gap: 8px;
+      align-items: center;
     }
     .action-btn {
-      background: #1F2937;
-      border: 1px solid #374151;
-      color: #D1D5DB;
-      padding: 6px 12px;
-      border-radius: 8px;
+      background: #1E293B;
+      border: 1px solid #334155;
+      color: #CBD5E1;
+      padding: 8px 12px;
+      border-radius: 10px;
       cursor: pointer;
       font-size: 12px;
+      font-weight: 600;
       display: flex;
       align-items: center;
       gap: 6px;
-      transition: 0.15s;
+      transition: all 0.15s;
     }
-    .action-btn:hover { background: #374151; color: #FFF; }
-    
+    .action-btn:hover { background: #334155; color: #FFF; border-color: #475569; }
+
     .messages-container {
       flex: 1;
       padding: 20px;
       overflow-y: auto;
       display: flex;
       flex-direction: column;
-      gap: 12px;
-      user-select: text;
+      gap: 14px;
     }
-    .empty-state {
-      margin: auto;
-      text-align: center;
-      color: #6B7280;
-    }
-    .empty-state svg { width: 64px; height: 64px; fill: #374151; margin-bottom: 12px; }
-    
-    /* Message Bubbles */
     .msg-row {
       display: flex;
       flex-direction: column;
-      max-width: 65%;
+      max-width: 68%;
       position: relative;
     }
     .msg-row.in {
@@ -239,11 +292,10 @@
       align-self: flex-end;
     }
     .bubble {
-      padding: 10px 14px;
-      border-radius: 16px;
-      font-size: 14px;
-      line-height: 1.5;
-      position: relative;
+      padding: 12px 16px;
+      border-radius: 18px;
+      font-size: 14.5px;
+      line-height: 1.6;
       word-break: break-word;
       white-space: pre-wrap;
     }
@@ -258,84 +310,128 @@
       color: #FFFFFF;
       border-bottom-left-radius: 4px;
     }
+    
     .msg-meta {
       display: flex;
       align-items: center;
       gap: 8px;
-      font-size: 10px;
+      font-size: 11px;
       color: #94A3B8;
-      margin-top: 4px;
+      margin-top: 5px;
       padding: 0 4px;
     }
-    .msg-row.out .msg-meta { justify-content: flex-end; }
-    .copy-chip-btn {
-      cursor: pointer;
-      color: #38BDF8;
-      text-decoration: underline;
-      font-size: 11px;
-      background: none;
-      border: none;
+    .msg-row.out .msg-meta {
+      justify-content: flex-end;
     }
 
-    /* Input Footer */
+    /* Smart Chips Container (Horizontal Scrollable) */
+    .smart-chips-wrapper {
+      display: flex;
+      gap: 6px;
+      overflow-x: auto;
+      margin-top: 8px;
+      padding-bottom: 4px;
+      scrollbar-width: thin;
+    }
+    .smart-chip-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 12px;
+      border-radius: 16px;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      border: none;
+      white-space: nowrap;
+      transition: transform 0.1s, opacity 0.15s;
+    }
+    .smart-chip-btn:hover {
+      transform: translateY(-1px);
+      opacity: 0.92;
+    }
+    .smart-chip-btn.otp {
+      background-color: #F59E0B;
+      color: #000;
+    }
+    .smart-chip-btn.card {
+      background-color: #10B981;
+      color: #000;
+    }
+    .smart-chip-btn.iban {
+      background-color: #8B5CF6;
+      color: #FFF;
+    }
+    .smart-chip-btn.general {
+      background-color: #38BDF8;
+      color: #000;
+    }
+    .smart-chip-btn.copy-all {
+      background-color: #334155;
+      color: #E2E8F0;
+    }
+
+    /* Footer & Input */
     .chat-footer {
       padding: 14px 20px;
       background-color: #111827;
       border-top: 1px solid #1F2937;
       display: flex;
-      gap: 12px;
+      gap: 10px;
       align-items: center;
     }
     .sim-select {
-      background: #1F2937;
+      background: #1E293B;
       color: #38BDF8;
-      border: 1px solid #374151;
+      border: 1px solid #334155;
       border-radius: 10px;
       padding: 10px 12px;
       font-size: 13px;
-      font-weight: 600;
+      font-weight: 700;
       outline: none;
       cursor: pointer;
-      height: 44px;
+      height: 46px;
     }
     .msg-input {
       flex: 1;
       padding: 12px 16px;
-      background: #1F2937;
-      border: 1px solid #374151;
+      background: #1E293B;
+      border: 1px solid #334155;
       border-radius: 12px;
       color: #F8FAFC;
-      font-size: 14px;
+      font-size: 14.5px;
+      font-family: inherit;
       outline: none;
       resize: none;
       max-height: 120px;
-      min-height: 44px;
+      min-height: 46px;
       line-height: 1.4;
-      font-family: inherit;
+      transition: border-color 0.2s;
     }
     .msg-input:focus { border-color: #38BDF8; }
     .send-btn {
+      width: 46px;
+      height: 46px;
+      border-radius: 12px;
       background-color: #0284C7;
       border: none;
-      color: #FFF;
-      width: 44px;
-      height: 44px;
-      border-radius: 12px;
+      cursor: pointer;
       display: flex;
       align-items: center;
       justify-content: center;
-      cursor: pointer;
-      transition: background 0.15s;
       flex-shrink: 0;
+      transition: background 0.15s, transform 0.1s;
     }
-    .send-btn:hover { background-color: #0369A1; }
-    .send-btn svg { width: 20px; height: 20px; fill: #FFF; }
-    
-    /* Login Modal */
+    .send-btn:hover { background-color: #0369A1; transform: scale(1.02); }
+    .send-btn:active { transform: scale(0.96); }
+    .send-btn svg { width: 22px; height: 22px; fill: #FFF; }
+
+    /* Modals */
     .modal-overlay {
       position: fixed;
       top: 0; left: 0; right: 0; bottom: 0;
-      background: rgba(0, 0, 0, 0.85);
+      background: rgba(0, 0, 0, 0.75);
+      backdrop-filter: blur(4px);
       display: flex;
       align-items: center;
       justify-content: center;
@@ -345,8 +441,9 @@
       background: #111827;
       border: 1px solid #1F2937;
       border-radius: 20px;
-      padding: 32px;
-      width: 380px;
+      padding: 30px;
+      width: 420px;
+      max-width: 90vw;
       text-align: center;
       box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);
     }
@@ -363,22 +460,22 @@
     }
     .modal-icon svg { width: 32px; height: 32px; fill: #38BDF8; }
     .modal-title { font-size: 18px; font-weight: 700; margin-bottom: 8px; color: #F9FAFB; }
-    .modal-subtitle { font-size: 13px; color: #9CA3AF; margin-bottom: 24px; line-height: 1.5; }
+    .modal-subtitle { font-size: 13px; color: #94A3B8; margin-bottom: 22px; line-height: 1.6; }
     .pin-input {
       width: 100%;
       padding: 14px;
-      background: #1F2937;
-      border: 1px solid #374151;
+      background: #1E293B;
+      border: 1px solid #334155;
       border-radius: 12px;
       color: #FFF;
-      font-size: 20px;
+      font-size: 22px;
       text-align: center;
       letter-spacing: 6px;
       outline: none;
       margin-bottom: 16px;
     }
     .pin-input:focus { border-color: #38BDF8; }
-    .login-btn {
+    .primary-btn {
       width: 100%;
       padding: 14px;
       background: #0284C7;
@@ -386,20 +483,93 @@
       border-radius: 12px;
       color: #FFF;
       font-size: 15px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .primary-btn:hover { background: #0369A1; }
+    .secondary-btn {
+      width: 100%;
+      padding: 12px;
+      background: #1E293B;
+      border: 1px solid #334155;
+      border-radius: 12px;
+      color: #CBD5E1;
+      font-size: 14px;
       font-weight: 600;
       cursor: pointer;
+      margin-top: 8px;
     }
-    .login-btn:hover { background: #0369A1; }
+    .secondary-btn:hover { background: #334155; color: #FFF; }
     .error-msg { color: #EF4444; font-size: 13px; margin-top: 10px; display: none; }
-    
+
+    /* Toast Notification Banner */
+    .toast-banner {
+      position: fixed;
+      top: 20px;
+      left: 50%;
+      transform: translateX(-50%) translateY(-100px);
+      background: #1E293B;
+      border: 1px solid #38BDF8;
+      border-radius: 14px;
+      padding: 12px 20px;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+      z-index: 2000;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      transition: transform 0.3s cubic-bezier(0.18, 0.89, 0.32, 1.28);
+    }
+    .toast-banner.show {
+      transform: translateX(-50%) translateY(0);
+    }
+    .toast-content {
+      display: flex;
+      flex-direction: column;
+    }
+    .toast-title { font-size: 14px; font-weight: 700; color: #38BDF8; }
+    .toast-text { font-size: 12px; color: #CBD5E1; max-width: 320px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .toast-btn {
+      background: #0284C7;
+      color: #FFF;
+      border: none;
+      padding: 6px 12px;
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .empty-state {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      color: #64748B;
+      gap: 16px;
+      text-align: center;
+      padding: 20px;
+    }
+    .empty-state svg { width: 56px; height: 56px; fill: #475569; }
+
     /* Scrollbars */
     ::-webkit-scrollbar { width: 6px; height: 6px; }
     ::-webkit-scrollbar-track { background: transparent; }
-    ::-webkit-scrollbar-thumb { background: #374151; border-radius: 4px; }
-    ::-webkit-scrollbar-thumb:hover { background: #4B5563; }
+    ::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: #475569; }
   </style>
 </head>
 <body>
+
+  <!-- Floating Toast -->
+  <div id="toastBanner" class="toast-banner">
+    <div class="toast-content">
+      <div id="toastTitle" class="toast-title"></div>
+      <div id="toastText" class="toast-text"></div>
+    </div>
+    <button id="toastActionBtn" class="toast-btn" style="display:none;"></button>
+  </div>
 
   <!-- Lock Modal -->
   <div id="loginModal" class="modal-overlay" style="display: none;">
@@ -408,10 +578,28 @@
         <svg viewBox="0 0 24 24"><path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"/></svg>
       </div>
       <div class="modal-title">ورود امن به 5Messages</div>
-      <div class="modal-subtitle">پین‌کد امنیتی نمایش داده شده در تنظیمات وب‌کلاینت گوشی را وارد کنید:</div>
-      <input type="password" id="pinInput" class="pin-input" placeholder="••••" maxlength="8" autofocus autocomplete="off">
-      <button id="loginBtn" class="login-btn" onclick="submitLogin()">ورود به برنامه</button>
+      <div class="modal-subtitle">پین‌کد امنیتی نمایش داده شده در منوی Web client گوشی را وارد کرده و Enter را بزنید:</div>
+      <input type="password" id="pinInput" class="pin-input" placeholder="••••" maxlength="8" autofocus autocomplete="off" onkeydown="if(event.key==='Enter') submitLogin()">
+      <button id="loginBtn" class="primary-btn" onclick="submitLogin()">ورود به برنامه (Enter)</button>
       <div id="errorMsg" class="error-msg">پین‌کد اشتباه است!</div>
+    </div>
+  </div>
+
+  <!-- Notification Info Modal -->
+  <div id="notifModal" class="modal-overlay" style="display: none;">
+    <div class="modal-card" style="text-align: right;">
+      <div class="modal-title" style="text-align: center; margin-bottom: 12px;">🔔 راهنمای اعلان‌های دسکتاپ</div>
+      <div class="modal-subtitle" style="text-align: right; color: #CBD5E1; font-size: 13.5px;">
+        مرورگر کروم و اج به دلایل امنیتی، نوتیفیکیشن سیستمی را روی آدرس‌های HTTP معمولی محدود می‌کنند. با این حال <b>صدای زنگ هوشمند، چشمک‌زدن تب مرورگر و بنر شناور</b> روی این صفحه همیشه فعال است!
+        <br><br>
+        <b>روش فعال‌سازی نوتیفیکیشن رسمی ویندوز در کروم (اختیاری):</b>
+        <br>
+        ۱. در یک تب جدید آدرس <code>chrome://flags/#unsafely-treat-insecure-origin-as-secure</code> را باز کنید.
+        <br>
+        ۲. آدرس <code id="currentOriginCode" style="color:#38BDF8;"></code> را در کادر آن وارد و فعال کنید.
+      </div>
+      <button class="primary-btn" onclick="testNotificationChime()">🔊 تست صدای زنگ دریافت پیامک</button>
+      <button class="secondary-btn" onclick="document.getElementById('notifModal').style.display='none'">بستن</button>
     </div>
   </div>
 
@@ -420,14 +608,27 @@
     <div class="sidebar">
       <div class="sidebar-header">
         <div class="brand">
-          <svg viewBox="0 0 24 24"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zM6 9h12v2H6V9zm8 5H6v-2h8v2zm4-6H6V6h12v2z"/></svg>
+          <svg viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
           <span>5Messages</span>
         </div>
         <div class="status-badge">
           <div class="status-dot"></div>
-          <span>متصل (Tailscale)</span>
+          <span>متصل به گوشی</span>
         </div>
       </div>
+
+      <!-- Categories Tabs -->
+      <div class="tabs-bar">
+        <button id="tabInbox" class="tab-item active" onclick="switchTab(false)">
+          <span>صندوق ورودی</span>
+          <span id="inboxCount" class="tab-badge" style="display:none;"></span>
+        </button>
+        <button id="tabArchived" class="tab-item" onclick="switchTab(true)">
+          <span>آرشیو شده</span>
+          <span id="archivedCount" class="tab-badge" style="display:none;"></span>
+        </button>
+      </div>
+
       <div class="search-box">
         <input type="text" id="searchInput" class="search-input" placeholder="جستجو در مخاطبین و پیام‌ها..." oninput="filterConversations()">
       </div>
@@ -445,22 +646,23 @@
           </div>
         </div>
         <div class="chat-header-actions">
-          <button class="action-btn" onclick="requestNotificationPermission()">🔔 اعلان ویندوز</button>
-          <button class="action-btn" onclick="logout()">خروج</button>
+          <button id="archiveActionBtn" class="action-btn" onclick="toggleArchiveCurrentChat()">📦 آرشیو گفتگو</button>
+          <button class="action-btn" onclick="openNotifModal()">🔔 تنظیمات اعلان</button>
+          <button class="action-btn" onclick="logout()">🚪 خروج</button>
         </div>
       </div>
 
       <div id="messagesContainer" class="messages-container">
         <div class="empty-state">
           <svg viewBox="0 0 24 24"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H6l-2 2V4h16v12z"/></svg>
-          <p>یک گفتگو را از منوی سمت راست برای مشاهده و ارسال انتخاب کنید</p>
+          <p>یک گفتگو را از فهرست سمت راست انتخاب کنید</p>
         </div>
       </div>
 
       <div id="chatFooter" class="chat-footer" style="display: none;">
         <select id="simSelect" class="sim-select" style="display: none;" onchange="onSimChange(this.value)"></select>
         <textarea id="msgInput" class="msg-input" placeholder="نوشتن پیامک..." rows="1" onkeydown="handleInputKey(event)"></textarea>
-        <button class="send-btn" onclick="sendMessage()" title="ارسال (Enter)">
+        <button class="send-btn" onclick="sendMessage()" title="ارسال پیامک (Enter)">
           <svg viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
         </button>
       </div>
@@ -471,14 +673,24 @@
     let token = localStorage.getItem('5m_token') || '';
     let currentThreadId = null;
     let currentAddress = '';
+    let currentIsArchived = false;
+    let currentTabIsArchived = false;
     let conversations = [];
     let messages = [];
     let lastPollDate = Date.now();
     let pollInterval = null;
     let selectedSubId = -1;
     let availableSubs = [];
+    let unreadCount = 0;
+    let audioCtx = null;
+
+    const AVATAR_COLORS = [
+      '#0284C7', '#0D9488', '#059669', '#16A34A', '#65A30D',
+      '#D97706', '#EA580C', '#DC2626', '#E11D48', '#9333EA', '#4F46E5'
+    ];
 
     window.onload = function() {
+      document.getElementById('currentOriginCode').innerText = window.location.origin;
       if (!token) {
         showLoginModal();
       } else {
@@ -486,9 +698,13 @@
       }
     };
 
+    window.onfocus = function() {
+      document.title = '5Messages Web';
+    };
+
     function showLoginModal() {
       document.getElementById('loginModal').style.display = 'flex';
-      document.getElementById('pinInput').focus();
+      setTimeout(() => document.getElementById('pinInput').focus(), 100);
     }
 
     async function submitLogin() {
@@ -513,7 +729,7 @@
           err.style.display = 'block';
         }
       } catch (e) {
-        err.innerText = 'خطا در برقراری ارتباط با گوشی!';
+        err.innerText = 'خطا در برقراری ارتباط با سرور گوشی!';
         err.style.display = 'block';
       }
     }
@@ -579,9 +795,16 @@
       location.reload();
     }
 
+    function switchTab(isArchived) {
+      currentTabIsArchived = isArchived;
+      document.getElementById('tabInbox').className = 'tab-item ' + (!isArchived ? 'active' : '');
+      document.getElementById('tabArchived').className = 'tab-item ' + (isArchived ? 'active' : '');
+      loadConversations();
+    }
+
     async function loadConversations() {
       try {
-        const res = await fetch('/api/conversations', {
+        const res = await fetch('/api/conversations?archived=' + currentTabIsArchived, {
           headers: { 'Authorization': 'Bearer ' + token }
         });
         conversations = await res.json();
@@ -594,24 +817,34 @@
     function renderConversations(list) {
       const el = document.getElementById('convList');
       el.innerHTML = '';
+      if (!list || list.length === 0) {
+        el.innerHTML = '<li style="padding: 30px 16px; text-align:center; color:#64748B; font-size:13px;">هیچ گفتگویی یافت نشد</li>';
+        return;
+      }
+
       list.forEach(c => {
         const li = document.createElement('li');
         li.className = 'conv-item' + (c.id === currentThreadId ? ' active' : '');
         li.onclick = () => selectConversation(c);
-        
-        const avatarLetter = (c.title || c.address || '?').trim().charAt(0);
+
+        const titleText = c.title || c.address || 'ناشناس';
+        const color = getAvatarColor(titleText);
+        const avatarLetter = titleText.trim().charAt(0);
         const timeStr = formatTime(c.date);
-        
+
         li.innerHTML = `
-          <div class="avatar">` + escapeHtml(avatarLetter) + `</div>
+          <div class="avatar" style="background-color: ${color};">${escapeHtml(avatarLetter)}</div>
           <div class="conv-details">
             <div class="conv-top">
-              <span class="conv-title">` + escapeHtml(c.title || c.address || 'بدون نام') + `</span>
-              <span class="conv-time">` + timeStr + `</span>
+              <span class="conv-title">
+                ${c.pinned ? '<svg class="pin-icon" viewBox="0 0 24 24"><path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z"/></svg>' : ''}
+                ${escapeHtml(titleText)}
+              </span>
+              <span class="conv-time">${timeStr}</span>
             </div>
             <div class="conv-bottom">
-              <span class="conv-snippet">` + escapeHtml(c.snippet || '') + `</span>
-              ` + (c.unread ? '<span class="unread-pill">جدید</span>' : '') + `
+              <span class="conv-snippet">${escapeHtml(c.snippet || '')}</span>
+              ${c.unread ? '<span class="unread-pill">جدید</span>' : ''}
             </div>
           </div>
         `;
@@ -625,7 +858,7 @@
         renderConversations(conversations);
         return;
       }
-      const filtered = conversations.filter(c => 
+      const filtered = conversations.filter(c =>
         (c.title && c.title.toLowerCase().includes(q)) ||
         (c.address && c.address.includes(q)) ||
         (c.snippet && c.snippet.toLowerCase().includes(q))
@@ -636,16 +869,59 @@
     async function selectConversation(c) {
       currentThreadId = c.id;
       currentAddress = c.address || '';
+      currentIsArchived = c.archived || false;
       renderConversations(conversations);
 
       document.getElementById('chatHeader').style.display = 'flex';
       document.getElementById('chatFooter').style.display = 'flex';
-      document.getElementById('headerTitle').innerText = c.title || c.address || 'بدون نام';
+      
+      const titleText = c.title || c.address || 'ناشناس';
+      document.getElementById('headerTitle').innerText = titleText;
       document.getElementById('headerAddress').innerText = c.address || '';
-      document.getElementById('headerAvatar').innerText = (c.title || c.address || '?').trim().charAt(0);
+      
+      const avatarEl = document.getElementById('headerAvatar');
+      avatarEl.innerText = titleText.trim().charAt(0);
+      avatarEl.style.backgroundColor = getAvatarColor(titleText);
 
+      updateArchiveBtnState();
       loadMessages(currentThreadId);
       document.getElementById('msgInput').focus();
+    }
+
+    function updateArchiveBtnState() {
+      const btn = document.getElementById('archiveActionBtn');
+      if (currentIsArchived) {
+        btn.innerText = '📤 خروج از آرشیو';
+      } else {
+        btn.innerText = '📦 آرشیو گفتگو';
+      }
+    }
+
+    async function toggleArchiveCurrentChat() {
+      if (!currentThreadId) return;
+      const targetState = !currentIsArchived;
+      try {
+        const res = await fetch('/api/archive', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + token
+          },
+          body: JSON.stringify({
+            threadId: currentThreadId,
+            archive: targetState
+          })
+        });
+        const data = await res.json();
+        if (data.success) {
+          currentIsArchived = targetState;
+          updateArchiveBtnState();
+          showToast(targetState ? 'گفتگو به آرشیو منتقل شد' : 'گفتگو از آرشیو خارج شد');
+          loadConversations();
+        }
+      } catch (e) {
+        showToast('خطا در تغییر وضعیت آرشیو');
+      }
     }
 
     async function loadMessages(threadId) {
@@ -674,20 +950,49 @@
       list.forEach(m => {
         const row = document.createElement('div');
         row.className = 'msg-row ' + (m.isMe ? 'out' : 'in');
-        
+
         const timeStr = formatFullTime(m.date);
         let statusBadge = '';
         if (m.failed) {
           statusBadge = '<span style="color:#EF4444; font-size:11px; margin-right:6px;">⚠️ ارسال ناموفق</span>';
         } else if (m.sending) {
-          statusBadge = '<span style="color:#9CA3AF; font-size:11px; margin-right:6px;">⏳ در حال ارسال...</span>';
+          statusBadge = '<span style="color:#94A3B8; font-size:11px; margin-right:6px;">⏳ در حال ارسال...</span>';
+        }
+
+        // Render smart chips
+        let chipsHtml = '';
+        const chips = m.chips || extractSmartChips(m.body);
+        if (chips && chips.length > 0) {
+          chipsHtml = '<div class="smart-chips-wrapper">';
+          chips.forEach(c => {
+            let cls = 'general';
+            let icon = '📋';
+            let label = 'کپی: ' + c.display;
+            if (c.type === 'OTP') {
+              cls = 'otp';
+              icon = '🔑';
+              label = 'کپی کد: ' + c.display;
+            } else if (c.type === 'CARD') {
+              cls = 'card';
+              icon = '💳';
+              label = 'کپی کارت: ' + c.display;
+            } else if (c.type === 'IBAN') {
+              cls = 'iban';
+              icon = '🏦';
+              label = 'کپی شبا: ' + c.display;
+            }
+            chipsHtml += `<button class="smart-chip-btn ${cls}" onclick="copySmartCode('${escapeQuotes(c.copy)}')">${icon} ${escapeHtml(label)}</button>`;
+          });
+          chipsHtml += `<button class="smart-chip-btn copy-all" onclick="copySmartCode('${escapeQuotes(m.body)}')">کپی متن پیام</button>`;
+          chipsHtml += '</div>';
         }
 
         row.innerHTML = `
-          <div class="bubble">` + escapeHtml(m.body) + `</div>
+          <div class="bubble">${escapeHtml(m.body)}</div>
+          ${chipsHtml}
           <div class="msg-meta">
-            <span>` + timeStr + statusBadge + `</span>
-            <button class="copy-chip-btn" onclick="copyText('` + escapeQuotes(m.body) + `')">کپی</button>
+            <span>${timeStr}${statusBadge}</span>
+            <button class="smart-chip-btn copy-all" style="padding:2px 8px; font-size:10px;" onclick="copySmartCode('${escapeQuotes(m.body)}')">کپی</button>
           </div>
         `;
         container.appendChild(row);
@@ -702,16 +1007,17 @@
       if (!text || !currentThreadId) return;
 
       input.value = '';
-      
+
       const tempId = Date.now();
-      messages.push({
+      const optimisticMsg = {
         id: tempId,
         body: text,
         date: Date.now(),
         isMe: true,
         _optimistic: true,
         sending: true
-      });
+      };
+      messages.push(optimisticMsg);
       renderMessages(messages);
 
       try {
@@ -734,10 +1040,19 @@
         });
         const data = await res.json();
         if (!data.success) {
-          alert('خطا در ارسال پیامک از طریق گوشی: ' + (data.error || 'نامشخص'));
+          optimisticMsg.failed = true;
+          optimisticMsg.sending = false;
+          renderMessages(messages);
+          showToast('خطا در ارسال پیامک: ' + (data.error || 'نامشخص'), 'خطای ارسال');
+        } else {
+          optimisticMsg.sending = false;
+          renderMessages(messages);
         }
       } catch (e) {
-        alert('خطای اتصال به سرور گوشی: ' + (e.message || e));
+        optimisticMsg.failed = true;
+        optimisticMsg.sending = false;
+        renderMessages(messages);
+        showToast('خطای اتصال به سرور گوشی: ' + (e.message || e), 'خطای شبکه');
       }
     }
 
@@ -758,10 +1073,13 @@
           if (newItems && newItems.length > 0) {
             lastPollDate = Date.now();
             let changed = false;
+
             newItems.forEach(msg => {
               if (!msg.isMe) {
-                notifyDesktop(msg.address || 'پیامک جدید', msg.body);
+                playChime();
+                triggerDesktopNotification(msg);
               }
+
               if (currentThreadId && msg.threadId === currentThreadId) {
                 const existingIdx = messages.findIndex(m => m.id === msg.id);
                 if (existingIdx !== -1) {
@@ -781,6 +1099,7 @@
                 changed = true;
               }
             });
+
             if (changed) {
               renderMessages(messages);
             }
@@ -792,24 +1111,182 @@
       }
     }
 
-    function requestNotificationPermission() {
+    function triggerDesktopNotification(msg) {
+      const sender = msg.address || 'پیامک جدید';
+      const text = msg.body || '';
+      
+      // 1. Flash document title
+      document.title = '🔔 (۱) پیامک از ' + sender;
+
+      // 2. Extract code for smart copy
+      const chips = msg.chips || extractSmartChips(text);
+      const otpChip = chips.find(c => c.type === 'OTP') || chips[0];
+
+      // 3. Show in-app floating banner
+      showToast(text, sender, otpChip ? otpChip.copy : null);
+
+      // 4. Native Chrome/Windows Notification
+      if ('Notification' in window && Notification.permission === 'granted') {
+        const n = new Notification(sender, {
+          body: otpChip ? `کد: ${otpChip.display}\n${text}` : text,
+          icon: 'favicon.ico'
+        });
+        n.onclick = function() {
+          window.focus();
+          if (otpChip) copySmartCode(otpChip.copy);
+        };
+      }
+    }
+
+    function playChime() {
+      try {
+        if (!audioCtx) {
+          audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        }
+        if (audioCtx.state === 'suspended') {
+          audioCtx.resume();
+        }
+        const now = audioCtx.currentTime;
+        const osc1 = audioCtx.createOscillator();
+        const osc2 = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+
+        osc1.type = 'sine';
+        osc1.frequency.setValueAtTime(587.33, now); // D5
+        osc1.frequency.setValueAtTime(880, now + 0.12); // A5
+
+        gain.gain.setValueAtTime(0.18, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.4);
+
+        osc1.connect(gain);
+        gain.connect(audioCtx.destination);
+
+        osc1.start(now);
+        osc1.stop(now + 0.45);
+      } catch (e) {
+        // AudioContext not allowed before user interaction
+      }
+    }
+
+    function testNotificationChime() {
+      playChime();
+      showToast('این یک پیام آزمایشی است!', 'تست اعلان', '123456');
+    }
+
+    function showToast(msg, title, copyCode) {
+      const banner = document.getElementById('toastBanner');
+      const titleEl = document.getElementById('toastTitle');
+      const textEl = document.getElementById('toastText');
+      const btn = document.getElementById('toastActionBtn');
+
+      titleEl.innerText = title || 'پیام سیستم';
+      textEl.innerText = msg;
+
+      if (copyCode) {
+        btn.style.display = 'block';
+        btn.innerText = 'کپی کد: ' + copyCode;
+        btn.onclick = () => {
+          copySmartCode(copyCode);
+          banner.classList.remove('show');
+        };
+      } else {
+        btn.style.display = 'none';
+      }
+
+      banner.classList.add('show');
+      setTimeout(() => banner.classList.remove('show'), 4500);
+    }
+
+    function copySmartCode(str) {
+      const ascii = toAsciiDigits(str);
+      navigator.clipboard.writeText(ascii).then(() => {
+        showToast('«' + ascii + '» در کلیپ‌بورد کپی شد!', 'کپی موفق');
+      }).catch(() => {
+        // Fallback
+        const ta = document.createElement('textarea');
+        ta.value = ascii;
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        document.body.removeChild(ta);
+        showToast('«' + ascii + '» در کلیپ‌بورد کپی شد!', 'کپی موفق');
+      });
+    }
+
+    function openNotifModal() {
+      document.getElementById('notifModal').style.display = 'flex';
       if ('Notification' in window) {
-        Notification.requestPermission().then(p => {
-          if (p === 'granted') {
-            new Notification('5Messages Web', { body: 'اعلان‌های دسکتاپ با موفقیت فعال شد!' });
+        Notification.requestPermission();
+      }
+    }
+
+    // Number extraction and ASCII conversion logic matching phone app
+    function toAsciiDigits(str) {
+      if (!str) return '';
+      const map = {
+        '۰': '0', '۱': '1', '۲': '2', '۳': '3', '۴': '4',
+        '۵': '5', '۶': '6', '۷': '7', '۸': '8', '۹': '9',
+        '٠': '0', '١': '1', '٢': '2', '٣': '3', '٤': '4',
+        '٥': '5', '٦': '6', '٧': '7', '٨': '8', '٩': '9'
+      };
+      return str.replace(/[۰-۹٠-٩]/g, c => map[c] || c);
+    }
+
+    function extractSmartChips(text) {
+      if (!text) return [];
+      const ascii = toAsciiDigits(text);
+      const lower = ascii.toLowerCase();
+      const hasOtpKeyword = /کد|رمز|تایید|تأیید|فعالسازی|یکبار|پویا|ورود|شناسه|code|otp|pin|passcode|token/.test(lower);
+      const results = [];
+      const seen = new Set();
+
+      // Sheba / IBAN
+      const ibanMatch = ascii.match(/(?<![a-zA-Z0-9])IR[0-9]{24}(?![0-9])/gi);
+      if (ibanMatch) {
+        ibanMatch.forEach(raw => {
+          const up = raw.toUpperCase();
+          if (!seen.has(up)) {
+            seen.add(up);
+            results.push({ display: up, copy: up, type: 'IBAN' });
           }
         });
       }
-    }
 
-    function notifyDesktop(title, body) {
-      if ('Notification' in window && Notification.permission === 'granted') {
-        new Notification(title, { body: body });
+      // Bank card (16 digits)
+      const cardMatch = ascii.match(/(?<!\d)(?:(?:\d{4}[ -]?){3}\d{4}|\d{16})(?!\d)/g);
+      if (cardMatch) {
+        cardMatch.forEach(raw => {
+          const clean = raw.replace(/[ -]/g, '');
+          if (clean.length === 16 && !seen.has(clean)) {
+            seen.add(clean);
+            const formatted = clean.match(/.{1,4}/g).join(' ');
+            results.push({ display: formatted, copy: clean, type: 'CARD' });
+          }
+        });
       }
+
+      // Standalone numbers / OTP (4 to 10 digits)
+      const numMatch = ascii.match(/(?<!\d)\d{4,10}(?!\d)/g);
+      if (numMatch) {
+        numMatch.forEach(raw => {
+          if (!seen.has(raw)) {
+            seen.add(raw);
+            const isOtp = hasOtpKeyword && raw.length <= 8;
+            results.push({ display: raw, copy: raw, type: isOtp ? 'OTP' : 'GENERAL' });
+          }
+        });
+      }
+
+      return results.slice(0, 3);
     }
 
-    function copyText(str) {
-      navigator.clipboard.writeText(str);
+    function getAvatarColor(str) {
+      let hash = 0;
+      for (let i = 0; i < str.length; i++) {
+        hash = str.charCodeAt(i) + ((hash << 5) - hash);
+      }
+      const idx = Math.abs(hash) % AVATAR_COLORS.length;
+      return AVATAR_COLORS[idx];
     }
 
     function formatTime(timestamp) {

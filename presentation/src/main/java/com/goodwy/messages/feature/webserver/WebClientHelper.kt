@@ -43,15 +43,7 @@ object WebClientHelper {
     }
 
     fun isServiceRunning(context: Context): Boolean {
-        if (!isEnabled(context)) return false
-        val manager = context.getSystemService(Context.ACTIVITY_SERVICE) as? ActivityManager ?: return isEnabled(context)
-        @Suppress("DEPRECATION")
-        for (service in manager.getRunningServices(Int.MAX_VALUE)) {
-            if (WebClientService::class.java.name == service.service.className) {
-                return true
-            }
-        }
-        return isEnabled(context)
+        return WebClientServer.isLive
     }
 
     fun startService(context: Context) {

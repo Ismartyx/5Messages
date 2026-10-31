@@ -33,6 +33,10 @@ class WebClientServer(
     private val sendMessage: SendMessage? = null,
     private val getPin: () -> String
 ) {
+    companion object {
+        @Volatile var isLive: Boolean = false
+    }
+
     private var serverSocket: ServerSocket? = null
     private val executor = Executors.newFixedThreadPool(4)
     private val activeTokens = ConcurrentHashMap.newKeySet<String>()
@@ -48,6 +52,7 @@ class WebClientServer(
                     reuseAddress = true
                     bind(java.net.InetSocketAddress("0.0.0.0", port))
                 }
+                isLive = true
                 Timber.i("WebClientServer started on 0.0.0.0:$port")
                 while (isRunning) {
                     val socket = serverSocket?.accept() ?: break
@@ -55,12 +60,15 @@ class WebClientServer(
                 }
             } catch (e: Exception) {
                 if (isRunning) Timber.e(e, "WebClientServer error")
+            } finally {
+                isLive = false
             }
         }
     }
 
     fun stop() {
         isRunning = false
+        isLive = false
         try {
             serverSocket?.close()
         } catch (e: Exception) {
@@ -71,10 +79,11 @@ class WebClientServer(
     }
 
     private fun handleConnection(socket: Socket) {
+        var rawInput: BufferedInputStream? = null
         try {
             socket.soTimeout = 15000
-            try { socket.setSoLinger(true, 3) } catch (e: Exception) {}
-            val rawInput = BufferedInputStream(socket.getInputStream())
+            socket.tcpNoDelay = true
+            rawInput = BufferedInputStream(socket.getInputStream())
             val output = BufferedOutputStream(socket.getOutputStream())
 
             val requestLine = readLine(rawInput) ?: return
@@ -175,7 +184,14 @@ class WebClientServer(
         } catch (e: Exception) {
             Timber.w(e, "Error handling client connection")
         } finally {
-            try { socket.shutdownOutput() } catch (e: Exception) {}
+            try {
+                // Drain any residual bytes in input buffer to prevent TCP RST on close
+                rawInput?.let { inp ->
+                    while (inp.available() > 0) {
+                        if (inp.read() == -1) break
+                    }
+                }
+            } catch (e: Exception) {}
             try { socket.close() } catch (e: Exception) {}
         }
     }
@@ -214,11 +230,12 @@ class WebClientServer(
 
             // List conversations
             (method == "GET" && path == "/api/conversations") -> {
+                val isArchived = parseQuery(queryString)["archived"] == "true"
                 val list = JSONArray()
                 try {
                     Realm.getDefaultInstance().use { realm ->
                         val results = realm.where(Conversation::class.java)
-                            .equalTo("archived", false)
+                            .equalTo("archived", isArchived)
                             .equalTo("blocked", false)
                             .sort("lastMessage.date", Sort.DESCENDING)
                             .findAll()
@@ -231,6 +248,8 @@ class WebClientServer(
                                 put("snippet", lastMsg?.getText() ?: "")
                                 put("date", lastMsg?.date ?: 0L)
                                 put("unread", lastMsg?.read == false)
+                                put("pinned", c.pinned)
+                                put("archived", c.archived)
                                 put("address", c.recipients.firstOrNull()?.address ?: "")
                             }
                             list.put(item)
@@ -242,9 +261,40 @@ class WebClientServer(
                 sendResponse(output, 200, "OK", "application/json; charset=utf-8", list.toString())
             }
 
+            // Archive or Unarchive conversation
+            (method == "POST" && path == "/api/archive") -> {
+                try {
+                    val json = JSONObject(body)
+                    val threadId = json.getLong("threadId")
+                    val archive = json.optBoolean("archive", true)
+                    mainHandler.post {
+                        try {
+                            if (archive) {
+                                conversationRepo.markArchived(threadId)
+                            } else {
+                                conversationRepo.markUnarchived(threadId)
+                            }
+                        } catch (e: Exception) {
+                            Timber.e(e, "Error archiving thread $threadId")
+                        }
+                    }
+                    val res = JSONObject().apply {
+                        put("success", true)
+                        put("archived", archive)
+                    }
+                    sendResponse(output, 200, "OK", "application/json; charset=utf-8", res.toString())
+                } catch (e: Exception) {
+                    val res = JSONObject().apply {
+                        put("success", false)
+                        put("error", e.message)
+                    }
+                    sendResponse(output, 400, "Bad Request", "application/json; charset=utf-8", res.toString())
+                }
+            }
+
             // List messages in thread
             (method == "GET" && path == "/api/messages") -> {
-                val threadId = parseQuery(query)["threadId"]?.toLongOrNull() ?: 0L
+                val threadId = parseQuery(queryString)["threadId"]?.toLongOrNull() ?: 0L
                 val list = JSONArray()
                 try {
                     Realm.getDefaultInstance().use { realm ->
@@ -254,15 +304,27 @@ class WebClientServer(
                             .findAll()
 
                         for (m in results.takeLast(250)) {
+                            val msgText = m.getText()
+                            val chips = com.goodwy.messages.util.NumberExtractor.extract(msgText)
+                            val chipsArray = JSONArray()
+                            chips.forEach { chip ->
+                                chipsArray.put(JSONObject().apply {
+                                    put("display", chip.displayValue)
+                                    put("copy", chip.copyValue)
+                                    put("type", chip.type.name)
+                                })
+                            }
+
                             val item = JSONObject().apply {
                                 put("id", m.id)
                                 put("threadId", m.threadId)
-                                put("body", m.getText())
+                                put("body", msgText)
                                 put("date", m.date)
                                 put("isMe", m.isMe())
                                 put("address", m.address)
                                 put("failed", m.boxId == android.provider.Telephony.Sms.MESSAGE_TYPE_FAILED)
                                 put("sending", m.boxId == android.provider.Telephony.Sms.MESSAGE_TYPE_OUTBOX)
+                                put("chips", chipsArray)
                             }
                             list.put(item)
                         }
@@ -294,6 +356,13 @@ class WebClientServer(
                         }
                     }
 
+                    // Normalize address: convert Persian/Arabic digits, remove spaces and dashes
+                    address = com.goodwy.messages.util.NumberExtractor.toAsciiDigits(address)
+                        .replace(" ", "")
+                        .replace("-", "")
+                        .replace("(", "")
+                        .replace(")", "")
+
                     if (address.isBlank()) {
                         val res = JSONObject().apply {
                             put("success", false)
@@ -305,6 +374,12 @@ class WebClientServer(
 
                     // Determine active SIM subscription ID
                     val activeSubs = subscriptionManager?.activeSubscriptionInfoList.orEmpty()
+                    val defSubId = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N_MR1) {
+                        try { SubscriptionManager.getDefaultSmsSubscriptionId() } catch (e: Exception) { -1 }
+                    } else {
+                        -1
+                    }
+
                     val subId = if (reqSubId != -1 && activeSubs.any { it.subscriptionId == reqSubId }) {
                         reqSubId
                     } else if (activeSubs.isNotEmpty()) {
@@ -319,13 +394,10 @@ class WebClientServer(
                             }
                         } catch (e: Exception) { -1 }
 
-                        activeSubs.firstOrNull { it.subscriptionId == lastSentSubId }?.subscriptionId
-                            ?: if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N_MR1) {
-                                val defSubId = SubscriptionManager.getDefaultSmsSubscriptionId()
-                                activeSubs.firstOrNull { it.subscriptionId == defSubId }?.subscriptionId ?: activeSubs[0].subscriptionId
-                            } else {
-                                activeSubs[0].subscriptionId
-                            }
+                        val matchedLast = activeSubs.firstOrNull { it.subscriptionId == lastSentSubId }?.subscriptionId
+                        val matchedDef = if (defSubId != -1) activeSubs.firstOrNull { it.subscriptionId == defSubId }?.subscriptionId else null
+
+                        matchedLast ?: matchedDef ?: activeSubs[0].subscriptionId
                     } else {
                         -1
                     }
@@ -367,7 +439,7 @@ class WebClientServer(
 
             // Poll for new messages
             (method == "GET" && path == "/api/poll") -> {
-                val since = parseQuery(query)["since"]?.toLongOrNull() ?: (System.currentTimeMillis() - 5000)
+                val since = parseQuery(queryString)["since"]?.toLongOrNull() ?: (System.currentTimeMillis() - 5000)
                 val list = JSONArray()
                 try {
                     Realm.getDefaultInstance().use { realm ->
@@ -377,15 +449,27 @@ class WebClientServer(
                             .findAll()
 
                         for (m in results.take(50)) {
+                            val msgText = m.getText()
+                            val chips = com.goodwy.messages.util.NumberExtractor.extract(msgText)
+                            val chipsArray = JSONArray()
+                            chips.forEach { chip ->
+                                chipsArray.put(JSONObject().apply {
+                                    put("display", chip.displayValue)
+                                    put("copy", chip.copyValue)
+                                    put("type", chip.type.name)
+                                })
+                            }
+
                             val item = JSONObject().apply {
                                 put("id", m.id)
                                 put("threadId", m.threadId)
-                                put("body", m.getText())
+                                put("body", msgText)
                                 put("date", m.date)
                                 put("isMe", m.isMe())
                                 put("address", m.address)
                                 put("failed", m.boxId == android.provider.Telephony.Sms.MESSAGE_TYPE_FAILED)
                                 put("sending", m.boxId == android.provider.Telephony.Sms.MESSAGE_TYPE_OUTBOX)
+                                put("chips", chipsArray)
                             }
                             list.put(item)
                         }
