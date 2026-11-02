@@ -192,6 +192,7 @@ class WebClientServer(
                     }
                 }
             } catch (e: Exception) {}
+            try { socket.shutdownOutput() } catch (e: Exception) {}
             try { socket.close() } catch (e: Exception) {}
         }
     }

@@ -929,11 +929,20 @@ saveBackupBtn.setOnClickListener {
                 if (isCurrentlyRunning) {
                     com.goodwy.messages.feature.webserver.WebClientHelper.stopService(this@MainActivity)
                     Toast.makeText(this@MainActivity, "وب‌کلاینت خاموش شد", Toast.LENGTH_SHORT).show()
+                    text = "راه‌اندازی وب‌کلاینت (روشن کردن)"
+                    background = makeRoundedBg("#059669", null, 12)
+                    statusText.text = "⚪ وضعیت: خاموش"
+                    statusText.setTextColor(textSecondary)
+                    statusText.background = makeRoundedBg(if (isNight) "#1E293B" else "#F1F5F9", null, 10)
                 } else {
                     com.goodwy.messages.feature.webserver.WebClientHelper.startService(this@MainActivity)
                     Toast.makeText(this@MainActivity, "وب‌کلاینت فعال شد", Toast.LENGTH_SHORT).show()
+                    text = "توقف وب‌کلاینت (خاموش کردن)"
+                    background = makeRoundedBg("#DC2626", null, 12)
+                    statusText.text = "🟢 وضعیت: در حال اجرا"
+                    statusText.setTextColor(Color.parseColor("#10B981"))
+                    statusText.background = makeRoundedBg(if (isNight) "#064E3B" else "#D1FAE5", null, 10)
                 }
-                dialog?.dismiss()
             }
         }
         card.addView(toggleBtn)
