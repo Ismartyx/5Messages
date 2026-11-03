@@ -229,6 +229,40 @@ class WebClientServer(
                 sendResponse(output, 200, "OK", "application/json; charset=utf-8", res.toString())
             }
 
+            // List categories
+            (method == "GET" && path == "/api/categories") -> {
+                val list = JSONArray()
+                try {
+                    val categories = com.goodwy.messages.feature.main.CategoryManager.getCategories(context)
+                    for (cat in categories) {
+                        list.put(JSONObject().apply {
+                            put("id", cat.id)
+                            put("name", cat.name)
+                            put("color", String.format("#%06X", 0xFFFFFF and cat.color))
+                            put("isCustom", cat.isCustom)
+                        })
+                    }
+                } catch (e: Exception) {
+                    Timber.e(e, "Error fetching categories")
+                }
+                sendResponse(output, 200, "OK", "application/json; charset=utf-8", list.toString())
+            }
+
+            // Set conversation category
+            (method == "POST" && path == "/api/conversation/category") -> {
+                val threadId = json.optLong("threadId", -1L)
+                val catId = json.optString("categoryId", "")
+                if (threadId != -1L && catId.isNotBlank()) {
+                    val prefs1 = context.getSharedPreferences("manual_message_categories", Context.MODE_PRIVATE)
+                    val prefs2 = context.getSharedPreferences("manual_categories", Context.MODE_PRIVATE)
+                    prefs1.edit().putString(threadId.toString(), catId).apply()
+                    prefs2.edit().putString(threadId.toString(), catId).apply()
+                    sendResponse(output, 200, "OK", "application/json; charset=utf-8", "{\"success\":true}")
+                } else {
+                    sendResponse(output, 400, "Bad Request", "application/json; charset=utf-8", "{\"error\":\"Invalid threadId or categoryId\"}")
+                }
+            }
+
             // List conversations
             (method == "GET" && path == "/api/conversations") -> {
                 val list = JSONArray()
@@ -250,7 +284,7 @@ class WebClientServer(
                                 put("unread", lastMsg?.read == false)
                                 put("pinned", c.pinned)
                                 put("archived", c.archived)
-                                put("category", cat.name)
+                                put("category", cat)
                                 put("address", c.recipients.firstOrNull()?.address ?: "")
                             }
                             list.put(item)

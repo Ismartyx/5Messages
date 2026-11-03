@@ -91,11 +91,6 @@ import javax.inject.Inject
 
 class MainActivity : QkThemedActivity(), MainView {
 
-    companion object {
-        private const val MENU_MOVE_CATEGORY = 9991
-        private const val MENU_NEXTCLOUD_CONFIG = 9992
-    }
-
     @Inject lateinit var blockingDialog: BlockingDialog
     @Inject lateinit var disposables: CompositeDisposable
     @Inject lateinit var navigator: Navigator
@@ -162,26 +157,11 @@ class MainActivity : QkThemedActivity(), MainView {
     private val syncing by lazy { findViewById<View>(R.id.syncing) }
     private val backPressedSubject: Subject<NavItem> = PublishSubject.create()
     private var currentSelectedIds: List<Long> = emptyList()
-    private var draggedTabIndex: Int = -1
 
-    private val categoryColors = mapOf(
-        MessageCategory.CONTACTS to Color.parseColor("#0EA5E9"),
-        MessageCategory.UNKNOWN to Color.parseColor("#F59E0B"),
-        MessageCategory.BANK to Color.parseColor("#22C55E"),
-        MessageCategory.OTP to Color.parseColor("#A855F7"),
-        MessageCategory.OTHER to Color.parseColor("#EF4444")
-    )
-
-    private val categoryLabels = mapOf(
-        MessageCategory.CONTACTS to "مخاطبین",
-        MessageCategory.UNKNOWN to "شخصی ناشناس",
-        MessageCategory.BANK to "بانکی",
-        MessageCategory.OTP to "رمز و کد",
-        MessageCategory.OTHER to "متفرقه"
-    )
-
-    private val tabViews: List<QkTextView> by lazy {
-        listOf(tabContacts, tabUnknown, tabBank, tabOtp, tabOther)
+    companion object {
+        private const val MENU_MOVE_CATEGORY = 991
+        private const val MENU_NEXTCLOUD_CONFIG = 992
+        private const val MENU_MANAGE_CATEGORIES = 993
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -215,8 +195,6 @@ class MainActivity : QkThemedActivity(), MainView {
         }
 
         itemTouchCallback.adapter = conversationsAdapter
-
-        setupDragAndDropForCategoryTabs()
 
         backup?.setOnLongClickListener {
             drawerLayout.closeDrawer(GravityCompat.START)
@@ -259,50 +237,173 @@ class MainActivity : QkThemedActivity(), MainView {
         }
     }
 
-    private fun setupDragAndDropForCategoryTabs() {
-        tabViews.forEachIndexed { index, tabView ->
-            tabView.setOnLongClickListener { view ->
-                draggedTabIndex = index
-                val clipData = ClipData.newPlainText("tab_index", index.toString())
-                val shadowBuilder = View.DragShadowBuilder(view)
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-                    view.startDragAndDrop(clipData, shadowBuilder, view, 0)
-                } else {
-                    @Suppress("DEPRECATION")
-                    view.startDrag(clipData, shadowBuilder, view, 0)
-                }
-                view.alpha = 0.5f
-                true
-            }
+    private fun renderCategoryTabs(selectedCategoryId: String, unreadCounts: Map<String, Int>) {
+        val container = categoryContainer ?: return
+        container.removeAllViews()
 
-            tabView.setOnDragListener { targetView, event ->
-                when (event.action) {
-                    DragEvent.ACTION_DRAG_STARTED -> true
-                    DragEvent.ACTION_DRAG_ENTERED -> {
-                        val fromIdx = draggedTabIndex
-                        val toIdx = tabViews.indexOf(targetView)
-                        if (fromIdx != -1 && toIdx != -1 && fromIdx != toIdx) {
-                            val currentOrder = viewModel.getSavedCategoryOrder().toMutableList()
-                            if (fromIdx in currentOrder.indices && toIdx in currentOrder.indices) {
-                                val movedItem = currentOrder.removeAt(fromIdx)
-                                currentOrder.add(toIdx, movedItem)
-                                draggedTabIndex = toIdx
-                                viewModel.saveCategoryOrder(currentOrder)
-                                triggerAutoBackupIfEnabled()
-                            }
-                        }
-                        true
-                    }
-                    DragEvent.ACTION_DROP -> true
-                    DragEvent.ACTION_DRAG_ENDED -> {
-                        tabViews.forEach { it.alpha = 1.0f }
-                        draggedTabIndex = -1
-                        true
-                    }
-                    else -> false
+        val categories = viewModel.getSavedCategoryOrder()
+        val inactiveBg = resolveThemeColor(R.attr.bubbleColor)
+
+        categories.forEach { cat ->
+            val isSelected = cat.id == selectedCategoryId
+            val count = unreadCounts[cat.id] ?: 0
+            val tabView = QkTextView(this).apply {
+                text = if (count > 0) "${cat.name} ($count)" else cat.name
+                setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f)
+                setTypeface(null, Typeface.BOLD)
+                val p = LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply {
+                    setMargins(dp(4), dp(4), dp(4), dp(4))
                 }
+                layoutParams = p
+                setPadding(dp(14), dp(6), dp(14), dp(6))
+                setBackgroundResource(R.drawable.rounded_rectangle_24dp)
+                setBackgroundTint(if (isSelected) cat.color else inactiveBg)
+                setTextColor(if (isSelected) Color.WHITE else cat.color)
+                setOnClickListener {
+                    clearSelection()
+                    viewModel.setCategory(cat.id)
+                }
+                setOnLongClickListener {
+                    showCategoryOptionsDialog(cat)
+                    true
+                }
+            }
+            container.addView(tabView)
+        }
+
+        // Plus button: "+ دسته جدید"
+        val addBtn = QkTextView(this).apply {
+            text = "+ دسته جدید"
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f)
+            setTypeface(null, Typeface.BOLD)
+            val p = LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply {
+                setMargins(dp(4), dp(4), dp(4), dp(4))
+            }
+            layoutParams = p
+            setPadding(dp(12), dp(6), dp(12), dp(6))
+            setBackgroundResource(R.drawable.rounded_rectangle_24dp)
+            setBackgroundTint(inactiveBg)
+            setTextColor(resolveThemeColor(android.R.attr.textColorSecondary))
+            setOnClickListener {
+                showAddCategoryDialog()
             }
         }
+        container.addView(addBtn)
+    }
+
+    private fun showCategoryOptionsDialog(cat: CategoryItem) {
+        val options = mutableListOf<String>()
+        options.add("✏️ تغییر نام «${cat.name}»")
+        options.add("➕ افزودن دسته‌بندی جدید")
+        if (cat.isCustom) {
+            options.add("🗑️ حذف دسته‌بندی «${cat.name}»")
+        }
+        options.add("⬅️ جابجایی به چپ")
+        options.add("➡️ جابجایی به راست")
+
+        AlertDialog.Builder(this)
+                .setTitle("مدیریت پوشه «${cat.name}»")
+                .setItems(options.toTypedArray()) { _, which ->
+                    val chosen = options[which]
+                    when {
+                        chosen.startsWith("✏️") -> showRenameCategoryDialog(cat)
+                        chosen.startsWith("➕") -> showAddCategoryDialog()
+                        chosen.startsWith("🗑️") -> showDeleteCategoryDialog(cat)
+                        chosen.startsWith("⬅️") -> moveCategoryRelative(cat, -1)
+                        chosen.startsWith("➡️") -> moveCategoryRelative(cat, +1)
+                    }
+                }
+                .setNegativeButton("بستن", null)
+                .show()
+    }
+
+    private fun showRenameCategoryDialog(cat: CategoryItem) {
+        val input = EditText(this).apply {
+            setText(cat.name)
+            setSelection(cat.name.length)
+            setPadding(dp(16), dp(12), dp(16), dp(12))
+            textSize = 15f
+        }
+        AlertDialog.Builder(this)
+                .setTitle("تغییر نام دسته‌بندی")
+                .setMessage("نام جدید را برای «${cat.name}» وارد کنید:")
+                .setView(input)
+                .setPositiveButton("ذخیره") { _, _ ->
+                    val newName = input.text.toString().trim()
+                    if (newName.isNotBlank()) {
+                        viewModel.renameCategory(cat.id, newName)
+                        triggerAutoBackupIfEnabled()
+                        Toast.makeText(this, "نام دسته‌بندی به «$newName» تغییر یافت", Toast.LENGTH_SHORT).show()
+                    }
+                }
+                .setNegativeButton("انصراف", null)
+                .show()
+    }
+
+    private fun showAddCategoryDialog(onAdded: ((CategoryItem) -> Unit)? = null) {
+        val input = EditText(this).apply {
+            hint = "مثلاً: کاری، خانواده، تبلیغات..."
+            setPadding(dp(16), dp(12), dp(16), dp(12))
+            textSize = 15f
+        }
+        AlertDialog.Builder(this)
+                .setTitle("➕ افزودن دسته‌بندی جدید")
+                .setMessage("نام دسته‌بندی را وارد کنید:")
+                .setView(input)
+                .setPositiveButton("ایجاد") { _, _ ->
+                    val name = input.text.toString().trim()
+                    if (name.isNotBlank()) {
+                        val newItem = viewModel.addCategory(name)
+                        if (newItem != null) {
+                            triggerAutoBackupIfEnabled()
+                            Toast.makeText(this, "دسته‌بندی «$name» ایجاد شد", Toast.LENGTH_SHORT).show()
+                            onAdded?.invoke(newItem)
+                        }
+                    }
+                }
+                .setNegativeButton("انصراف", null)
+                .show()
+    }
+
+    private fun showDeleteCategoryDialog(cat: CategoryItem) {
+        AlertDialog.Builder(this)
+                .setTitle("حذف دسته‌بندی")
+                .setMessage("آیا از حذف دسته‌بندی «${cat.name}» اطمینان دارید؟ پیامک‌های این پوشه حذف نخواهند شد و به دسته‌بندی پیش‌فرض بازمی‌گردند.")
+                .setPositiveButton("حذف") { _, _ ->
+                    viewModel.deleteCategory(cat.id)
+                    triggerAutoBackupIfEnabled()
+                    Toast.makeText(this, "دسته‌بندی «${cat.name}» حذف شد", Toast.LENGTH_SHORT).show()
+                }
+                .setNegativeButton("انصراف", null)
+                .show()
+    }
+
+    private fun moveCategoryRelative(cat: CategoryItem, offset: Int) {
+        val current = viewModel.getSavedCategoryOrder()
+        val index = current.indexOfFirst { it.id == cat.id }
+        if (index != -1) {
+            val target = index + offset
+            if (target in current.indices) {
+                viewModel.moveCategoryPosition(index, target)
+                triggerAutoBackupIfEnabled()
+            }
+        }
+    }
+
+    private fun showManageCategoriesDialog() {
+        val categories = viewModel.getSavedCategoryOrder()
+        val names = categories.map { "${it.name}${if (it.isCustom) " (سفارشی)" else ""}" }.toTypedArray()
+
+        AlertDialog.Builder(this)
+                .setTitle("📁 مدیریت دسته‌بندی‌ها")
+                .setItems(names) { _, which ->
+                    showCategoryOptionsDialog(categories[which])
+                }
+                .setPositiveButton("➕ دسته‌بندی جدید") { _, _ ->
+                    showAddCategoryDialog()
+                }
+                .setNegativeButton("بستن", null)
+                .show()
     }
 
     private fun updateStatusBarColor() {
@@ -333,16 +434,24 @@ class MainActivity : QkThemedActivity(), MainView {
     private fun showMoveConversationsCategoryDialog(selectedThreadIds: List<Long>) {
         if (selectedThreadIds.isEmpty()) return
         val categories = viewModel.getSavedCategoryOrder()
-        val titles = categories.map { categoryLabels[it] ?: it.name }.toTypedArray()
+        val titles = categories.map { it.name }.toTypedArray()
 
         AlertDialog.Builder(this)
                 .setTitle("انتقال به کدام پوشه؟")
                 .setItems(titles) { _, which ->
                     val targetCategory = categories[which]
-                    viewModel.setManualCategoryForConversations(selectedThreadIds, targetCategory)
+                    viewModel.setManualCategoryForConversations(selectedThreadIds, targetCategory.id)
                     clearSelection()
                     triggerAutoBackupIfEnabled()
-                    Toast.makeText(this, "به پوشه «${titles[which]}» منتقل شد", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this, "به پوشه «${targetCategory.name}» منتقل شد", Toast.LENGTH_SHORT).show()
+                }
+                .setPositiveButton("➕ دسته‌بندی جدید...") { _, _ ->
+                    showAddCategoryDialog { newCat ->
+                        viewModel.setManualCategoryForConversations(selectedThreadIds, newCat.id)
+                        clearSelection()
+                        triggerAutoBackupIfEnabled()
+                        Toast.makeText(this, "به پوشه «${newCat.name}» منتقل شد", Toast.LENGTH_SHORT).show()
+                    }
                 }
                 .setNegativeButton("انصراف", null)
                 .show()
@@ -1141,30 +1250,13 @@ saveBackupBtn.setOnClickListener {
                 itemTouchHelper.attachToRecyclerView(recyclerView)
                 empty?.setText(R.string.inbox_empty_text)
 
-                val inactiveBg = resolveThemeColor(R.attr.bubbleColor)
-                val activeCategoryColor = categoryColors[state.page.category] ?: Color.parseColor("#0EA5E9")
+                val activeCategory = CategoryManager.getCategories(this).firstOrNull { it.id == state.page.categoryId }
+                val activeCategoryColor = activeCategory?.color ?: Color.parseColor("#0EA5E9")
 
                 compose?.setBackgroundTint(activeCategoryColor)
                 compose?.setTint(Color.WHITE)
 
-                val orderedCategories = viewModel.getSavedCategoryOrder()
-                tabViews.forEachIndexed { index, tabView ->
-                    val category = orderedCategories.getOrNull(index) ?: return@forEachIndexed
-                    val label = categoryLabels[category] ?: ""
-                    val hasUnread = (state.page.unreadCounts[category] ?: 0) > 0
-                    val isSelected = state.page.category == category
-                    val catColor = categoryColors[category] ?: Color.parseColor("#0EA5E9")
-
-                    tabView.text = if (hasUnread) "$label •" else label
-                    tabView.setBackgroundTint(if (isSelected) catColor else inactiveBg)
-                    tabView.setTextColor(if (isSelected) Color.WHITE else catColor)
-                    tabView.setTypeface(null, Typeface.BOLD)
-
-                    tabView.setOnClickListener {
-                        clearSelection()
-                        viewModel.setCategory(category)
-                    }
-                }
+                renderCategoryTabs(state.page.categoryId, state.page.unreadCounts)
             }
 
             is Searching -> {
@@ -1327,6 +1419,9 @@ saveBackupBtn.setOnClickListener {
         menu?.add(0, MENU_NEXTCLOUD_CONFIG, 0, "تنظیمات بکاپ Nextcloud")?.apply {
             setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER)
         }
+        menu?.add(0, MENU_MANAGE_CATEGORIES, 0, "مدیریت دسته‌بندی‌ها")?.apply {
+            setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER)
+        }
         return super.onCreateOptionsMenu(menu)
     }
 
@@ -1337,6 +1432,10 @@ saveBackupBtn.setOnClickListener {
         }
         if (item.itemId == MENU_NEXTCLOUD_CONFIG) {
             showNextcloudSettingsDialog()
+            return true
+        }
+        if (item.itemId == MENU_MANAGE_CATEGORIES) {
+            showManageCategoriesDialog()
             return true
         }
         optionsItemIntent.onNext(item.itemId)

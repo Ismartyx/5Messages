@@ -24,19 +24,22 @@ object ConversationClassifier {
         return Regex("^(\\+98|0098|98|0)?9\\d{9}$").matches(cleaned)
     }
 
-    fun classifyConversation(context: Context, conv: Conversation): MessageCategory {
-        val manualPrefs = context.getSharedPreferences("manual_categories", Context.MODE_PRIVATE)
+    fun classifyConversation(context: Context, conv: Conversation): String {
+        val manualPrefs = context.getSharedPreferences("manual_message_categories", Context.MODE_PRIVATE)
+        val legacyPrefs = context.getSharedPreferences("manual_categories", Context.MODE_PRIVATE)
         val address = conv.recipients.firstOrNull()?.address?.trim() ?: ""
 
         // 0. اولویت اول: دسته‌بندی دستی که کاربر در گوشی انتخاب کرده است
         val manualByThread = manualPrefs.getString("thread_${conv.id}", null)
-        if (manualByThread != null) {
-            try { return MessageCategory.valueOf(manualByThread) } catch (_: Exception) {}
+            ?: legacyPrefs.getString("thread_${conv.id}", null)
+        if (!manualByThread.isNullOrBlank()) {
+            return manualByThread
         }
         if (address.isNotEmpty()) {
             val manualByAddr = manualPrefs.getString("addr_$address", null)
-            if (manualByAddr != null) {
-                try { return MessageCategory.valueOf(manualByAddr) } catch (_: Exception) {}
+                ?: legacyPrefs.getString("addr_$address", null)
+            if (!manualByAddr.isNullOrBlank()) {
+                return manualByAddr
             }
         }
 
@@ -59,7 +62,7 @@ object ConversationClassifier {
 
         if (!hasContact && (otpKeywords.any { body.contains(it) } && hasShortOtpDigits ||
             body.contains("رمز پویا") || body.contains("کد تایید") || body.contains("کد ورود") || body.contains("verification") || body.contains("otp"))) {
-            return MessageCategory.OTP
+            return "OTP"
         }
 
         // 2. پیام‌های بانکی
@@ -73,23 +76,28 @@ object ConversationClassifier {
         val isBankSender = bankSenders.any { addrLower.contains(it) || contactNameLower.contains(it) }
         val isBankBody = bankKeywords.any { body.contains(it) } && (!isPersonalMobileNumber(address) || isBankSender)
         if (isBankSender || isBankBody) {
-            return MessageCategory.BANK
+            return "BANK"
         }
 
         // 3. مخاطبین ذخیره‌شده
-        if (hasContact) return MessageCategory.CONTACTS
+        if (hasContact) return "CONTACTS"
 
         // 4. شماره‌های موبایل شخصی ناشناس
         if (isPersonalMobileNumber(address)) {
-            return MessageCategory.UNKNOWN
+            return "UNKNOWN"
         }
 
         // 5. اگر از سرشماره بود و فقط یک کد ۴ تا ۶ رقمی در یک متن کوتاه داشت، باز هم رمز و کد است
         if (hasShortOtpDigits && body.length < 110) {
-            return MessageCategory.OTP
+            return "OTP"
         }
 
         // 6. متفرقه
-        return MessageCategory.OTHER
+        return "OTHER"
+    }
+
+    fun classifyConversationCategory(context: Context, conv: Conversation): MessageCategory {
+        val id = classifyConversation(context, conv)
+        return try { MessageCategory.valueOf(id) } catch (_: Exception) { MessageCategory.OTHER }
     }
 }

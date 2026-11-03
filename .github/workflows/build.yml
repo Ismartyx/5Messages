@@ -182,14 +182,14 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          VERSION_NAME="1.3.9"
+          VERSION_NAME="1.4.0"
           TAG_NAME="v${VERSION_NAME}"
           gh release delete "$TAG_NAME" --yes || true
           git tag -d "$TAG_NAME" || true
           git push origin ":refs/tags/$TAG_NAME" || true
           gh release create "$TAG_NAME" signed_out/5Messages.apk \
             --title "5Messages v${VERSION_NAME}" \
-            --notes "نسخه 1.3.9: ماندن صفحه تنظیمات وب‌کلاینت پس از راه‌اندازی، به‌روزرسانی زنده وضعیت و دکمه خاموش/روشن، پشتیبانی کامل از تونل Tailscale و رفع بسته شدن سوکت" \
+            --notes "نسخه 1.4.0: مدیریت کامل دسته‌بندی‌ها (تغییر نام، افزودن دسته‌بندی جدید، حذف و تغییر ترتیب)، رفع قطعی انتقال گفتگوها به پوشه‌های دیگر، بهبود اسکرول با موس و دکمه‌های ناوبری دسته‌ها در وب‌کلاینت و هماهنگی کامل فونت‌ها" \
             --latest || gh release upload "$TAG_NAME" signed_out/5Messages.apk --clobber
 
       - name: Upload APK

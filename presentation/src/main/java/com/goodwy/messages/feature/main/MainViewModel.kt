@@ -67,7 +67,7 @@ class MainViewModel @Inject constructor(
     private val syncMessages: SyncMessages
 ) : QkViewModel<MainView, MainState>(MainState()) {
 
-    private var currentCategory: MessageCategory = MessageCategory.CONTACTS
+    private var currentCategoryId: String = "CONTACTS"
     private val allInboxConversations = conversationRepo.getConversations()
     private val manualPrefs by lazy {
         context.getSharedPreferences("manual_message_categories", Context.MODE_PRIVATE)
@@ -84,7 +84,7 @@ class MainViewModel @Inject constructor(
 
         val savedOrder = getSavedCategoryOrder()
         if (savedOrder.isNotEmpty()) {
-            currentCategory = savedOrder.first()
+            currentCategoryId = savedOrder.first().id
         }
         refreshInboxCategory()
 
@@ -147,63 +147,87 @@ class MainViewModel @Inject constructor(
         markAllSeen.execute(Unit)
     }
 
-    fun getSavedCategoryOrder(): List<MessageCategory> {
-        return try {
-            val raw = manualPrefs.getString("tab_order", null)
-            if (raw.isNullOrBlank()) return MessageCategory.values().toList()
-            val parsed = raw.split(",").mapNotNull { name ->
-                try { MessageCategory.valueOf(name) } catch (e: Exception) { null }
-            }
-            if (parsed.size == MessageCategory.values().size) parsed else MessageCategory.values().toList()
-        } catch (e: Exception) {
-            MessageCategory.values().toList()
-        }
+    fun getSavedCategoryOrder(): List<CategoryItem> {
+        return CategoryManager.getCategories(context)
     }
 
-    fun saveCategoryOrder(order: List<MessageCategory>) {
+    fun saveCategoryOrder(order: List<CategoryItem>) {
         try {
-            manualPrefs.edit().putString("tab_order", order.joinToString(",") { it.name }).apply()
+            CategoryManager.saveCategories(context, order)
             refreshInboxCategory()
         } catch (_: Exception) {}
     }
 
-    fun setCategory(category: MessageCategory) {
-        currentCategory = category
+    fun setCategory(categoryId: String) {
+        currentCategoryId = categoryId
         refreshInboxCategory(forceInbox = true)
     }
 
-    fun setManualCategoryForConversations(threadIds: List<Long>, category: MessageCategory) {
+    fun setManualCategoryForConversations(threadIds: List<Long>, categoryId: String) {
         try {
             val editor = manualPrefs.edit()
+            val legacyEditor = context.getSharedPreferences("manual_categories", Context.MODE_PRIVATE).edit()
             Realm.getDefaultInstance().use { realm ->
                 threadIds.forEach { threadId ->
-                    editor.putString("thread_$threadId", category.name)
+                    editor.putString("thread_$threadId", categoryId)
+                    legacyEditor.putString("thread_$threadId", categoryId)
                     val conv = realm.where(Conversation::class.java).equalTo("id", threadId).findFirst()
                     val addr = conv?.recipients?.firstOrNull()?.address?.trim()
                     if (!addr.isNullOrEmpty()) {
-                        editor.putString("addr_$addr", category.name)
+                        editor.putString("addr_$addr", categoryId)
+                        legacyEditor.putString("addr_$addr", categoryId)
                     }
                 }
             }
             editor.apply()
+            legacyEditor.apply()
             refreshInboxCategory()
         } catch (_: Exception) {}
     }
 
+    fun renameCategory(id: String, newName: String) {
+        if (CategoryManager.renameCategory(context, id, newName)) {
+            refreshInboxCategory()
+        }
+    }
+
+    fun addCategory(name: String): CategoryItem? {
+        val item = CategoryManager.addCategory(context, name)
+        if (item != null) {
+            currentCategoryId = item.id
+            refreshInboxCategory(forceInbox = true)
+        }
+        return item
+    }
+
+    fun deleteCategory(id: String) {
+        if (CategoryManager.deleteCategory(context, id)) {
+            if (currentCategoryId == id) {
+                currentCategoryId = "CONTACTS"
+            }
+            refreshInboxCategory(forceInbox = true)
+        }
+    }
+
+    fun moveCategoryPosition(from: Int, to: Int) {
+        CategoryManager.moveCategoryPosition(context, from, to)
+        refreshInboxCategory()
+    }
+
     private fun refreshInboxCategory(forceInbox: Boolean = false) {
         try {
-            val (data, counts) = queryCategoryDataAndCounts(currentCategory)
+            val (data, counts) = queryCategoryDataAndCounts(currentCategoryId)
             newState {
                 when {
-                    forceInbox -> copy(page = Inbox(data = data, category = currentCategory, unreadCounts = counts))
-                    page is Inbox -> copy(page = page.copy(data = data, category = currentCategory, unreadCounts = counts))
+                    forceInbox -> copy(page = Inbox(data = data, categoryId = currentCategoryId, unreadCounts = counts))
+                    page is Inbox -> copy(page = page.copy(data = data, categoryId = currentCategoryId, unreadCounts = counts))
                     else -> this
                 }
             }
         } catch (_: Exception) {}
     }
 
-    private fun queryCategoryDataAndCounts(selectedCategory: MessageCategory): Pair<RealmResults<Conversation>, Map<MessageCategory, Int>> {
+    private fun queryCategoryDataAndCounts(selectedCategoryId: String): Pair<RealmResults<Conversation>, Map<String, Int>> {
         val realm = Realm.getDefaultInstance()
         realm.refresh()
 
@@ -215,24 +239,18 @@ class MainViewModel @Inject constructor(
                 .findAll()
 
         val matchingIds = mutableListOf<Long>()
-        val unreadCounts = mutableMapOf(
-                MessageCategory.CONTACTS to 0,
-                MessageCategory.UNKNOWN to 0,
-                MessageCategory.BANK to 0,
-                MessageCategory.OTP to 0,
-                MessageCategory.OTHER to 0
-        )
+        val unreadCounts = mutableMapOf<String, Int>()
 
         for (conv in allActive) {
             if (!conv.isValid) continue
             if (conv.lastMessage == null && conv.draft.isEmpty()) continue
 
-            val cat = classifyConversation(conv)
-            if (cat == selectedCategory) {
+            val catId = classifyConversation(conv)
+            if (catId == selectedCategoryId) {
                 matchingIds.add(conv.id)
             }
             if (conv.unread) {
-                unreadCounts[cat] = (unreadCounts[cat] ?: 0) + 1
+                unreadCounts[catId] = (unreadCounts[catId] ?: 0) + 1
             }
         }
 
@@ -258,7 +276,7 @@ class MainViewModel @Inject constructor(
             .replace('ي', 'ی').replace('ك', 'ک')
     }
 
-    private fun classifyConversation(conv: Conversation): MessageCategory {
+    private fun classifyConversation(conv: Conversation): String {
         return ConversationClassifier.classifyConversation(context, conv)
     }
 

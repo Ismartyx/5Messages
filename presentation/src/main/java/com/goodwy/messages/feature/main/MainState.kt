@@ -33,9 +33,12 @@ data class Inbox(
     val markRead: Boolean = false,
     val data: RealmResults<Conversation>? = null,
     val selected: Int = 0,
-    val category: MessageCategory = MessageCategory.CONTACTS,
-    val unreadCounts: Map<MessageCategory, Int> = emptyMap()
-) : MainPage()
+    val categoryId: String = "CONTACTS",
+    val unreadCounts: Map<String, Int> = emptyMap()
+) : MainPage() {
+    val category: MessageCategory
+        get() = try { MessageCategory.valueOf(categoryId) } catch (_: Exception) { MessageCategory.OTHER }
+}
 
 data class Searching(
     val loading: Boolean = false,
