@@ -250,6 +250,7 @@ class WebClientServer(
 
             // Set conversation category
             (method == "POST" && path == "/api/conversation/category") -> {
+                val json = try { JSONObject(body) } catch (_: Exception) { JSONObject() }
                 val threadId = json.optLong("threadId", -1L)
                 val catId = json.optString("categoryId", "")
                 if (threadId != -1L && catId.isNotBlank()) {

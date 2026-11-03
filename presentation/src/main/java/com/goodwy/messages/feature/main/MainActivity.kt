@@ -18,6 +18,7 @@ import android.os.Bundle
 import android.os.Environment
 import android.text.InputType
 import android.util.Base64
+import android.util.TypedValue
 import android.view.DragEvent
 import android.view.Gravity
 import android.view.Menu
