@@ -871,8 +871,8 @@
   <div class="modal-overlay" id="pinModal">
     <div class="modal-card">
       <h2>ورود به Messages Web</h2>
-      <p>رمز ورود ۶ رقمی را وارد کنید و کلید Enter را بزنید:</p>
-      <input type="password" id="pinInput" class="pin-input" maxlength="6" autofocus onkeydown="if(event.key==='Enter') submitLogin()">
+      <p>رمز پین‌کد تنظیم شده در گوشی را وارد کنید:</p>
+      <input type="password" id="pinInput" class="pin-input" maxlength="20" autofocus autocomplete="current-password" onkeydown="if(event.key==='Enter') submitLogin()">
       <button class="btn-primary" onclick="submitLogin()">ورود</button>
     </div>
   </div>
@@ -997,8 +997,16 @@
     }
 
     async function initApp() {
-      await loadCategories();
-      await loadConversations();
+      try {
+        await loadCategories();
+      } catch (e) {
+        console.error('loadCategories error', e);
+      }
+      try {
+        await loadConversations();
+      } catch (e) {
+        console.error('loadConversations error', e);
+      }
       setInterval(pollNewMessages, 3000);
       setInterval(loadCategories, 20000);
       initAudio();
@@ -1072,10 +1080,6 @@
           e.stopPropagation();
           e.preventDefault();
           hasDragged = false;
-        }
-      }, true);
-    }
-          isMoved = false;
         }
       }, true);
     }
@@ -1231,15 +1235,6 @@
         const badge = document.getElementById('badge-' + cat);
         if (badge) {
           badge.textContent = count;
-          badge.style.display = count > 0 ? 'inline-block' : 'none';
-        }
-      }
-    }
-
-      for (const [cat, count] of Object.entries(counts)) {
-        const badge = document.getElementById('badge-' + cat);
-        if (badge) {
-          badge.innerText = count;
           badge.style.display = count > 0 ? 'inline-block' : 'none';
         }
       }
