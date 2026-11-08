@@ -198,6 +198,7 @@ class SettingsController : QkController<SettingsView, SettingsState, SettingsPre
         separator.checkbox.isChecked = state.separator
 
         systemFont.checkbox.isChecked = state.systemFontEnabled
+        shamsiCalendar.checkbox.isChecked = state.shamsiCalendarEnabled
 
         unicode.checkbox.isChecked = state.stripUnicodeEnabled
         mobileOnly.checkbox.isChecked = state.mobileOnly

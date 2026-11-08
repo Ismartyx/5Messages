@@ -500,7 +500,20 @@ class MessageRepositoryImpl @Inject constructor(
         }
         val realm = Realm.getDefaultInstance()
         var managedMessage: Message? = null
-        realm.executeTransaction { managedMessage = realm.copyToRealmOrUpdate(message) }
+        realm.executeTransaction {
+            managedMessage = realm.copyToRealmOrUpdate(message)
+            val conversation = realm.where(Conversation::class.java).equalTo("id", threadId).findFirst()
+            conversation?.lastMessage = managedMessage
+        }
+
+        // Immediately trigger main looper Realm refresh so the UI updates with 0 delay
+        android.os.Handler(android.os.Looper.getMainLooper()).post {
+            try {
+                val mainRealm = Realm.getDefaultInstance()
+                mainRealm.refresh()
+                mainRealm.close()
+            } catch (_: Exception) {}
+        }
 
         // Insert the message to the native content provider
         val values = contentValuesOf(
@@ -557,7 +570,20 @@ class MessageRepositoryImpl @Inject constructor(
         }
         val realm = Realm.getDefaultInstance()
         var managedMessage: Message? = null
-        realm.executeTransaction { managedMessage = realm.copyToRealmOrUpdate(message) }
+        realm.executeTransaction {
+            managedMessage = realm.copyToRealmOrUpdate(message)
+            val conversation = realm.where(Conversation::class.java).equalTo("id", threadId).findFirst()
+            conversation?.lastMessage = managedMessage
+        }
+
+        // Immediately trigger main looper Realm refresh so the UI updates with 0 delay
+        android.os.Handler(android.os.Looper.getMainLooper()).post {
+            try {
+                val mainRealm = Realm.getDefaultInstance()
+                mainRealm.refresh()
+                mainRealm.close()
+            } catch (_: Exception) {}
+        }
 
         // Insert the message to the native content provider
         val values = contentValuesOf(

@@ -98,6 +98,7 @@ class Preferences @Inject constructor(
     val sim3Color = rxPrefs.getInteger("sim3Color", SIM_COLOR_YELLOW)
     val separator = rxPrefs.getBoolean("separator", true)
     val systemFont = rxPrefs.getBoolean("systemFont", false)
+    val shamsiCalendar = rxPrefs.getBoolean("shamsiCalendar", false)
     val textSize = rxPrefs.getInteger("textSize", TEXT_SIZE_NORMAL)
     val blockingManager = rxPrefs.getInteger("blockingManager", BLOCKING_MANAGER_QKSMS)
     val drop = rxPrefs.getBoolean("drop", false)

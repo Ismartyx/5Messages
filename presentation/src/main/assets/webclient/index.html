@@ -1731,16 +1731,31 @@
       return AVATAR_COLORS[idx];
     }
 
+    function toEnglishDigits(str) {
+      if (!str) return '';
+      return String(str).replace(/[۰-۹]/g, d => '۰۱۲۳۴۵۶۷۸۹'.indexOf(d));
+    }
+
     function formatTime(timestamp) {
       if (!timestamp) return '';
       const d = new Date(timestamp);
-      return d.toLocaleTimeString('fa-IR', { hour: '2-digit', minute: '2-digit' });
+      try {
+        return toEnglishDigits(d.toLocaleTimeString('fa-IR-u-nu-latn', { hour: '2-digit', minute: '2-digit', hour12: false }));
+      } catch (e) {
+        return toEnglishDigits(d.toLocaleTimeString('fa-IR', { hour: '2-digit', minute: '2-digit' }));
+      }
     }
 
     function formatFullTime(timestamp) {
       if (!timestamp) return '';
       const d = new Date(timestamp);
-      return d.toLocaleDateString('fa-IR') + ' ' + d.toLocaleTimeString('fa-IR', { hour: '2-digit', minute: '2-digit' });
+      try {
+        const dateStr = d.toLocaleDateString('fa-IR-u-nu-latn');
+        const timeStr = d.toLocaleTimeString('fa-IR-u-nu-latn', { hour: '2-digit', minute: '2-digit', hour12: false });
+        return toEnglishDigits(dateStr + ' ' + timeStr);
+      } catch (e) {
+        return toEnglishDigits(d.toLocaleDateString('fa-IR') + ' ' + d.toLocaleTimeString('fa-IR', { hour: '2-digit', minute: '2-digit' }));
+      }
     }
 
     function escapeHtml(str) {

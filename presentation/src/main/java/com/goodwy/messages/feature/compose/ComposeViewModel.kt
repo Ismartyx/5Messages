@@ -648,6 +648,7 @@ class ComposeViewModel @Inject constructor(
                 .filter { permissionManager.hasSendSms().also { if (!it) view.requestSmsPermission() } }
                 .withLatestFrom(view.textChangedIntent) { _, body -> body }
                 .map { body -> body.toString() }
+                .doOnNext { view.setDraft("") }
                 .withLatestFrom(state, attachments, conversation, selectedChips) { body, state, attachments,
                                                                                    conversation, chips ->
                     val subId = state.subscription?.subscriptionId ?: -1
