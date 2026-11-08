@@ -746,12 +746,12 @@ class ComposeViewModel @Inject constructor(
         // Toggle avatar from inside conversation
         view.optionsItemIntent
                 .filter { it == R.id.toggleAvatar }
+                .autoDisposable(view.scope())
                 .subscribe {
                     val current = prefs.showAvatars.get()
                     prefs.showAvatars.set(!current)
                     context.makeToast(if (!current) "نمایش تصویر مخاطب فعال شد" else "تصویر مخاطب مخفی شد")
                 }
-                .autoDisposable(view.scope())
 
         // Navigate back
         view.optionsItemIntent

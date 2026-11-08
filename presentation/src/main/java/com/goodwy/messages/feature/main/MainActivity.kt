@@ -29,6 +29,7 @@ import android.view.ViewStub
 import android.widget.Button
 import android.widget.CheckBox
 import android.widget.EditText
+import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
@@ -104,7 +105,6 @@ class MainActivity : QkThemedActivity(), MainView {
     @Inject lateinit var syncRepo: SyncRepository
     @Inject lateinit var nightModeManager: NightModeManager
     @Inject lateinit var dateFormatter: com.goodwy.messages.common.util.DateFormatter
-    @Inject lateinit var prefs: Preferences
 
     override val onNewIntentIntent: Subject<Intent> = PublishSubject.create()
     override val activityResumedIntent: Subject<Boolean> = PublishSubject.create()
