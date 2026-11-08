@@ -1,0 +1,271 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical">
+
+    <!-- Top Segmented Bar: 2 purposes (Saved Messages & Clipboard) -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="16dp"
+        android:layout_marginEnd="16dp"
+        android:layout_marginTop="4dp"
+        android:layout_marginBottom="6dp"
+        android:gravity="center"
+        android:orientation="horizontal">
+
+        <com.goodwy.messages.common.widget.QkTextView
+            android:id="@+id/btnTabSavedMessages"
+            style="@style/TextPrimary"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:background="@drawable/rounded_rectangle_24dp"
+            android:backgroundTint="#10B981"
+            android:gravity="center"
+            android:paddingTop="8dp"
+            android:paddingBottom="8dp"
+            android:text="📌 پیام‌های ذخیره شده"
+            android:textColor="#FFFFFF"
+            android:textSize="13sp"
+            android:textStyle="bold" />
+
+        <View
+            android:layout_width="8dp"
+            android:layout_height="1dp" />
+
+        <com.goodwy.messages.common.widget.QkTextView
+            android:id="@+id/btnTabClipboard"
+            style="@style/TextPrimary"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:background="@drawable/rounded_rectangle_24dp"
+            android:backgroundTint="?attr/bubbleColor"
+            android:gravity="center"
+            android:paddingTop="8dp"
+            android:paddingBottom="8dp"
+            android:text="📋 کلیپ‌بورد (۵ دقیقه)"
+            android:textColor="?android:attr/textColorSecondary"
+            android:textSize="13sp"
+            android:textStyle="bold" />
+
+    </LinearLayout>
+
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1">
+
+        <!-- ================= SAVED MESSAGES VIEW ================= -->
+        <RelativeLayout
+            android:id="@+id/layoutSavedMessages"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:visibility="visible">
+
+            <com.goodwy.messages.common.widget.QkTextView
+                android:id="@+id/emptySavedMessages"
+                style="@style/TextSecondary"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:gravity="center"
+                android:padding="32dp"
+                android:text="هیچ پیام یا یادداشتی ذخیره نشده است.\nمی‌توانید متن مورد نظرتان را در کادر زیر بنویسید و ذخیره کنید."
+                android:visibility="gone" />
+
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/recyclerSavedMessages"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:layout_above="@id/bottomInputBar"
+                android:clipToPadding="false"
+                android:paddingTop="4dp"
+                android:paddingBottom="4dp"
+                app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
+                tools:listitem="@layout/item_saved_message" />
+
+            <LinearLayout
+                android:id="@+id/bottomInputBar"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_alignParentBottom="true"
+                android:background="?attr/bubbleColor"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:paddingStart="12dp"
+                android:paddingEnd="12dp"
+                android:paddingTop="8dp"
+                android:paddingBottom="8dp">
+
+                <com.goodwy.messages.common.widget.QkEditText
+                    android:id="@+id/inputSavedMessage"
+                    style="@style/TextPrimary"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:background="@null"
+                    android:hint="نوشتن پیام یا یادداشت برای خود..."
+                    android:maxLines="4"
+                    android:padding="8dp"
+                    android:textColorHint="?android:attr/textColorTertiary"
+                    android:textSize="14sp" />
+
+                <ImageView
+                    android:id="@+id/btnSaveMessage"
+                    android:layout_width="40dp"
+                    android:layout_height="40dp"
+                    android:background="@drawable/circle_ripple"
+                    android:backgroundTint="#10B981"
+                    android:padding="8dp"
+                    android:src="@drawable/ic_send_black_24dp"
+                    android:tint="#FFFFFF"
+                    android:contentDescription="Save" />
+
+            </LinearLayout>
+
+        </RelativeLayout>
+
+        <!-- ================= CLIPBOARD VIEW ================= -->
+        <LinearLayout
+            android:id="@+id/layoutClipboard"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:orientation="vertical"
+            android:visibility="gone">
+
+            <!-- Security Banner Card -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="12dp"
+                android:layout_marginEnd="12dp"
+                android:layout_marginTop="4dp"
+                android:layout_marginBottom="6dp"
+                android:background="@drawable/rounded_rectangle_8dp"
+                android:backgroundTint="?attr/bubbleColor"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:padding="10dp">
+
+                <ImageView
+                    android:layout_width="28dp"
+                    android:layout_height="28dp"
+                    android:src="@drawable/ic_av_timer_black_24dp"
+                    android:tint="#F59E0B" />
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="8dp"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+
+                    <com.goodwy.messages.common.widget.QkTextView
+                        style="@style/TextPrimary"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="کلیپ‌بورد با پاکسازی خودکار"
+                        android:textSize="13sp"
+                        android:textStyle="bold" />
+
+                    <com.goodwy.messages.common.widget.QkTextView
+                        style="@style/TextSecondary"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="2dp"
+                        android:text="متن‌ها برای حفظ امنیت پس از ۵ دقیقه پاک می‌شوند."
+                        android:textSize="11sp" />
+
+                </LinearLayout>
+
+                <com.goodwy.messages.common.widget.QkTextView
+                    android:id="@+id/btnClearClipboardNow"
+                    style="@style/TextPrimary"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:background="@drawable/rounded_rectangle_16dp"
+                    android:backgroundTint="#EF4444"
+                    android:paddingStart="10dp"
+                    android:paddingEnd="10dp"
+                    android:paddingTop="6dp"
+                    android:paddingBottom="6dp"
+                    android:text="پاکسازی فوری"
+                    android:textColor="#FFFFFF"
+                    android:textSize="11sp" />
+
+            </LinearLayout>
+
+            <!-- Quick Add Bar -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="12dp"
+                android:layout_marginEnd="12dp"
+                android:layout_marginBottom="6dp"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <com.goodwy.messages.common.widget.QkEditText
+                    android:id="@+id/inputClipboard"
+                    style="@style/TextPrimary"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:background="@drawable/rounded_rectangle_8dp"
+                    android:backgroundTint="?attr/bubbleColor"
+                    android:hint="افزودن متن دلخواه به کلیپ‌بورد..."
+                    android:maxLines="2"
+                    android:padding="8dp"
+                    android:textColorHint="?android:attr/textColorTertiary"
+                    android:textSize="13sp" />
+
+                <com.goodwy.messages.common.widget.QkTextView
+                    android:id="@+id/btnAddClipboard"
+                    style="@style/TextPrimary"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="8dp"
+                    android:background="@drawable/rounded_rectangle_8dp"
+                    android:backgroundTint="#0EA5E9"
+                    android:paddingStart="12dp"
+                    android:paddingEnd="12dp"
+                    android:paddingTop="9dp"
+                    android:paddingBottom="9dp"
+                    android:text="کپی"
+                    android:textColor="#FFFFFF"
+                    android:textSize="13sp"
+                    android:textStyle="bold" />
+
+            </LinearLayout>
+
+            <com.goodwy.messages.common.widget.QkTextView
+                android:id="@+id/emptyClipboard"
+                style="@style/TextSecondary"
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="1"
+                android:gravity="center"
+                android:padding="32dp"
+                android:text="کلیپ‌بورد در حال حاضر خالی است.\nمتن‌های کپی شده از گوشی یا ویندوز اینجا نمایش داده می‌شوند."
+                android:visibility="gone" />
+
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/recyclerClipboard"
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="1"
+                android:clipToPadding="false"
+                android:paddingTop="4dp"
+                android:paddingBottom="4dp"
+                app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
+                tools:listitem="@layout/item_clipboard" />
+
+        </LinearLayout>
+
+    </FrameLayout>
+
+</LinearLayout>

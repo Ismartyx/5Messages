@@ -213,6 +213,15 @@
             app:summary="@string/settings_shamsi_calendar_summary"
             app:widget="@layout/settings_switch_widget" />
 
+        <com.goodwy.messages.common.widget.PreferenceView
+            android:id="@+id/showAvatars"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            app:icon="@drawable/ic_person_black_24dp"
+            app:title="@string/settings_show_avatars_title"
+            app:summary="@string/settings_show_avatars_summary"
+            app:widget="@layout/settings_switch_widget" />
+
         <View
             android:layout_width="match_parent"
             android:layout_height="1dp"

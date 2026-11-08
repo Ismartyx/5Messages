@@ -171,6 +171,15 @@
             app:layout_constraintTop_toBottomOf="@id/categoryScroll"
             tools:listitem="@layout/conversation_list_item" />
 
+        <include
+            android:id="@+id/savedNotesContainer"
+            layout="@layout/layout_saved_notes_and_clipboard"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:visibility="gone"
+            app:layout_constraintBottom_toTopOf="@id/bottom"
+            app:layout_constraintTop_toBottomOf="@id/categoryScroll" />
+
         <ImageView
             android:id="@+id/compose"
             android:layout_width="56dp"

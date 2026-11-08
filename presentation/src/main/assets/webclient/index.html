@@ -751,7 +751,92 @@
       word-break: break-all;
       user-select: all;
     }
-  </style>
+      /* Saved Notes & Clipboard */
+    .note-item {
+      background: #1E293B;
+      border: 1px solid #334155;
+      border-radius: 12px;
+      padding: 14px 16px;
+      margin-bottom: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .note-text {
+      color: #F8FAFC;
+      font-size: 14.5px;
+      line-height: 1.6;
+      white-space: pre-wrap;
+      word-break: break-word;
+      user-select: text;
+    }
+    .note-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      color: #94A3B8;
+      font-size: 12px;
+      padding-top: 6px;
+      border-top: 1px solid #334155;
+    }
+    .note-actions {
+      display: flex;
+      gap: 8px;
+    }
+    .note-action-btn {
+      background: #334155;
+      color: #F1F5F9;
+      border: none;
+      border-radius: 6px;
+      padding: 4px 10px;
+      font-size: 12px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      transition: background 0.15s;
+    }
+    .note-action-btn:hover { background: #475569; }
+    .note-action-btn.delete:hover { background: #EF4444; color: #FFF; }
+
+    .clip-sync-banner {
+      background: linear-gradient(135deg, #1E293B, #0F172A);
+      border: 1px solid #38BDF8;
+      border-radius: 12px;
+      padding: 14px 16px;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+    .clip-sync-btn {
+      background: #0EA5E9;
+      color: #FFF;
+      border: none;
+      border-radius: 8px;
+      padding: 8px 14px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .clip-sync-btn:hover { background: #0284C7; }
+    .clip-clear-btn {
+      background: #EF4444;
+      color: #FFF;
+      border: none;
+      border-radius: 8px;
+      padding: 8px 14px;
+      font-size: 13px;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .clip-clear-btn:hover { background: #DC2626; }
+</style>
 </head>
 <body>
 
@@ -1248,6 +1333,27 @@
       const query = document.getElementById('searchInput').value.trim().toLowerCase();
       const list = document.getElementById('convList');
       list.innerHTML = '';
+
+      if (currentCategory === 'SAVED_NOTES') {
+        list.innerHTML = 
+          <li class=\"conv-item \" onclick=\"selectSavedSubTab('saved')\">
+            <div class=\"avatar\" style=\"background:#10B981;\">📌</div>
+            <div class=\"conv-info\">
+              <div class=\"conv-title\">پیام‌های ذخیره شده</div>
+              <div class=\"conv-snippet\">یادداشت‌ها و پیام‌ها برای خود</div>
+            </div>
+          </li>
+          <li class=\"conv-item \" onclick=\"selectSavedSubTab('clipboard')\">
+            <div class=\"avatar\" style=\"background:#0EA5E9;\">📋</div>
+            <div class=\"conv-info\">
+              <div class=\"conv-title\">کلیپ‌بورد سیستم</div>
+              <div class=\"conv-snippet\">همگام با ویندوز (پاکسازی ۵ دقیقه)</div>
+            </div>
+          </li>
+        ;
+        showSavedNotesView(currentSavedSubTab || 'saved');
+        return;
+      }
 
       let filtered = conversations.filter(c => {
         if (currentCategory === 'ARCHIVED') {
@@ -1766,6 +1872,275 @@
     function escapeQuotes(str) {
       if (!str) return '';
       return str.replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/"/g, '\\"').replace(/\n/g, '\\n');
+    }
+    let currentSavedSubTab = 'saved'; // 'saved' or 'clipboard'
+
+    function selectSavedSubTab(tab) {
+      currentSavedSubTab = tab;
+      renderConversations();
+      showSavedNotesView(tab);
+    }
+
+    async function showSavedNotesView(tab) {
+      const panel = document.getElementById('savedNotesPanel');
+      if (!panel) return;
+      panel.style.display = 'flex';
+      const ch = document.getElementById('chatHeader');
+      if (ch) ch.style.display = 'none';
+      const mc = document.getElementById('messagesContainer');
+      if (mc) mc.style.display = 'none';
+      const cf = document.getElementById('chatFooter');
+      if (cf) cf.style.display = 'none';
+
+      const avatar = document.getElementById('savedNotesAvatar');
+      const title = document.getElementById('savedNotesTitle');
+      const sub = document.getElementById('savedNotesSubtitle');
+      const clipActions = document.getElementById('clipboardHeaderActions');
+      const input = document.getElementById('savedNoteInput');
+      const submitBtn = document.getElementById('btnSaveNoteSubmit');
+
+      if (tab === 'saved') {
+        if (avatar) { avatar.textContent = '📌'; avatar.style.background = '#10B981'; }
+        if (title) title.textContent = 'پیام‌های ذخیره شده';
+        if (sub) sub.textContent = 'یادداشت‌ها و پیام‌ها برای خود (ذخیره همیشگی)';
+        if (clipActions) clipActions.style.display = 'none';
+        if (input) input.placeholder = 'نوشتن پیام یا یادداشت برای خود...';
+        if (submitBtn) { submitBtn.style.background = '#10B981'; submitBtn.title = 'ذخیره یادداشت'; }
+        loadSavedMessages();
+      } else {
+        if (avatar) { avatar.textContent = '📋'; avatar.style.background = '#0EA5E9'; }
+        if (title) title.textContent = 'کلیپ‌بورد سیستم';
+        if (sub) sub.textContent = 'همگام‌سازی دوطرفه با ویندوز (پاکسازی خودکار ۵ دقیقه‌ای)';
+        if (clipActions) clipActions.style.display = 'flex';
+        if (input) input.placeholder = 'متن مورد نظر برای ارسال به کلیپ‌بورد گوشی...';
+        if (submitBtn) { submitBtn.style.background = '#0EA5E9'; submitBtn.title = 'ارسال به کلیپ‌بورد'; }
+        loadClipboardItems();
+      }
+    }
+
+    async function loadSavedMessages() {
+      const container = document.getElementById('savedNotesListContainer');
+      if (!container) return;
+      container.innerHTML = '<div class=\"empty-state\"><p>در حال بارگذاری یادداشت‌ها...</p></div>';
+      try {
+        const res = await fetch('/api/saved-messages', {
+          headers: { 'Authorization': 'Bearer ' + token }
+        });
+        if (res.status === 200) {
+          const list = await res.json();
+          renderSavedMessagesList(list);
+        }
+      } catch (e) {
+        container.innerHTML = '<div class=\"empty-state\"><p>خطا در بارگذاری یادداشت‌ها</p></div>';
+      }
+    }
+
+    function renderSavedMessagesList(list) {
+      const container = document.getElementById('savedNotesListContainer');
+      if (!container) return;
+      container.innerHTML = '';
+      if (!list || list.length === 0) {
+        container.innerHTML = '<div class=\"empty-state\"><p>هیچ یادداشتی وجود ندارد. متن خود را در کادر پایین بنویسید و ذخیره کنید.</p></div>';
+        return;
+      }
+      list.forEach(item => {
+        const div = document.createElement('div');
+        div.className = 'note-item';
+        div.innerHTML = 
+          <div class=\"note-text\"></div>
+          <div class=\"note-footer\">
+            <span></span>
+            <div class=\"note-actions\">
+              <button class=\"note-action-btn\" onclick=\"copyToWindows('')\">
+                <span>📋</span> <span>کپی در ویندوز</span>
+              </button>
+              <button class=\"note-action-btn delete\" onclick=\"deleteSavedMessage()\">
+                <span>🗑️</span> <span>حذف</span>
+              </button>
+            </div>
+          </div>
+        ;
+        container.appendChild(div);
+      });
+    }
+
+    async function loadClipboardItems() {
+      const container = document.getElementById('savedNotesListContainer');
+      if (!container) return;
+      container.innerHTML = '<div class=\"empty-state\"><p>در حال بارگذاری کلیپ‌بورد...</p></div>';
+      try {
+        const res = await fetch('/api/clipboard', {
+          headers: { 'Authorization': 'Bearer ' + token }
+        });
+        if (res.status === 200) {
+          const data = await res.json();
+          renderClipboardList(data.items || []);
+        }
+      } catch (e) {
+        container.innerHTML = '<div class=\"empty-state\"><p>خطا در بارگذاری کلیپ‌بورد</p></div>';
+      }
+    }
+
+    function renderClipboardList(items) {
+      const container = document.getElementById('savedNotesListContainer');
+      if (!container) return;
+      container.innerHTML = '';
+
+      const banner = document.createElement('div');
+      banner.className = 'clip-sync-banner';
+      banner.innerHTML = 
+        <div>
+          <div style=\"font-weight: bold; color: #38BDF8; font-size: 13.5px;\">⏱️ کلیپ‌بورد امن با پاکسازی خودکار</div>
+          <div style=\"font-size: 11.5px; color: #94A3B8; margin-top: 2px;\">متن‌های کپی شده حداکثر پس از ۵ دقیقه به طور خودکار از گوشی و مرورگر پاک می‌شوند.</div>
+        </div>
+        <button class=\"clip-sync-btn\" onclick=\"syncWindowsClipboard()\">
+          <span>📋</span> <span>دریافت از ویندوز</span>
+        </button>
+      ;
+      container.appendChild(banner);
+
+      if (!items || items.length === 0) {
+        const empty = document.createElement('div');
+        empty.className = 'empty-state';
+        empty.innerHTML = '<p>کلیپ‌بورد در حال حاضر خالی است.<br>برای انتقال متن از کامپیوتر به گوشی، روی «دریافت از ویندوز» بزنید یا در کادر زیر تایپ کنید.</p>';
+        container.appendChild(empty);
+        return;
+      }
+
+      const now = Date.now();
+      items.forEach(item => {
+        const remaining = Math.max(0, Math.floor((item.expiresAt - now) / 60000));
+        const remSec = Math.max(0, Math.floor(((item.expiresAt - now) % 60000) / 1000));
+        const timeBadge = remaining > 0 ? (remaining + ' دقیقه دیگر') : (remSec + ' ثانیه دیگر');
+
+        const div = document.createElement('div');
+        div.className = 'note-item';
+        div.innerHTML = 
+          <div class=\"note-text\"></div>
+          <div class=\"note-footer\">
+            <span style=\"color:#F59E0B;\">⏱️ پاکسازی تا </span>
+            <div class=\"note-actions\">
+              <button class=\"note-action-btn\" onclick=\"copyToWindows('')\">
+                <span>📋</span> <span>کپی در ویندوز</span>
+              </button>
+            </div>
+          </div>
+        ;
+        container.appendChild(div);
+      });
+    }
+
+    async function syncWindowsClipboard() {
+      try {
+        if (!navigator.clipboard || !navigator.clipboard.readText) {
+          showToast('مرورگر اجازه خواندن خودکار کلیپ‌بورد را نمی‌دهد. می‌توانید متن را در کادر زیر Paste کنید.');
+          return;
+        }
+        const text = await navigator.clipboard.readText();
+        if (!text || !text.trim()) {
+          showToast('کلیپ‌بورد ویندوز خالی است');
+          return;
+        }
+        const res = await fetch('/api/clipboard', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + token
+          },
+          body: JSON.stringify({ text: text.trim() })
+        });
+        if (res.status === 200) {
+          showToast('متن از کلیپ‌بورد ویندوز به گوشی منتقل شد');
+          loadClipboardItems();
+        }
+      } catch (err) {
+        showToast('لطفاً در مرورگر دسترسی Clipboard را تایید کنید');
+      }
+    }
+
+    async function clearPhoneClipboard() {
+      if (!confirm('آیا مطمئن هستید که می‌خواهید تمام متن‌های کلیپ‌بورد را پاک کنید؟')) return;
+      try {
+        await fetch('/api/clipboard/clear', {
+          method: 'POST',
+          headers: { 'Authorization': 'Bearer ' + token }
+        });
+        showToast('کلیپ‌بورد با موفقیت پاک شد');
+        loadClipboardItems();
+      } catch (e) {
+        showToast('خطا در پاکسازی کلیپ‌بورد');
+      }
+    }
+
+    async function deleteSavedMessage(id) {
+      if (!confirm('آیا از حذف این یادداشت اطمینان دارید؟')) return;
+      try {
+        await fetch('/api/saved-messages/delete', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + token
+          },
+          body: JSON.stringify({ id: id })
+        });
+        showToast('یادداشت حذف شد');
+        loadSavedMessages();
+      } catch (e) {
+        showToast('خطا در حذف یادداشت');
+      }
+    }
+
+    async function saveNoteOrClip() {
+      const input = document.getElementById('savedNoteInput');
+      if (!input) return;
+      const text = input.value.trim();
+      if (!text) return;
+      input.value = '';
+
+      if (currentSavedSubTab === 'saved') {
+        try {
+          await fetch('/api/saved-messages', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer ' + token
+            },
+            body: JSON.stringify({ text: text })
+          });
+          showToast('یادداشت ذخیره شد');
+          loadSavedMessages();
+        } catch (e) {
+          showToast('خطا در ذخیره یادداشت');
+        }
+      } else {
+        try {
+          await fetch('/api/clipboard', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer ' + token
+            },
+            body: JSON.stringify({ text: text })
+          });
+          showToast('به کلیپ‌بورد اضافه شد');
+          loadClipboardItems();
+        } catch (e) {
+          showToast('خطا در افزودن به کلیپ‌بورد');
+        }
+      }
+    }
+
+    function handleSavedNoteKey(e) {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        saveNoteOrClip();
+      }
+    }
+
+    function copyToWindows(text) {
+      copyTextToClipboard(text, () => {
+        showToast('در کلیپ‌بورد ویندوز کپی شد');
+      });
     }
   </script>
 </body>

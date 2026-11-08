@@ -45,6 +45,21 @@
 
         </LinearLayout>
 
+        <LinearLayout
+            android:id="@+id/savedNotes"
+            style="@style/DrawerRow">
+
+            <ImageView
+                style="@style/DrawerIcon"
+                android:src="@drawable/ic_drafts_black_24dp"
+                android:tint="?android:attr/textColorSecondary" />
+
+            <com.goodwy.messages.common.widget.QkTextView
+                style="@style/DrawerText"
+                android:text="@string/drawer_saved_notes" />
+
+        </LinearLayout>
+
         <View
             android:layout_width="match_parent"
             android:layout_height="1dp"

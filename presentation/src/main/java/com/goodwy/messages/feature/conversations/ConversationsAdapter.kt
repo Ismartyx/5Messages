@@ -104,8 +104,11 @@ class ConversationsAdapter @Inject constructor(
 
         holder.containerView.isActivated = isSelected(conversation.id)
 
-        holder.avatars.recipients = conversation.recipients
-        //holder.avatars.setVisible(false)
+        val showAvatars = prefs.showAvatars.get()
+        holder.avatars.isVisible = showAvatars
+        if (showAvatars) {
+            holder.avatars.recipients = conversation.recipients
+        }
         holder.title.collapseEnabled = conversation.recipients.size > 1
         holder.title.text = buildSpannedString {
             append(conversation.getTitle())

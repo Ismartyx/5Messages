@@ -58,6 +58,7 @@
     <string name="drawer_blocking">Blocking</string>
     <string name="drawer_more">More</string>
     <string name="drawer_settings">Settings</string>
+    <string name="drawer_saved_notes">Saved Messages &amp; Clipboard</string>
     <string name="drawer_plus" translatable="false">4Messages+</string>
     <string name="drawer_help">Help &amp; feedback</string>
     <string name="drawer_invite">Invite friends</string>
@@ -203,6 +204,8 @@
     <string name="settings_system_font_title">Use system font</string>
     <string name="settings_shamsi_calendar_title">Solar Hijri (Shamsi) calendar</string>
     <string name="settings_shamsi_calendar_summary">Show dates in Shamsi with English digits</string>
+    <string name="settings_show_avatars_title">Show contact avatars</string>
+    <string name="settings_show_avatars_summary">Display contact avatar circle next to conversations and messages</string>
     <string name="settings_auto_emoji_title">Automatic emoji</string>
     <string name="settings_notifications_title">Notifications</string>
     <string name="settings_notifications_o_summary">Tap to customize</string>

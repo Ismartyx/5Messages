@@ -268,8 +268,13 @@ class MessagesAdapter @Inject constructor(
 
         // Bind the avatar and bubble colour
         if (!message.isMe()) {
-            holder.avatar.setRecipient(contactCache[message.address])
-            holder.avatar.setVisible(!canGroup(message, next), View.INVISIBLE)
+            val showAvatars = prefs.showAvatars.get()
+            if (showAvatars) {
+                holder.avatar.setRecipient(contactCache[message.address])
+                holder.avatar.setVisible(!canGroup(message, next), View.INVISIBLE)
+            } else {
+                holder.avatar.setVisible(false, View.GONE)
+            }
            // holder.avatar.setVisible(false)
            // holder.body.setTextColor(theme.textPrimary)
            // holder.body.setBackgroundTint(theme.theme)

@@ -140,6 +140,12 @@ class ComposeActivity : QkThemedActivity(), ComposeView, TextToSpeech.OnInitList
                 .autoDisposable(scope())
                 .subscribe()
 
+        prefs.showAvatars.asObservable()
+                .skip(1)
+                .observeOn(AndroidSchedulers.mainThread())
+                .autoDisposable(scope())
+                .subscribe { messageAdapter.notifyDataSetChanged() }
+
         window.callback = ComposeWindowCallback(window.callback, this)
 
         // These theme attributes don't apply themselves on API 21

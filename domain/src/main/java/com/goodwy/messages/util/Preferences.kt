@@ -99,6 +99,7 @@ class Preferences @Inject constructor(
     val separator = rxPrefs.getBoolean("separator", true)
     val systemFont = rxPrefs.getBoolean("systemFont", false)
     val shamsiCalendar = rxPrefs.getBoolean("shamsiCalendar", false)
+    val showAvatars = rxPrefs.getBoolean("showAvatars", true)
     val textSize = rxPrefs.getInteger("textSize", TEXT_SIZE_NORMAL)
     val blockingManager = rxPrefs.getInteger("blockingManager", BLOCKING_MANAGER_QKSMS)
     val drop = rxPrefs.getBoolean("drop", false)

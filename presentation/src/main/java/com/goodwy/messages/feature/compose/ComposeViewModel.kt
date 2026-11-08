@@ -743,6 +743,16 @@ class ComposeViewModel @Inject constructor(
                 .autoDisposable(view.scope())
                 .subscribe { navigator.showQksmsPlusActivity("compose_schedule") }
 
+        // Toggle avatar from inside conversation
+        view.optionsItemIntent
+                .filter { it == R.id.toggleAvatar }
+                .subscribe {
+                    val current = prefs.showAvatars.get()
+                    prefs.showAvatars.set(!current)
+                    context.makeToast(if (!current) "نمایش تصویر مخاطب فعال شد" else "تصویر مخاطب مخفی شد")
+                }
+                .autoDisposable(view.scope())
+
         // Navigate back
         view.optionsItemIntent
                 .filter { it == android.R.id.home }

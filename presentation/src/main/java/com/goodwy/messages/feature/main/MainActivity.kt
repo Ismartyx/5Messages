@@ -103,6 +103,8 @@ class MainActivity : QkThemedActivity(), MainView {
     @Inject lateinit var backupRepo: BackupRepository
     @Inject lateinit var syncRepo: SyncRepository
     @Inject lateinit var nightModeManager: NightModeManager
+    @Inject lateinit var dateFormatter: com.goodwy.messages.common.util.DateFormatter
+    @Inject lateinit var prefs: Preferences
 
     override val onNewIntentIntent: Subject<Intent> = PublishSubject.create()
     override val activityResumedIntent: Subject<Boolean> = PublishSubject.create()
@@ -236,6 +238,116 @@ class MainActivity : QkThemedActivity(), MainView {
         if (Build.VERSION.SDK_INT <= 22) {
             toolbarSearch?.setBackgroundTint(resolveThemeColor(R.attr.bubbleColor))
         }
+
+        setupSavedNotesView()
+
+        savedNotes?.setOnClickListener {
+            drawerLayout.closeDrawer(GravityCompat.START)
+            viewModel.setCategory("SAVED_NOTES")
+        }
+
+        prefs.showAvatars.asObservable()
+                .skip(1)
+                .observeOn(AndroidSchedulers.mainThread())
+                .autoDisposable(scope())
+                .subscribe { conversationsAdapter.notifyDataSetChanged() }
+    }
+
+    private var savedMessagesAdapter: SavedMessagesAdapter? = null
+    private var clipboardItemsAdapter: ClipboardItemsAdapter? = null
+    private var isSavedSubTabSelected = true
+
+    private fun setupSavedNotesView() {
+        val container = savedNotesContainer ?: return
+
+        savedMessagesAdapter = SavedMessagesAdapter(this, dateFormatter) { msg ->
+            com.goodwy.messages.common.util.SavedMessagesManager.deleteSavedMessage(this, msg.id)
+            refreshSavedMessages()
+        }
+        val recyclerSaved = container.findViewById<androidx.recyclerview.widget.RecyclerView>(R.id.recyclerSavedMessages)
+        recyclerSaved?.adapter = savedMessagesAdapter
+
+        clipboardItemsAdapter = ClipboardItemsAdapter(this) { item ->
+            // Re-copied
+        }
+        val recyclerClip = container.findViewById<androidx.recyclerview.widget.RecyclerView>(R.id.recyclerClipboard)
+        recyclerClip?.adapter = clipboardItemsAdapter
+
+        val btnTabSaved = container.findViewById<TextView>(R.id.btnTabSavedMessages)
+        val btnTabClip = container.findViewById<TextView>(R.id.btnTabClipboard)
+        val layoutSaved = container.findViewById<View>(R.id.layoutSavedMessages)
+        val layoutClip = container.findViewById<View>(R.id.layoutClipboard)
+
+        fun updateSubTabs(saved: Boolean) {
+            isSavedSubTabSelected = saved
+            val activeColor = Color.parseColor("#10B981")
+            val inactiveBg = resolveThemeColor(R.attr.bubbleColor)
+            val textColorSec = resolveThemeColor(android.R.attr.textColorSecondary)
+
+            btnTabSaved?.setBackgroundTint(if (saved) activeColor else inactiveBg)
+            btnTabSaved?.setTextColor(if (saved) Color.WHITE else textColorSec)
+
+            btnTabClip?.setBackgroundTint(if (!saved) activeColor else inactiveBg)
+            btnTabClip?.setTextColor(if (!saved) Color.WHITE else textColorSec)
+
+            layoutSaved?.visibility = if (saved) View.VISIBLE else View.GONE
+            layoutClip?.visibility = if (!saved) View.VISIBLE else View.GONE
+
+            if (saved) refreshSavedMessages() else refreshClipboard()
+        }
+
+        btnTabSaved?.setOnClickListener { updateSubTabs(true) }
+        btnTabClip?.setOnClickListener { updateSubTabs(false) }
+
+        // Send / Save Note
+        val inputMsg = container.findViewById<EditText>(R.id.inputSavedMessage)
+        val btnSave = container.findViewById<ImageView>(R.id.btnSaveMessage)
+        btnSave?.setOnClickListener {
+            val text = inputMsg?.text?.toString().orEmpty().trim()
+            if (text.isNotEmpty()) {
+                com.goodwy.messages.common.util.SavedMessagesManager.addSavedMessage(this, text)
+                inputMsg?.setText("")
+                refreshSavedMessages()
+                recyclerSaved?.smoothScrollToPosition(0)
+            }
+        }
+
+        // Add to clipboard manually
+        val inputClip = container.findViewById<EditText>(R.id.inputClipboard)
+        val btnAddClip = container.findViewById<TextView>(R.id.btnAddClipboard)
+        btnAddClip?.setOnClickListener {
+            val text = inputClip?.text?.toString().orEmpty().trim()
+            if (text.isNotEmpty()) {
+                com.goodwy.messages.common.util.SavedMessagesManager.addClipboardItem(this, text, copyToSystem = true)
+                inputClip?.setText("")
+                Toast.makeText(this, "به کلیپ‌بورد اضافه شد (پاکسازی خودکار تا ۵ دقیقه دیگر)", Toast.LENGTH_SHORT).show()
+                refreshClipboard()
+            }
+        }
+
+        // Clear clipboard now
+        val btnClearNow = container.findViewById<TextView>(R.id.btnClearClipboardNow)
+        btnClearNow?.setOnClickListener {
+            com.goodwy.messages.common.util.SavedMessagesManager.clearClipboard(this)
+            Toast.makeText(this, "کلیپ‌بورد به طور کامل پاک شد", Toast.LENGTH_SHORT).show()
+            refreshClipboard()
+        }
+
+        updateSubTabs(true)
+    }
+
+    private fun refreshSavedMessages() {
+        val items = com.goodwy.messages.common.util.SavedMessagesManager.getSavedMessages(this)
+        savedMessagesAdapter?.items = items
+        val empty = savedNotesContainer?.findViewById<View>(R.id.emptySavedMessages)
+        empty?.visibility = if (items.isEmpty()) View.VISIBLE else View.GONE
+    }
+
+    private fun refreshClipboard() {
+        val items = com.goodwy.messages.common.util.SavedMessagesManager.getClipboardItems(this)
+        clipboardItemsAdapter?.items = items
+        val empty = savedNotesContainer?.findViewById<View>(R.id.emptyClipboard)
+        empty?.visibility = if (items.isEmpty()) View.VISIBLE else View.GONE
     }
 
     private fun renderCategoryTabs(selectedCategoryId: String, unreadCounts: Map<String, Int>) {
@@ -1246,10 +1358,21 @@ saveBackupBtn.setOnClickListener {
                     compose?.animate()?.rotation(0f)?.start()
                 }
                 title = getString(R.string.main_title_selected, state.page.selected)
-                if (recyclerView?.adapter !== conversationsAdapter) recyclerView?.adapter = conversationsAdapter
-                conversationsAdapter.updateData(state.page.data)
-                itemTouchHelper.attachToRecyclerView(recyclerView)
-                empty?.setText(R.string.inbox_empty_text)
+                if (state.page.categoryId == "SAVED_NOTES") {
+                    recyclerView?.visibility = View.GONE
+                    empty?.visibility = View.GONE
+                    compose?.visibility = View.GONE
+                    savedNotesContainer?.visibility = View.VISIBLE
+                    if (isSavedSubTabSelected) refreshSavedMessages() else refreshClipboard()
+                } else {
+                    savedNotesContainer?.visibility = View.GONE
+                    recyclerView?.visibility = View.VISIBLE
+                    compose?.visibility = View.VISIBLE
+                    if (recyclerView?.adapter !== conversationsAdapter) recyclerView?.adapter = conversationsAdapter
+                    conversationsAdapter.updateData(state.page.data)
+                    itemTouchHelper.attachToRecyclerView(recyclerView)
+                    empty?.setText(R.string.inbox_empty_text)
+                }
 
                 val activeCategory = CategoryManager.getCategories(this).firstOrNull { it.id == state.page.categoryId }
                 val activeCategoryColor = activeCategory?.color ?: Color.parseColor("#0EA5E9")
@@ -1261,6 +1384,7 @@ saveBackupBtn.setOnClickListener {
             }
 
             is Searching -> {
+                savedNotesContainer?.visibility = View.GONE
                 showBackButton(true)
                 toolbar?.setNavigationIcon(R.drawable.ic_arrow_back_24dp)
                 toolbar?.navigationIcon?.setTint(resolveThemeColor(android.R.attr.textColorSecondary))
@@ -1271,6 +1395,7 @@ saveBackupBtn.setOnClickListener {
             }
 
             is Archived -> {
+                savedNotesContainer?.visibility = View.GONE
                 showBackButton(state.page.selected > 0)
                 if (state.page.selected > 0) {
                     toolbar?.setNavigationIcon(R.drawable.ic_arrow_back_24dp)

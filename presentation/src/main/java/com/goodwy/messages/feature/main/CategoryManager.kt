@@ -21,7 +21,8 @@ object CategoryManager {
         CategoryItem("UNKNOWN", "شخصی ناشناس", Color.parseColor("#F59E0B"), false),
         CategoryItem("BANK", "بانکی", Color.parseColor("#22C55E"), false),
         CategoryItem("OTP", "رمز و کد", Color.parseColor("#A855F7"), false),
-        CategoryItem("OTHER", "متفرقه", Color.parseColor("#EF4444"), false)
+        CategoryItem("OTHER", "متفرقه", Color.parseColor("#EF4444"), false),
+        CategoryItem("SAVED_NOTES", "سیو مسیج و کلیپ‌بورد", Color.parseColor("#10B981"), false)
     )
 
     private val PALETTE = listOf(

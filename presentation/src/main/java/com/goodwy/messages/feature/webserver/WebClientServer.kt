@@ -516,6 +516,103 @@ class WebClientServer(
                 sendResponse(output, 200, "OK", "application/json; charset=utf-8", list.toString())
             }
 
+            // Get Saved Messages
+            (method == "GET" && path == "/api/saved-messages") -> {
+                val items = com.goodwy.messages.common.util.SavedMessagesManager.getSavedMessages(context)
+                val arr = JSONArray()
+                items.forEach { m ->
+                    arr.put(JSONObject().apply {
+                        put("id", m.id)
+                        put("text", m.text)
+                        put("timestamp", m.timestamp)
+                    })
+                }
+                sendResponse(output, 200, "OK", "application/json; charset=utf-8", arr.toString())
+            }
+
+            // Add Saved Message
+            (method == "POST" && path == "/api/saved-messages") -> {
+                try {
+                    val json = JSONObject(body)
+                    val text = json.optString("text", "").trim()
+                    val item = com.goodwy.messages.common.util.SavedMessagesManager.addSavedMessage(context, text)
+                    val res = JSONObject().apply {
+                        put("success", item != null)
+                        if (item != null) {
+                            put("id", item.id)
+                            put("text", item.text)
+                            put("timestamp", item.timestamp)
+                        }
+                    }
+                    sendResponse(output, 200, "OK", "application/json; charset=utf-8", res.toString())
+                } catch (e: Exception) {
+                    val res = JSONObject().apply { put("error", e.message ?: "Failed") }
+                    sendResponse(output, 400, "Bad Request", "application/json; charset=utf-8", res.toString())
+                }
+            }
+
+            // Delete Saved Message
+            (method == "POST" && path == "/api/saved-messages/delete") -> {
+                try {
+                    val json = JSONObject(body)
+                    val id = json.optLong("id", -1L)
+                    val ok = com.goodwy.messages.common.util.SavedMessagesManager.deleteSavedMessage(context, id)
+                    val res = JSONObject().apply { put("success", ok) }
+                    sendResponse(output, 200, "OK", "application/json; charset=utf-8", res.toString())
+                } catch (e: Exception) {
+                    val res = JSONObject().apply { put("error", e.message ?: "Failed") }
+                    sendResponse(output, 400, "Bad Request", "application/json; charset=utf-8", res.toString())
+                }
+            }
+
+            // Get Clipboard items (with 5-minute auto-expiry applied)
+            (method == "GET" && path == "/api/clipboard") -> {
+                val items = com.goodwy.messages.common.util.SavedMessagesManager.getClipboardItems(context)
+                val arr = JSONArray()
+                items.forEach { item ->
+                    arr.put(JSONObject().apply {
+                        put("id", item.id)
+                        put("text", item.text)
+                        put("timestamp", item.timestamp)
+                        put("expiresAt", item.expiresAt)
+                    })
+                }
+                val res = JSONObject().apply {
+                    put("items", arr)
+                    put("autoClearMinutes", 5)
+                }
+                sendResponse(output, 200, "OK", "application/json; charset=utf-8", res.toString())
+            }
+
+            // Sync/Add to Clipboard (e.g. from Windows!)
+            (method == "POST" && path == "/api/clipboard") -> {
+                try {
+                    val json = JSONObject(body)
+                    val text = json.optString("text", "").trim()
+                    val item = com.goodwy.messages.common.util.SavedMessagesManager.addClipboardItem(context, text, copyToSystem = true)
+                    val res = JSONObject().apply {
+                        put("success", item != null)
+                        if (item != null) {
+                            put("id", item.id)
+                            put("text", item.text)
+                            put("timestamp", item.timestamp)
+                            put("expiresAt", item.expiresAt)
+                        }
+                    }
+                    sendResponse(output, 200, "OK", "application/json; charset=utf-8", res.toString())
+                } catch (e: Exception) {
+                    val res = JSONObject().apply { put("error", e.message ?: "Failed") }
+                    sendResponse(output, 400, "Bad Request", "application/json; charset=utf-8", res.toString())
+                }
+            }
+
+            // Clear Clipboard
+            (method == "POST" && path == "/api/clipboard/clear") -> {
+                com.goodwy.messages.common.util.SavedMessagesManager.clearClipboard(context)
+                val res = JSONObject().apply { put("success", true) }
+                sendResponse(output, 200, "OK", "application/json; charset=utf-8", res.toString())
+            }
+
             else -> {
                 sendResponse(output, 404, "Not Found", "text/plain", "Not Found")
             }

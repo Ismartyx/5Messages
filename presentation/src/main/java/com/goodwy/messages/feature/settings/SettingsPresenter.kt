@@ -116,6 +116,9 @@ class SettingsPresenter @Inject constructor(
         disposables += prefs.shamsiCalendar.asObservable()
                 .subscribe { enabled -> newState { copy(shamsiCalendarEnabled = enabled) } }
 
+        disposables += prefs.showAvatars.asObservable()
+                .subscribe { enabled -> newState { copy(showAvatarsEnabled = enabled) } }
+
         disposables += prefs.unicode.asObservable()
                 .subscribe { enabled -> newState { copy(stripUnicodeEnabled = enabled) } }
 
@@ -210,6 +213,8 @@ class SettingsPresenter @Inject constructor(
                         R.id.systemFont -> prefs.systemFont.set(!prefs.systemFont.get())
 
                         R.id.shamsiCalendar -> prefs.shamsiCalendar.set(!prefs.shamsiCalendar.get())
+
+                        R.id.showAvatars -> prefs.showAvatars.set(!prefs.showAvatars.get())
 
                         R.id.unicode -> prefs.unicode.set(!prefs.unicode.get())
 
