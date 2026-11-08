@@ -502,7 +502,7 @@ class MessageRepositoryImpl @Inject constructor(
         var managedMessage: Message? = null
         realm.executeTransaction {
             managedMessage = realm.copyToRealmOrUpdate(message)
-            val conversation = realm.where(Conversation::class.java).equalTo("id", threadId).findFirst()
+            val conversation = realm.where(Conversation::class.java).equalTo("id", message.threadId).findFirst()
             conversation?.lastMessage = managedMessage
         }
 
@@ -572,7 +572,7 @@ class MessageRepositoryImpl @Inject constructor(
         var managedMessage: Message? = null
         realm.executeTransaction {
             managedMessage = realm.copyToRealmOrUpdate(message)
-            val conversation = realm.where(Conversation::class.java).equalTo("id", threadId).findFirst()
+            val conversation = realm.where(Conversation::class.java).equalTo("id", message.threadId).findFirst()
             conversation?.lastMessage = managedMessage
         }
 
