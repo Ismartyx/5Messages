@@ -1,4 +1,4 @@
-﻿package com.goodwy.messages.feature.compose
+package com.goodwy.messages.feature.compose
 
 import android.Manifest
 import android.animation.LayoutTransition
@@ -231,7 +231,7 @@ class ComposeActivity : QkThemedActivity(), ComposeView, TextToSpeech.OnInitList
         val showAvatars = prefs.showAvatars.get()
         if (showAvatars && !photoUri.isNullOrEmpty() && !state.editingMode && state.selectedMessages == 0) {
             toolbarAvatar.isVisible = true
-            com.goodwy.messages.common.util.GlideApp.with(this)
+            com.goodwy.messages.util.GlideApp.with(this)
                 .load(photoUri)
                 .circleCrop()
                 .into(toolbarAvatar)
