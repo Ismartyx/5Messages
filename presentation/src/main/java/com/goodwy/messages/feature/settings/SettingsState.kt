@@ -1,4 +1,4 @@
-﻿package com.goodwy.messages.feature.settings
+package com.goodwy.messages.feature.settings
 
 import com.goodwy.messages.repository.SyncRepository
 import com.goodwy.messages.util.Preferences
@@ -26,7 +26,7 @@ data class SettingsState(
     val systemFontEnabled: Boolean = false,
     val shamsiCalendarEnabled: Boolean = false,
     val showAvatarsEnabled: Boolean = true,
-    val boldNamesSummary: String = ",
+    val boldNamesSummary: String = "",
     val boldNamesId: Int = Preferences.BOLD_NAMES_MEDIUM,
     val splitSmsEnabled: Boolean = false,
     val stripUnicodeEnabled: Boolean = false,
