@@ -132,6 +132,7 @@ class ComposeActivity : QkThemedActivity(), ComposeView, TextToSpeech.OnInitList
         setContentView(R.layout.compose_activity)
         supportActionBar?.setDisplayShowTitleEnabled(false)
         showBackButton(true)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) { toolbarAvatar.clipToOutline = true }
         viewModel.bindView(this)
 
         contentView.layoutTransition = LayoutTransition().apply {

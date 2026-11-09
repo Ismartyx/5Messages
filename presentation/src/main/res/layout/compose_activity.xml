@@ -35,8 +35,7 @@
                 android:layout_marginStart="4dp"
                 android:layout_marginEnd="10dp"
                 android:background="@drawable/circle"
-                android:clipToOutline="true"
-                android:contentDescription="Contact Avatar"
+                                android:contentDescription="Contact Avatar"
                 android:scaleType="centerCrop"
                 android:visibility="gone"
                 tools:visibility="visible" />
