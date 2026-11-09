@@ -1,4 +1,4 @@
-﻿package com.goodwy.messages.feature.compose
+package com.goodwy.messages.feature.compose
 
 import android.Manifest
 import android.animation.LayoutTransition
