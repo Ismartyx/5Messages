@@ -1,4 +1,4 @@
-package com.goodwy.messages.feature.compose
+﻿package com.goodwy.messages.feature.compose
 
 import android.animation.ObjectAnimator
 import android.content.Context
@@ -268,14 +268,7 @@ class MessagesAdapter @Inject constructor(
 
         // Bind the avatar and bubble colour
         if (!message.isMe()) {
-            val showAvatars = prefs.showAvatars.get()
-            if (showAvatars) {
-                holder.avatar.setRecipient(contactCache[message.address])
-                holder.avatar.setVisible(!canGroup(message, next), View.INVISIBLE)
-            } else {
-                holder.avatar.setVisible(false, View.GONE)
-            }
-           // holder.avatar.setVisible(false)
+            holder.avatar.setVisible(false, View.GONE)
            // holder.body.setTextColor(theme.textPrimary)
            // holder.body.setBackgroundTint(theme.theme)
         }

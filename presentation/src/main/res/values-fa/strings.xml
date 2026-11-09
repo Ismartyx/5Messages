@@ -440,4 +440,5 @@
     <string name="copy_card">کپی شماره کارت: %s</string>
     <string name="code_copied_toast">کد %s کپی شد</string>
     <string name="number_copied_toast">%s کپی شد</string>
+    <string name="menu_toggle_avatar">نمایش/مخفی کردن تصویر مخاطب</string>
 </resources>

@@ -1,4 +1,4 @@
-package com.goodwy.messages.feature.compose
+﻿package com.goodwy.messages.feature.compose
 
 import android.Manifest
 import android.animation.LayoutTransition
@@ -104,11 +104,33 @@ class ComposeActivity : QkThemedActivity(), ComposeView, TextToSpeech.OnInitList
 
     private var cameraDestination: Uri? = null
     private var tts: TextToSpeech? = null
+    private var lastState: ComposeState? = null
+
+    private fun updateToolbarAvatar() {
+        val state = lastState ?: return
+        val recipients = state.messages?.first?.recipients ?: state.selectedChips
+        val photoUri = recipients.firstOrNull { !it.contact?.photoUri.isNullOrEmpty() }?.contact?.photoUri
+            ?: recipients.firstOrNull()?.contact?.photoUri
+        val showAvatars = prefs.showAvatars.get()
+        if (showAvatars && !photoUri.isNullOrEmpty() && !state.editingMode && state.selectedMessages == 0) {
+            toolbarAvatar.isVisible = true
+            com.goodwy.messages.util.GlideApp.with(this)
+                .load(photoUri)
+                .circleCrop()
+                .into(toolbarAvatar)
+            toolbarAvatar.setOnClickListener {
+                toolbar.menu.performIdentifierAction(R.id.info, 0)
+            }
+        } else {
+            toolbarAvatar.isVisible = false
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         AndroidInjection.inject(this)
         super.onCreate(savedInstanceState)
         setContentView(R.layout.compose_activity)
+        supportActionBar?.setDisplayShowTitleEnabled(false)
         showBackButton(true)
         viewModel.bindView(this)
 
@@ -147,7 +169,7 @@ class ComposeActivity : QkThemedActivity(), ComposeView, TextToSpeech.OnInitList
                 .autoDisposable(scope())
                 .subscribe {
                     messageAdapter.notifyDataSetChanged()
-                    if (!prefs.showAvatars.get()) toolbarAvatar.isVisible = false
+                    updateToolbarAvatar()
                 }
 
         prefs.boldNames.asObservable()
@@ -225,21 +247,10 @@ class ComposeActivity : QkThemedActivity(), ComposeView, TextToSpeech.OnInitList
             }
         }
 
-        // Toolbar Avatar: only show character if contact has photoUri, else show nothing!
-        val recipients = state.messages?.first?.recipients ?: state.selectedChips
-        val photoUri = recipients.firstOrNull()?.contact?.photoUri
-        val showAvatars = prefs.showAvatars.get()
-        if (showAvatars && !photoUri.isNullOrEmpty() && !state.editingMode && state.selectedMessages == 0) {
-            toolbarAvatar.isVisible = true
-            com.goodwy.messages.util.GlideApp.with(this)
-                .load(photoUri)
-                .circleCrop()
-                .into(toolbarAvatar)
-            toolbarAvatar.setOnClickListener {
-                toolbar.menu.performIdentifierAction(R.id.info, 0)
-            }
-        } else {
-            toolbarAvatar.isVisible = false
+        lastState = state
+        updateToolbarAvatar()
+        toolbarTitle.setOnClickListener {
+            toolbar.menu.performIdentifierAction(R.id.info, 0)
         }
 
         toolbarTitle.setVisible(!state.editingMode)

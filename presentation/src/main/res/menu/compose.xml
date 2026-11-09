@@ -81,6 +81,6 @@
 
     <item
         android:id="@+id/toggleAvatar"
-        android:title="ظ†ظ…ط§غŒط´/ط¹ط¯ظ… ظ†ظ…ط§غŒط´ ط¢ظˆط§طھط§ط±"
+        android:title="@string/menu_toggle_avatar"
         app:showAsAction="never" />
 </menu>
