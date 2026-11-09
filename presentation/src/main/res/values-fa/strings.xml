@@ -199,8 +199,10 @@
     <string name="settings_system_font_title">از فونت سیستم استفاده کن</string>
     <string name="settings_shamsi_calendar_title">تقویم شمسی (خورشیدی)</string>
     <string name="settings_shamsi_calendar_summary">نمایش تاریخ بخش‌های برنامه به شمسی (با اعداد انگلیسی)</string>
-    <string name="settings_show_avatars_title">نمایش تصویر مخاطب (آواتار)</string>
-    <string name="settings_show_avatars_summary">نمایش دایره تصویر مخاطب در لیست گفتگوها و پیام‌ها</string>
+    <string name="settings_show_avatars_title">نمایش تصاویر مخاطبین (لیست گفتگوها)</string>
+    <string name="settings_show_avatars_summary">نمایش دایره تصویر مخاطب در لیست گفتگوها</string>
+    <string name="settings_show_toolbar_avatar_title">نمایش تصویر مخاطب در بالای صفحه پیام</string>
+    <string name="settings_show_toolbar_avatar_summary">نمایش عکس مخاطب در نوار بالای گفتگو (در صورت داشتن عکس)</string>
     <string name="settings_bold_names_title">ضخامت قلم نام مخاطبین</string>
     <string-array name="bold_names_options">
         <item>معمولی (عادی)</item>

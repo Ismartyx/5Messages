@@ -111,8 +111,8 @@ class ComposeActivity : QkThemedActivity(), ComposeView, TextToSpeech.OnInitList
         val recipients = state.messages?.first?.recipients ?: state.selectedChips
         val photoUri = recipients.firstOrNull { !it.contact?.photoUri.isNullOrEmpty() }?.contact?.photoUri
             ?: recipients.firstOrNull()?.contact?.photoUri
-        val showAvatars = prefs.showAvatars.get()
-        if (showAvatars && !photoUri.isNullOrEmpty() && !state.editingMode && state.selectedMessages == 0) {
+        val showToolbarAvatar = prefs.showToolbarAvatar.get()
+        if (showToolbarAvatar && !photoUri.isNullOrEmpty() && !state.editingMode && state.selectedMessages == 0) {
             toolbarAvatar.isVisible = true
             com.goodwy.messages.util.GlideApp.with(this)
                 .load(photoUri)
@@ -164,12 +164,11 @@ class ComposeActivity : QkThemedActivity(), ComposeView, TextToSpeech.OnInitList
                 .autoDisposable(scope())
                 .subscribe()
 
-        prefs.showAvatars.asObservable()
+        prefs.showToolbarAvatar.asObservable()
                 .skip(1)
                 .observeOn(AndroidSchedulers.mainThread())
                 .autoDisposable(scope())
                 .subscribe {
-                    messageAdapter.notifyDataSetChanged()
                     updateToolbarAvatar()
                 }
 

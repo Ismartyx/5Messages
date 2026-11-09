@@ -204,8 +204,10 @@
     <string name="settings_system_font_title">Use system font</string>
     <string name="settings_shamsi_calendar_title">Solar Hijri (Shamsi) calendar</string>
     <string name="settings_shamsi_calendar_summary">Show dates in Shamsi with English digits</string>
-    <string name="settings_show_avatars_title">Show contact avatars</string>
-    <string name="settings_show_avatars_summary">Display contact avatar circle next to conversations and messages</string>
+    <string name="settings_show_avatars_title">Show contact avatars (conversation list)</string>
+    <string name="settings_show_avatars_summary">Display contact avatar circles in conversation list</string>
+    <string name="settings_show_toolbar_avatar_title">Show avatar in conversation header</string>
+    <string name="settings_show_toolbar_avatar_summary">Display contact photo in top bar when opening conversation</string>
     <string name="settings_bold_names_title">Contact name boldness</string>
     <string-array name="bold_names_options">
         <item>Normal</item>

@@ -50,6 +50,7 @@
         app:layout_constraintEnd_toStartOf="@id/date"
         app:layout_constraintHorizontal_bias="0"
         app:layout_constraintStart_toEndOf="@id/avatars"
+        app:layout_goneMarginStart="16dp"
         app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintVertical_chainStyle="packed"
         tools:text="@tools:sample/full_names" />

@@ -182,14 +182,14 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          VERSION_NAME="1.4.5"
+          VERSION_NAME="1.4.6"
           TAG_NAME="v${VERSION_NAME}"
           gh release delete "$TAG_NAME" --yes || true
           git tag -d "$TAG_NAME" || true
           git push origin ":refs/tags/$TAG_NAME" || true
           gh release create "$TAG_NAME" signed_out/5Messages.apk \
             --title "5Messages v${VERSION_NAME}" \
-            --notes "نسخه 1.4.5: رفع مشکل نمایش تصویر مخاطب در تولبار بالای صفحه، حذف آیکون‌های حباب پیام‌ها، و رفع به هم ریختگی متن دکمه منو" \
+            --notes "نسخه 1.4.6: تفکیک تنظیم نمایش تصویر مخاطبین در صفحه اصلی و بالای صفحه گفتگو، حذف دکمه از منوی سه نقطه و مدیریت کامل از طریق تنظیمات" \
             --latest || gh release upload "$TAG_NAME" signed_out/5Messages.apk --clobber
 
       - name: Upload APK

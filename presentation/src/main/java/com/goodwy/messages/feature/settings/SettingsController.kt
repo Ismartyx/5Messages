@@ -1,4 +1,4 @@
-﻿package com.goodwy.messages.feature.settings
+package com.goodwy.messages.feature.settings
 
 import android.animation.ObjectAnimator
 import android.app.TimePickerDialog
@@ -204,6 +204,7 @@ class SettingsController : QkController<SettingsView, SettingsState, SettingsPre
         systemFont.checkbox.isChecked = state.systemFontEnabled
         shamsiCalendar.checkbox.isChecked = state.shamsiCalendarEnabled
         showAvatars.checkbox.isChecked = state.showAvatarsEnabled
+        showToolbarAvatar.checkbox.isChecked = state.showToolbarAvatarEnabled
         boldNames.value = state.boldNamesSummary
         boldNamesDialog.adapter.selectedItem = state.boldNamesId
 

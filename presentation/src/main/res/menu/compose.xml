@@ -79,8 +79,4 @@
         android:visible="false"
         app:showAsAction="always" />
 
-    <item
-        android:id="@+id/toggleAvatar"
-        android:title="@string/menu_toggle_avatar"
-        app:showAsAction="never" />
 </menu>

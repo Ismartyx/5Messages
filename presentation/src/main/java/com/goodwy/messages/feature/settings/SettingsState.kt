@@ -26,6 +26,7 @@ data class SettingsState(
     val systemFontEnabled: Boolean = false,
     val shamsiCalendarEnabled: Boolean = false,
     val showAvatarsEnabled: Boolean = true,
+    val showToolbarAvatarEnabled: Boolean = true,
     val boldNamesSummary: String = "",
     val boldNamesId: Int = Preferences.BOLD_NAMES_MEDIUM,
     val splitSmsEnabled: Boolean = false,

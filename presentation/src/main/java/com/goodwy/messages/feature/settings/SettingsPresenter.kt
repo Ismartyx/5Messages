@@ -1,4 +1,4 @@
-﻿package com.goodwy.messages.feature.settings
+package com.goodwy.messages.feature.settings
 
 import android.content.Context
 import com.goodwy.messages.R
@@ -126,6 +126,9 @@ class SettingsPresenter @Inject constructor(
         disposables += prefs.showAvatars.asObservable()
                 .subscribe { enabled -> newState { copy(showAvatarsEnabled = enabled) } }
 
+        disposables += prefs.showToolbarAvatar.asObservable()
+                .subscribe { enabled -> newState { copy(showToolbarAvatarEnabled = enabled) } }
+
         disposables += prefs.unicode.asObservable()
                 .subscribe { enabled -> newState { copy(stripUnicodeEnabled = enabled) } }
 
@@ -222,6 +225,8 @@ class SettingsPresenter @Inject constructor(
                         R.id.shamsiCalendar -> prefs.shamsiCalendar.set(!prefs.shamsiCalendar.get())
 
                         R.id.showAvatars -> prefs.showAvatars.set(!prefs.showAvatars.get())
+
+                        R.id.showToolbarAvatar -> prefs.showToolbarAvatar.set(!prefs.showToolbarAvatar.get())
 
                         R.id.boldNames -> view.showBoldNamesPicker()
 
