@@ -1,4 +1,4 @@
-package com.goodwy.messages.feature.conversations
+﻿package com.goodwy.messages.feature.conversations
 
 import android.content.Context
 import android.graphics.Typeface
@@ -108,6 +108,20 @@ class ConversationsAdapter @Inject constructor(
         holder.avatars.isVisible = showAvatars
         if (showAvatars) {
             holder.avatars.recipients = conversation.recipients
+        }
+        when (prefs.boldNames.get()) {
+            Preferences.BOLD_NAMES_NORMAL -> {
+                holder.title.paint.isFakeBoldText = false
+                holder.title.paint.strokeWidth = 0f
+            }
+            Preferences.BOLD_NAMES_MEDIUM -> {
+                holder.title.paint.isFakeBoldText = true
+                holder.title.paint.strokeWidth = 0.5f
+            }
+            Preferences.BOLD_NAMES_BOLD -> {
+                holder.title.paint.isFakeBoldText = true
+                holder.title.paint.strokeWidth = 1.0f
+            }
         }
         holder.title.collapseEnabled = conversation.recipients.size > 1
         holder.title.text = buildSpannedString {

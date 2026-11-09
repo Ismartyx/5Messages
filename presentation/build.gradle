@@ -13,8 +13,8 @@ android {
         applicationId "com.goodwy.messages"
         minSdkVersion 21
         targetSdkVersion 30
-        versionCode 143
-        versionName "1.4.3"
+        versionCode 144
+        versionName "1.4.4"
         setProperty("archivesBaseName", "4Messages-v${versionName}")
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
 

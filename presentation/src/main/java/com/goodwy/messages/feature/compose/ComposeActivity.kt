@@ -1,4 +1,4 @@
-package com.goodwy.messages.feature.compose
+﻿package com.goodwy.messages.feature.compose
 
 import android.Manifest
 import android.animation.LayoutTransition
@@ -145,7 +145,32 @@ class ComposeActivity : QkThemedActivity(), ComposeView, TextToSpeech.OnInitList
                 .skip(1)
                 .observeOn(AndroidSchedulers.mainThread())
                 .autoDisposable(scope())
-                .subscribe { messageAdapter.notifyDataSetChanged() }
+                .subscribe {
+                    messageAdapter.notifyDataSetChanged()
+                    if (!prefs.showAvatars.get()) toolbarAvatar.isVisible = false
+                }
+
+        prefs.boldNames.asObservable()
+                .skip(1)
+                .observeOn(AndroidSchedulers.mainThread())
+                .autoDisposable(scope())
+                .subscribe {
+                    when (prefs.boldNames.get()) {
+                        Preferences.BOLD_NAMES_NORMAL -> {
+                            toolbarTitle.paint.isFakeBoldText = false
+                            toolbarTitle.paint.strokeWidth = 0f
+                        }
+                        Preferences.BOLD_NAMES_MEDIUM -> {
+                            toolbarTitle.paint.isFakeBoldText = true
+                            toolbarTitle.paint.strokeWidth = 0.5f
+                        }
+                        Preferences.BOLD_NAMES_BOLD -> {
+                            toolbarTitle.paint.isFakeBoldText = true
+                            toolbarTitle.paint.strokeWidth = 1.0f
+                        }
+                    }
+                    toolbarTitle.invalidate()
+                }
 
         window.callback = ComposeWindowCallback(window.callback, this)
 
@@ -184,6 +209,38 @@ class ComposeActivity : QkThemedActivity(), ComposeView, TextToSpeech.OnInitList
         toolbarSubtitle.setVisible(state.query.isNotEmpty())
         toolbarSubtitle.text = getString(R.string.compose_subtitle_results, state.searchSelectionPosition,
                 state.searchResults)
+
+        when (prefs.boldNames.get()) {
+            Preferences.BOLD_NAMES_NORMAL -> {
+                toolbarTitle.paint.isFakeBoldText = false
+                toolbarTitle.paint.strokeWidth = 0f
+            }
+            Preferences.BOLD_NAMES_MEDIUM -> {
+                toolbarTitle.paint.isFakeBoldText = true
+                toolbarTitle.paint.strokeWidth = 0.5f
+            }
+            Preferences.BOLD_NAMES_BOLD -> {
+                toolbarTitle.paint.isFakeBoldText = true
+                toolbarTitle.paint.strokeWidth = 1.0f
+            }
+        }
+
+        // Toolbar Avatar: only show character if contact has photoUri, else show nothing!
+        val recipients = state.messages?.first?.recipients ?: state.selectedChips
+        val photoUri = recipients.firstOrNull()?.contact?.photoUri
+        val showAvatars = prefs.showAvatars.get()
+        if (showAvatars && !photoUri.isNullOrEmpty() && !state.editingMode && state.selectedMessages == 0) {
+            toolbarAvatar.isVisible = true
+            com.goodwy.messages.common.util.GlideApp.with(this)
+                .load(photoUri)
+                .circleCrop()
+                .into(toolbarAvatar)
+            toolbarAvatar.setOnClickListener {
+                toolbar.menu.performIdentifierAction(R.id.info, 0)
+            }
+        } else {
+            toolbarAvatar.isVisible = false
+        }
 
         toolbarTitle.setVisible(!state.editingMode)
         chips.setVisible(state.editingMode)

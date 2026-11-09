@@ -1,4 +1,4 @@
-package com.goodwy.messages.feature.main
+﻿package com.goodwy.messages.feature.main
 
 import android.Manifest
 import android.animation.ObjectAnimator
@@ -247,6 +247,12 @@ class MainActivity : QkThemedActivity(), MainView {
         }
 
         prefs.showAvatars.asObservable()
+                .skip(1)
+                .observeOn(AndroidSchedulers.mainThread())
+                .autoDisposable(scope())
+                .subscribe { conversationsAdapter.notifyDataSetChanged() }
+
+        prefs.boldNames.asObservable()
                 .skip(1)
                 .observeOn(AndroidSchedulers.mainThread())
                 .autoDisposable(scope())

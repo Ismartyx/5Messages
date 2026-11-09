@@ -1,4 +1,4 @@
-package com.goodwy.messages.feature.settings
+﻿package com.goodwy.messages.feature.settings
 
 import com.goodwy.messages.common.base.QkViewContract
 import com.goodwy.messages.common.widget.PreferenceView
@@ -12,6 +12,7 @@ interface SettingsView : QkViewContract<SettingsState> {
     fun nightStartSelected(): Observable<Pair<Int, Int>>
     fun nightEndSelected(): Observable<Pair<Int, Int>>
     fun textSizeSelected(): Observable<Int>
+    fun boldNamesSelected(): Observable<Int>
     fun sendDelaySelected(): Observable<Int>
     fun signatureChanged(): Observable<String>
     fun autoDeleteChanged(): Observable<Int>
@@ -23,6 +24,7 @@ interface SettingsView : QkViewContract<SettingsState> {
     fun showStartTimePicker(hour: Int, minute: Int)
     fun showEndTimePicker(hour: Int, minute: Int)
     fun showTextSizePicker()
+    fun showBoldNamesPicker()
     fun showDelayDurationDialog()
     fun showSignatureDialog(signature: String)
     fun showAutoDeleteDialog(days: Int)

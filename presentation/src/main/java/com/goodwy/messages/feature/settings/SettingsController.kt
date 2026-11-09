@@ -1,4 +1,4 @@
-package com.goodwy.messages.feature.settings
+﻿package com.goodwy.messages.feature.settings
 
 import android.animation.ObjectAnimator
 import android.app.TimePickerDialog
@@ -57,6 +57,7 @@ class SettingsController : QkController<SettingsView, SettingsState, SettingsPre
     @Inject lateinit var colors: Colors
     @Inject lateinit var nightModeDialog: Dialog
     @Inject lateinit var textSizeDialog: Dialog
+    @Inject lateinit var boldNamesDialog: Dialog
     @Inject lateinit var sendDelayDialog: Dialog
     @Inject lateinit var mmsSizeDialog: Dialog
     @Inject lateinit var searchElevationDialog: Dialog
@@ -98,6 +99,7 @@ class SettingsController : QkController<SettingsView, SettingsState, SettingsPre
                     .drop(1)
         }
         textSizeDialog.adapter.setData(R.array.text_sizes)
+        boldNamesDialog.adapter.setData(R.array.bold_names_options)
         sendDelayDialog.adapter.setData(R.array.delayed_sending_labels)
         mmsSizeDialog.adapter.setData(R.array.mms_sizes, R.array.mms_sizes_ids)
         searchElevationDialog.adapter.setData(R.array.search_elevation, R.array.search_elevation_ids)
@@ -142,6 +144,8 @@ class SettingsController : QkController<SettingsView, SettingsState, SettingsPre
     override fun nightEndSelected(): Observable<Pair<Int, Int>> = endTimeSelectedSubject
 
     override fun textSizeSelected(): Observable<Int> = textSizeDialog.adapter.menuItemClicks
+
+    override fun boldNamesSelected(): Observable<Int> = boldNamesDialog.adapter.menuItemClicks
 
     override fun sendDelaySelected(): Observable<Int> = sendDelayDialog.adapter.menuItemClicks
 
@@ -200,6 +204,8 @@ class SettingsController : QkController<SettingsView, SettingsState, SettingsPre
         systemFont.checkbox.isChecked = state.systemFontEnabled
         shamsiCalendar.checkbox.isChecked = state.shamsiCalendarEnabled
         showAvatars.checkbox.isChecked = state.showAvatarsEnabled
+        boldNames.value = state.boldNamesSummary
+        boldNamesDialog.adapter.selectedItem = state.boldNamesId
 
         unicode.checkbox.isChecked = state.stripUnicodeEnabled
         mobileOnly.checkbox.isChecked = state.mobileOnly
@@ -256,6 +262,8 @@ class SettingsController : QkController<SettingsView, SettingsState, SettingsPre
     }
 
     override fun showTextSizePicker() = textSizeDialog.show(activity!!)
+
+    override fun showBoldNamesPicker() = boldNamesDialog.show(activity!!)
 
     override fun showDelayDurationDialog() = sendDelayDialog.show(activity!!)
 

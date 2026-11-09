@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
@@ -24,31 +24,50 @@
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:gravity="center_vertical"
-            android:orientation="vertical">
+            android:orientation="horizontal">
 
-            <com.goodwy.messages.common.widget.QkTextView
-                android:id="@+id/toolbarTitle"
-                style="@style/ToolbarText"
-                android:layout_height="wrap_content"
-                android:gravity="center_horizontal"
-                tools:text="Goodwy" />
-
-            <com.goodwy.messages.common.widget.QkTextView
-                android:id="@+id/toolbarSubtitle"
-                style="@style/ToolbarText"
-                android:textColor="?android:attr/textColorTertiary"
+            <ImageView
+                android:id="@+id/toolbarAvatar"
+                android:layout_width="38dp"
+                android:layout_height="38dp"
+                android:layout_marginStart="4dp"
+                android:layout_marginEnd="10dp"
+                android:contentDescription="Contact Avatar"
+                android:scaleType="centerCrop"
                 android:visibility="gone"
-                app:textSize="secondary"
-                tools:text="3 of 9 results" />
+                tools:visibility="visible" />
 
-            <androidx.recyclerview.widget.RecyclerView
-                android:id="@+id/chips"
-                android:layout_width="match_parent"
+            <LinearLayout
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="4dp"
-                android:layout_marginBottom="4dp"
-                android:scrollbars="vertical"
-                tools:visibility="gone" />
+                android:layout_weight="1"
+                android:gravity="center_vertical"
+                android:orientation="vertical">
+
+                <com.goodwy.messages.common.widget.QkTextView
+                    android:id="@+id/toolbarTitle"
+                    style="@style/ToolbarText"
+                    android:layout_height="wrap_content"
+                    tools:text="Goodwy" />
+
+                <com.goodwy.messages.common.widget.QkTextView
+                    android:id="@+id/toolbarSubtitle"
+                    style="@style/ToolbarText"
+                    android:textColor="?android:attr/textColorTertiary"
+                    android:visibility="gone"
+                    app:textSize="secondary"
+                    tools:text="3 of 9 results" />
+
+                <androidx.recyclerview.widget.RecyclerView
+                    android:id="@+id/chips"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:layout_marginBottom="4dp"
+                    android:scrollbars="vertical"
+                    tools:visibility="gone" />
+
+            </LinearLayout>
 
         </LinearLayout>
 

@@ -1,4 +1,4 @@
-<resources xmlns:tools="http://schemas.android.com/tools">
+﻿<resources xmlns:tools="http://schemas.android.com/tools">
 
     <string name="app_name" translatable="false">4Messages</string>
 
@@ -206,6 +206,12 @@
     <string name="settings_shamsi_calendar_summary">Show dates in Shamsi with English digits</string>
     <string name="settings_show_avatars_title">Show contact avatars</string>
     <string name="settings_show_avatars_summary">Display contact avatar circle next to conversations and messages</string>
+    <string name="settings_bold_names_title">Contact name boldness</string>
+    <string-array name="bold_names_options">
+        <item>Normal</item>
+        <item>Medium</item>
+        <item>Bold</item>
+    </string-array>
     <string name="settings_auto_emoji_title">Automatic emoji</string>
     <string name="settings_notifications_title">Notifications</string>
     <string name="settings_notifications_o_summary">Tap to customize</string>

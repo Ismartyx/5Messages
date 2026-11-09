@@ -1,4 +1,4 @@
-package com.goodwy.messages.util
+﻿package com.goodwy.messages.util
 
 import android.content.Context
 import android.content.SharedPreferences
@@ -28,6 +28,10 @@ class Preferences @Inject constructor(
         const val TEXT_SIZE_NORMAL = 1
         const val TEXT_SIZE_LARGE = 2
         const val TEXT_SIZE_LARGER = 3
+
+        const val BOLD_NAMES_NORMAL = 0
+        const val BOLD_NAMES_MEDIUM = 1
+        const val BOLD_NAMES_BOLD = 2
 
         const val NOTIFICATION_PREVIEWS_ALL = 0
         const val NOTIFICATION_PREVIEWS_NAME = 1
@@ -100,6 +104,7 @@ class Preferences @Inject constructor(
     val systemFont = rxPrefs.getBoolean("systemFont", false)
     val shamsiCalendar = rxPrefs.getBoolean("shamsiCalendar", false)
     val showAvatars = rxPrefs.getBoolean("showAvatars", true)
+    val boldNames = rxPrefs.getInteger("boldNames", BOLD_NAMES_MEDIUM)
     val textSize = rxPrefs.getInteger("textSize", TEXT_SIZE_NORMAL)
     val blockingManager = rxPrefs.getInteger("blockingManager", BLOCKING_MANAGER_QKSMS)
     val drop = rxPrefs.getBoolean("drop", false)

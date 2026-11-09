@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <!--
   ~ Copyright (C) 2019 Moez Bhatti <moez.bhatti@gmail.com>
   ~
@@ -201,6 +201,12 @@
     <string name="settings_shamsi_calendar_summary">نمایش تاریخ بخش‌های برنامه به شمسی (با اعداد انگلیسی)</string>
     <string name="settings_show_avatars_title">نمایش تصویر مخاطب (آواتار)</string>
     <string name="settings_show_avatars_summary">نمایش دایره تصویر مخاطب در لیست گفتگوها و پیام‌ها</string>
+    <string name="settings_bold_names_title">ضخامت قلم نام مخاطبین</string>
+    <string-array name="bold_names_options">
+        <item>معمولی (عادی)</item>
+        <item>نیمه‌پررنگ (پیشنهادی)</item>
+        <item>پررنگ (Bold)</item>
+    </string-array>
     <string name="settings_auto_emoji_title">شکلک خودکار</string>
     <string name="settings_notifications_title">اعلان‌ها</string>
     <string name="settings_notifications_o_summary">لمس برای شخصی سازی</string>

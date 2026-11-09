@@ -1,4 +1,4 @@
-package com.goodwy.messages.feature.settings
+﻿package com.goodwy.messages.feature.settings
 
 import android.content.Context
 import com.goodwy.messages.R
@@ -94,6 +94,13 @@ class SettingsPresenter @Inject constructor(
         disposables += prefs.textSize.asObservable()
                 .subscribe { textSize ->
                     newState { copy(textSizeSummary = textSizeLabels[textSize], textSizeId = textSize) }
+                }
+
+        val boldNamesLabels = context.resources.getStringArray(R.array.bold_names_options)
+        disposables += prefs.boldNames.asObservable()
+                .subscribe { boldNames ->
+                    val label = boldNamesLabels.getOrNull(boldNames) ?: boldNamesLabels[1]
+                    newState { copy(boldNamesSummary = label, boldNamesId = boldNames) }
                 }
 
         disposables += prefs.autoColor.asObservable()
@@ -216,6 +223,8 @@ class SettingsPresenter @Inject constructor(
 
                         R.id.showAvatars -> prefs.showAvatars.set(!prefs.showAvatars.get())
 
+                        R.id.boldNames -> view.showBoldNamesPicker()
+
                         R.id.unicode -> prefs.unicode.set(!prefs.unicode.get())
 
                         R.id.mobileOnly -> prefs.mobileOnly.set(!prefs.mobileOnly.get())
@@ -271,6 +280,10 @@ class SettingsPresenter @Inject constructor(
         view.textSizeSelected()
                 .autoDisposable(view.scope())
                 .subscribe(prefs.textSize::set)
+
+        view.boldNamesSelected()
+                .autoDisposable(view.scope())
+                .subscribe(prefs.boldNames::set)
 
         view.sendDelaySelected()
                 .withLatestFrom(billingManager.upgradeStatus) { duration, upgraded ->
