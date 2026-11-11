@@ -253,7 +253,7 @@ class MainViewModel @Inject constructor(
         refreshInboxCategory()
     }
 
-    private fun refreshInboxCategory(forceInbox: Boolean = false) {
+    fun refreshInboxCategory(forceInbox: Boolean = false) {
         try {
             val (data, counts) = queryCategoryDataAndCounts(currentCategoryId)
             newState {

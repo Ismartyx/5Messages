@@ -163,6 +163,7 @@ class MainActivity : QkThemedActivity(), MainView {
     private val syncing by lazy { findViewById<View>(R.id.syncing) }
     private val backPressedSubject: Subject<NavItem> = PublishSubject.create()
     private var currentSelectedIds: List<Long> = emptyList()
+    private var currentState: MainState? = null
 
     companion object {
         private const val MENU_MOVE_CATEGORY = 991
@@ -1307,6 +1308,7 @@ saveBackupBtn.setOnClickListener {
     }
 
     override fun render(state: MainState) {
+        currentState = state
         if (state.hasError) {
             finish()
             return
@@ -1569,7 +1571,7 @@ saveBackupBtn.setOnClickListener {
 
     override fun showDeleteDialog(conversations: List<Long>) {
         val count = conversations.size
-        val isTrash = viewModel.state.value?.page is Trash
+        val isTrash = currentState?.page is Trash
         val titleRes = if (isTrash) R.string.dialog_delete_permanent_title else R.string.dialog_delete_title
         val message = if (isTrash) {
             getString(R.string.dialog_delete_permanent_message)
