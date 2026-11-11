@@ -61,6 +61,7 @@ class SettingsController : QkController<SettingsView, SettingsState, SettingsPre
     @Inject lateinit var sendDelayDialog: Dialog
     @Inject lateinit var mmsSizeDialog: Dialog
     @Inject lateinit var searchElevationDialog: Dialog
+    @Inject lateinit var trashRetentionDialog: Dialog
 
     @Inject override lateinit var presenter: SettingsPresenter
 
@@ -103,6 +104,7 @@ class SettingsController : QkController<SettingsView, SettingsState, SettingsPre
         sendDelayDialog.adapter.setData(R.array.delayed_sending_labels)
         mmsSizeDialog.adapter.setData(R.array.mms_sizes, R.array.mms_sizes_ids)
         searchElevationDialog.adapter.setData(R.array.search_elevation, R.array.search_elevation_ids)
+        trashRetentionDialog.adapter.setData(R.array.trash_retention_options, R.array.trash_retention_ids)
 
         about.summary = context.getString(R.string.settings_version, BuildConfig.VERSION_NAME)
     }
@@ -156,6 +158,7 @@ class SettingsController : QkController<SettingsView, SettingsState, SettingsPre
     override fun mmsSizeSelected(): Observable<Int> = mmsSizeDialog.adapter.menuItemClicks
 
     override fun searchElevationSelected(): Observable<Int> = searchElevationDialog.adapter.menuItemClicks
+    override fun trashRetentionSelected(): Observable<Int> = trashRetentionDialog.adapter.menuItemClicks
 
     override fun render(state: SettingsState) {
         themePreview.setBackgroundTint(state.theme)
@@ -206,6 +209,8 @@ class SettingsController : QkController<SettingsView, SettingsState, SettingsPre
         showAvatars.checkbox.isChecked = state.showAvatarsEnabled
         showToolbarAvatar.checkbox.isChecked = state.showToolbarAvatarEnabled
         boldNames.value = state.boldNamesSummary
+        trashRetention.value = state.trashRetentionSummary
+        trashRetentionDialog.adapter.selectedItem = state.trashRetentionId
         boldNamesDialog.adapter.selectedItem = state.boldNamesId
 
         unicode.checkbox.isChecked = state.stripUnicodeEnabled
@@ -287,6 +292,7 @@ class SettingsController : QkController<SettingsView, SettingsState, SettingsPre
     override fun showMmsSizePicker() = mmsSizeDialog.show(activity!!)
 
     override fun showSearchElevationPicker() = searchElevationDialog.show(activity!!)
+    override fun showTrashRetentionPicker() = trashRetentionDialog.show(activity!!)
 
     override fun showSpeechBubble() {
         router.pushController(RouterTransaction.with(SpeechBubbleController())

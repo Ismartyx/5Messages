@@ -5,6 +5,7 @@ import androidx.recyclerview.widget.ItemTouchHelper
 import com.goodwy.messages.R
 import com.goodwy.messages.common.Navigator
 import com.goodwy.messages.common.base.QkViewModel
+import com.goodwy.messages.common.util.TrashManager
 import com.goodwy.messages.extensions.anyOf
 import com.goodwy.messages.extensions.asObservable
 import com.goodwy.messages.extensions.mapNotNull
@@ -111,6 +112,44 @@ class MainViewModel @Inject constructor(
                 .subscribe({ show -> newState { copy(showRating = show) } }, {})
 
         migratePreferences.execute(Unit)
+
+        try {
+            // Clean up any accidental SAVED_NOTES category assignments
+            val manualEdit = manualPrefs.edit()
+            var modified = false
+            for ((key, value) in manualPrefs.all) {
+                if (value == "SAVED_NOTES") {
+                    manualEdit.remove(key)
+                    modified = true
+                }
+            }
+            if (modified) {
+                manualEdit.apply()
+            }
+            val legacyPrefs = context.getSharedPreferences("manual_categories", Context.MODE_PRIVATE)
+            val legEdit = legacyPrefs.edit()
+            var legMod = false
+            for ((key, value) in legacyPrefs.all) {
+                if (value == "SAVED_NOTES") {
+                    legEdit.remove(key)
+                    legMod = true
+                }
+            }
+            if (legMod) {
+                legEdit.apply()
+            }
+
+            // Clean up expired trash
+            val retentionDays = prefs.trashRetention.get()
+            val expired = TrashManager.getTrashedItems(context).filter {
+                if (retentionDays <= 0) false
+                else it.trashedAt < System.currentTimeMillis() - (retentionDays.toLong() * 24L * 3600L * 1000L)
+            }.map { it.threadId }
+            if (expired.isNotEmpty()) {
+                deleteConversations.execute(expired)
+                TrashManager.removeTrashed(context, expired)
+            }
+        } catch (_: Exception) {}
 
         val hasAnyConversations = try {
             Realm.getDefaultInstance().use { realm ->
@@ -240,10 +279,12 @@ class MainViewModel @Inject constructor(
 
         val matchingIds = mutableListOf<Long>()
         val unreadCounts = mutableMapOf<String, Int>()
+        val trashedIds = TrashManager.getTrashedThreadIds(context)
 
         for (conv in allActive) {
             if (!conv.isValid) continue
             if (conv.lastMessage == null && conv.draft.isEmpty()) continue
+            if (trashedIds.contains(conv.id)) continue
 
             val catId = classifyConversation(conv)
             if (catId == selectedCategoryId) {
@@ -399,6 +440,7 @@ class MainViewModel @Inject constructor(
                             state.page is Searching -> view.clearSearch()
                             state.page is Inbox && state.page.selected > 0 -> view.clearSelection()
                             state.page is Archived && state.page.selected > 0 -> view.clearSelection()
+                            state.page is Trash && state.page.selected > 0 -> view.clearSelection()
                             state.page !is Inbox -> {
                                 refreshInboxCategory(forceInbox = true)
                             }
@@ -420,6 +462,7 @@ class MainViewModel @Inject constructor(
                     when (drawerItem) {
                         NavItem.INBOX -> refreshInboxCategory(forceInbox = true)
                         NavItem.ARCHIVED -> newState { copy(page = Archived(data = conversationRepo.getConversations(true))) }
+                        NavItem.TRASH -> refreshTrashPage()
                         else -> Unit
                     }
                 }
@@ -440,6 +483,16 @@ class MainViewModel @Inject constructor(
                 .withLatestFrom(view.conversationsSelectedIntent) { _, conversations ->
                     markUnarchived.execute(conversations)
                     view.clearSelection()
+                }
+                .autoDisposable(view.scope())
+                .subscribe()
+
+        view.optionsItemIntent
+                .filter { itemId -> itemId == R.id.restore }
+                .withLatestFrom(view.conversationsSelectedIntent) { _, conversations ->
+                    TrashManager.restoreConversations(context, conversations)
+                    view.clearSelection()
+                    refreshTrashPage()
                 }
                 .autoDisposable(view.scope())
                 .subscribe()
@@ -553,16 +606,42 @@ class MainViewModel @Inject constructor(
                             val page = state.page.copy(addContact = add, markPinned = pin, markRead = read, selected = selected)
                             newState { copy(page = page) }
                         }
+
+                        is Trash -> {
+                            val page = state.page.copy(selected = selected)
+                            newState { copy(page = page) }
+                        }
                     }
                 }
                 .autoDisposable(view.scope())
                 .subscribe()
 
         view.confirmDeleteIntent
+                .withLatestFrom(state) { conversations, state -> Pair(conversations, state.page) }
                 .autoDisposable(view.scope())
-                .subscribe { conversations ->
-                    deleteConversations.execute(conversations)
-                    view.clearSelection()
+                .subscribe { (conversations, page) ->
+                    if (page is Trash) {
+                        deleteConversations.execute(conversations)
+                        TrashManager.removeTrashed(context, conversations)
+                        view.clearSelection()
+                        refreshTrashPage()
+                    } else {
+                        TrashManager.moveToTrash(context, conversations)
+                        view.clearSelection()
+                        refreshInboxCategory()
+                        view.showTrashSnackbar(conversations)
+                    }
+                }
+
+        view.undoTrashIntent
+                .withLatestFrom(state) { _, state -> state.page }
+                .autoDisposable(view.scope())
+                .subscribe { page ->
+                    if (page is Inbox) {
+                        refreshInboxCategory()
+                    } else if (page is Trash) {
+                        refreshTrashPage()
+                    }
                 }
 
         view.swipeConversationIntent
@@ -594,6 +673,27 @@ class MainViewModel @Inject constructor(
                 }
                 .autoDisposable(view.scope())
                 .subscribe()
+    }
+
+    fun refreshTrashPage() {
+        try {
+            val trashedIds = TrashManager.getTrashedThreadIds(context).toLongArray()
+            val data = if (trashedIds.isEmpty()) {
+                conversationRepo.getConversations(-1L)
+            } else {
+                conversationRepo.getConversations(*trashedIds)
+            }
+            newState { copy(page = Trash(data = data)) }
+        } catch (_: Exception) {}
+    }
+
+    fun emptyTrash() {
+        val ids = TrashManager.getTrashedThreadIds(context).toList()
+        if (ids.isNotEmpty()) {
+            deleteConversations.execute(ids)
+            TrashManager.removeTrashed(context, ids)
+        }
+        refreshTrashPage()
     }
 
 }

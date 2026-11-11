@@ -129,6 +129,19 @@ class SettingsPresenter @Inject constructor(
         disposables += prefs.showToolbarAvatar.asObservable()
                 .subscribe { enabled -> newState { copy(showToolbarAvatarEnabled = enabled) } }
 
+        disposables += prefs.trashRetention.asObservable()
+                .subscribe { days ->
+                    val summary = when (days) {
+                        7 -> "۷ روز (۱ هفته)"
+                        30 -> "۳۰ روز (۱ ماه)"
+                        60 -> "۶۰ روز (۲ ماه)"
+                        90 -> "۹۰ روز (۳ ماه)"
+                        0 -> "هرگز (حذف خودکار غیرفعال)"
+                        else -> "$days روز"
+                    }
+                    newState { copy(trashRetentionSummary = summary, trashRetentionId = days) }
+                }
+
         disposables += prefs.unicode.asObservable()
                 .subscribe { enabled -> newState { copy(stripUnicodeEnabled = enabled) } }
 
@@ -228,6 +241,8 @@ class SettingsPresenter @Inject constructor(
 
                         R.id.showToolbarAvatar -> prefs.showToolbarAvatar.set(!prefs.showToolbarAvatar.get())
 
+                        R.id.trashRetention -> view.showTrashRetentionPicker()
+
                         R.id.boldNames -> view.showBoldNamesPicker()
 
                         R.id.unicode -> prefs.unicode.set(!prefs.unicode.get())
@@ -289,6 +304,10 @@ class SettingsPresenter @Inject constructor(
         view.boldNamesSelected()
                 .autoDisposable(view.scope())
                 .subscribe(prefs.boldNames::set)
+
+        view.trashRetentionSelected()
+                .autoDisposable(view.scope())
+                .subscribe(prefs.trashRetention::set)
 
         view.sendDelaySelected()
                 .withLatestFrom(billingManager.upgradeStatus) { duration, upgraded ->

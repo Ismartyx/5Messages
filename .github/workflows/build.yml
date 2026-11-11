@@ -182,14 +182,14 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          VERSION_NAME="1.4.6"
+          VERSION_NAME="1.4.7"
           TAG_NAME="v${VERSION_NAME}"
           gh release delete "$TAG_NAME" --yes || true
           git tag -d "$TAG_NAME" || true
           git push origin ":refs/tags/$TAG_NAME" || true
           gh release create "$TAG_NAME" signed_out/5Messages.apk \
             --title "5Messages v${VERSION_NAME}" \
-            --notes "نسخه 1.4.6: تفکیک تنظیم نمایش تصویر مخاطبین در صفحه اصلی و بالای صفحه گفتگو، حذف دکمه از منوی سه نقطه و مدیریت کامل از طریق تنظیمات" \
+            --notes "نسخه 1.4.7: سطل زباله (Trash) برای پیام‌های حذف شده، قابلیت بازگردانی و حذف دائمی، تنظیم دوره نگهداری و پاکسازی خودکار (پیش‌فرض ۳۰ روزه)، رفع مشکل و بازیابی خودکار گفتگوهای منتقل‌شده به یادداشت‌ها و دکمه کپی متن در پیام‌های ذخیره‌شده" \
             --latest || gh release upload "$TAG_NAME" signed_out/5Messages.apk --clobber
 
       - name: Upload APK

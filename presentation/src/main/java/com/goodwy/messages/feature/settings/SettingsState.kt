@@ -27,6 +27,8 @@ data class SettingsState(
     val shamsiCalendarEnabled: Boolean = false,
     val showAvatarsEnabled: Boolean = true,
     val showToolbarAvatarEnabled: Boolean = true,
+    val trashRetentionSummary: String = "",
+    val trashRetentionId: Int = 30,
     val boldNamesSummary: String = "",
     val boldNamesId: Int = Preferences.BOLD_NAMES_MEDIUM,
     val splitSmsEnabled: Boolean = false,

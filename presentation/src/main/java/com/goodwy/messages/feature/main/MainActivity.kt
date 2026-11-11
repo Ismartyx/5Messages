@@ -1,4 +1,4 @@
-﻿package com.goodwy.messages.feature.main
+package com.goodwy.messages.feature.main
 
 import android.Manifest
 import android.animation.ObjectAnimator
@@ -56,6 +56,7 @@ import com.goodwy.messages.common.util.extensions.resolveThemeColor
 import com.goodwy.messages.common.util.extensions.setBackgroundTint
 import com.goodwy.messages.common.util.extensions.setTint
 import com.goodwy.messages.common.util.extensions.setVisible
+import com.goodwy.messages.common.util.TrashManager
 import com.goodwy.messages.common.widget.QkTextView
 import com.goodwy.messages.feature.blocking.BlockingDialog
 import com.goodwy.messages.feature.changelog.ChangelogDialog
@@ -121,6 +122,7 @@ class MainActivity : QkThemedActivity(), MainView {
                 backPressedSubject,
                 inbox.clicks().map { NavItem.INBOX },
                 archived.clicks().map { NavItem.ARCHIVED },
+                trash.clicks().map { NavItem.TRASH },
                 backup.clicks().doOnNext {
                     drawerLayout?.closeDrawer(GravityCompat.START)
                     showNextcloudSettingsDialog()
@@ -149,6 +151,7 @@ class MainActivity : QkThemedActivity(), MainView {
     override val swipeConversationIntent by lazy { itemTouchCallback.swipes }
     override val changelogMoreIntent by lazy { changelogDialog.moreClicks }
     override val undoArchiveIntent: Subject<Unit> = PublishSubject.create()
+    override val undoTrashIntent: Subject<Unit> = PublishSubject.create()
     override val snackbarButtonIntent: Subject<Unit> = PublishSubject.create()
 
     private val viewModel by lazy { ViewModelProviders.of(this, viewModelFactory)[MainViewModel::class.java] }
@@ -221,6 +224,7 @@ class MainActivity : QkThemedActivity(), MainView {
                             .let { tintList ->
                                 inboxIcon?.imageTintList = tintList
                                 archivedIcon?.imageTintList = tintList
+                                trashIcon?.imageTintList = tintList
                             }
 
                     listOf(plusBadge1, plusBadge2).forEach { badge ->
@@ -552,7 +556,7 @@ class MainActivity : QkThemedActivity(), MainView {
 
     private fun showMoveConversationsCategoryDialog(selectedThreadIds: List<Long>) {
         if (selectedThreadIds.isEmpty()) return
-        val categories = viewModel.getSavedCategoryOrder()
+        val categories = viewModel.getSavedCategoryOrder().filter { it.id != "SAVED_NOTES" }
         val titles = categories.map { it.name }.toTypedArray()
 
         AlertDialog.Builder(this)
@@ -571,6 +575,21 @@ class MainActivity : QkThemedActivity(), MainView {
                         triggerAutoBackupIfEnabled()
                         Toast.makeText(this, "به پوشه «${newCat.name}» منتقل شد", Toast.LENGTH_SHORT).show()
                     }
+                }
+                .setNeutralButton("📌 کپی در پیام‌های ذخیره‌شده") { _, _ ->
+                    try {
+                        val realm = io.realm.Realm.getDefaultInstance()
+                        for (threadId in selectedThreadIds) {
+                            val conv = realm.where(com.goodwy.messages.model.Conversation::class.java).equalTo("id", threadId).findFirst()
+                            val body = conv?.lastMessage?.body ?: ""
+                            if (body.isNotBlank()) {
+                                com.goodwy.messages.common.util.SavedMessagesManager.addSavedMessage(this, body)
+                            }
+                        }
+                        realm.close()
+                        clearSelection()
+                        Toast.makeText(this, "متن در پیام‌های ذخیره‌شده کپی شد", Toast.LENGTH_SHORT).show()
+                    } catch (_: Exception) {}
                 }
                 .setNegativeButton("انصراف", null)
                 .show()
@@ -1316,6 +1335,7 @@ saveBackupBtn.setOnClickListener {
         val selectedConversations = when (state.page) {
             is Inbox -> state.page.selected
             is Archived -> state.page.selected
+            is Trash -> state.page.selected
             else -> 0
         }
 
@@ -1325,13 +1345,15 @@ saveBackupBtn.setOnClickListener {
 
         toolbar?.menu?.findItem(R.id.archive)?.isVisible = state.page is Inbox && selectedConversations != 0
         toolbar?.menu?.findItem(R.id.unarchive)?.isVisible = state.page is Archived && selectedConversations != 0
+        toolbar?.menu?.findItem(R.id.restore)?.isVisible = state.page is Trash && selectedConversations != 0
+        toolbar?.menu?.findItem(R.id.emptyTrash)?.isVisible = state.page is Trash && selectedConversations == 0
         toolbar?.menu?.findItem(R.id.delete)?.isVisible = selectedConversations != 0
         toolbar?.menu?.findItem(R.id.add)?.isVisible = addContact && selectedConversations != 0
-        toolbar?.menu?.findItem(R.id.pin)?.isVisible = markPinned && selectedConversations != 0
-        toolbar?.menu?.findItem(R.id.unpin)?.isVisible = !markPinned && selectedConversations != 0
-        toolbar?.menu?.findItem(R.id.read)?.isVisible = markRead && selectedConversations != 0
-        toolbar?.menu?.findItem(R.id.unread)?.isVisible = !markRead && selectedConversations != 0
-        toolbar?.menu?.findItem(R.id.block)?.isVisible = selectedConversations != 0
+        toolbar?.menu?.findItem(R.id.pin)?.isVisible = markPinned && selectedConversations != 0 && state.page !is Trash
+        toolbar?.menu?.findItem(R.id.unpin)?.isVisible = !markPinned && selectedConversations != 0 && state.page !is Trash
+        toolbar?.menu?.findItem(R.id.read)?.isVisible = markRead && selectedConversations != 0 && state.page !is Trash
+        toolbar?.menu?.findItem(R.id.unread)?.isVisible = !markRead && selectedConversations != 0 && state.page !is Trash
+        toolbar?.menu?.findItem(R.id.block)?.isVisible = selectedConversations != 0 && state.page !is Trash
         toolbar?.menu?.findItem(MENU_MOVE_CATEGORY)?.isVisible = state.page is Inbox && selectedConversations != 0
         toolbar?.menu?.findItem(MENU_NEXTCLOUD_CONFIG)?.isVisible = selectedConversations == 0
 
@@ -1344,7 +1366,7 @@ saveBackupBtn.setOnClickListener {
 
         compose?.setVisible(state.page is Inbox || state.page is Archived)
         compose?.animate()?.rotation(if (state.drawerOpen) 90f else 0f)?.start()
-        conversationsAdapter.emptyView = empty.takeIf { state.page is Inbox || state.page is Archived }
+        conversationsAdapter.emptyView = empty.takeIf { state.page is Inbox || state.page is Archived || state.page is Trash }
         searchAdapter.emptyView = empty.takeIf { state.page is Searching }
 
         when (state.page) {
@@ -1422,10 +1444,34 @@ saveBackupBtn.setOnClickListener {
                 itemTouchHelper.attachToRecyclerView(null)
                 empty?.setText(R.string.archived_empty_text)
             }
+
+            is Trash -> {
+                savedNotesContainer?.visibility = View.GONE
+                showBackButton(state.page.selected > 0)
+                if (state.page.selected > 0) {
+                    toolbar?.setNavigationIcon(R.drawable.ic_arrow_back_24dp)
+                    toolbar?.navigationIcon?.setTint(resolveThemeColor(android.R.attr.textColorSecondary))
+                    compose?.animate()?.rotation(90f)?.start()
+                } else {
+                    toolbar?.setNavigationIcon(R.drawable.ic_menu_24dp)
+                    toolbar?.navigationIcon?.setTint(resolveThemeColor(android.R.attr.textColorSecondary))
+                    compose?.animate()?.rotation(0f)?.start()
+                }
+                toolbar?.setBackgroundResource(R.drawable.rounded_rectangle_transparent_24dp)
+                title = when (state.page.selected != 0) {
+                    true -> getString(R.string.main_title_selected, state.page.selected)
+                    false -> getString(R.string.drawer_trash)
+                }
+                if (recyclerView?.adapter !== conversationsAdapter) recyclerView?.adapter = conversationsAdapter
+                conversationsAdapter.updateData(state.page.data)
+                itemTouchHelper.attachToRecyclerView(null)
+                empty?.setText(R.string.trash_empty_text)
+            }
         }
 
         inbox?.isActivated = state.page is Inbox
         archived?.isActivated = state.page is Archived
+        trash?.isActivated = state.page is Trash
 
         if (drawerLayout?.isDrawerOpen(GravityCompat.START) == true && !state.drawerOpen) {
             drawerLayout?.closeDrawer(GravityCompat.START)
@@ -1523,9 +1569,16 @@ saveBackupBtn.setOnClickListener {
 
     override fun showDeleteDialog(conversations: List<Long>) {
         val count = conversations.size
+        val isTrash = viewModel.state.value?.page is Trash
+        val titleRes = if (isTrash) R.string.dialog_delete_permanent_title else R.string.dialog_delete_title
+        val message = if (isTrash) {
+            getString(R.string.dialog_delete_permanent_message)
+        } else {
+            resources.getQuantityString(R.plurals.dialog_delete_message, count, count)
+        }
         AlertDialog.Builder(this)
-                .setTitle(R.string.dialog_delete_title)
-                .setMessage(resources.getQuantityString(R.plurals.dialog_delete_message, count, count))
+                .setTitle(titleRes)
+                .setMessage(message)
                 .setPositiveButton(R.string.button_delete) { _, _ -> confirmDeleteIntent.onNext(conversations) }
                 .setNegativeButton(R.string.button_cancel, null)
                 .show()
@@ -1538,6 +1591,20 @@ saveBackupBtn.setOnClickListener {
     override fun showArchivedSnackbar() {
         Snackbar.make(drawerLayout, R.string.toast_archived, Snackbar.LENGTH_LONG).apply {
             setAction(R.string.button_undo) { undoArchiveIntent.onNext(Unit) }
+            setActionTextColor(Color.parseColor("#0EA5E9"))
+            show()
+        }
+    }
+
+    override fun showTrashSnackbar(conversations: List<Long>) {
+        val count = conversations.size
+        val message = resources.getQuantityString(R.plurals.conversations_moved_to_trash, count, count)
+        Snackbar.make(drawerLayout, message, Snackbar.LENGTH_LONG).apply {
+            setAction(R.string.button_undo) {
+                TrashManager.restoreConversations(this@MainActivity, conversations)
+                viewModel.refreshInboxCategory()
+                undoTrashIntent.onNext(Unit)
+            }
             setActionTextColor(Color.parseColor("#0EA5E9"))
             show()
         }
@@ -1558,6 +1625,17 @@ saveBackupBtn.setOnClickListener {
     }
 
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
+        if (item.itemId == R.id.emptyTrash) {
+            AlertDialog.Builder(this)
+                .setTitle(R.string.dialog_empty_trash_title)
+                .setMessage(R.string.dialog_empty_trash_message)
+                .setPositiveButton(R.string.button_delete) { _, _ ->
+                    viewModel.emptyTrash()
+                }
+                .setNegativeButton(R.string.button_cancel, null)
+                .show()
+            return true
+        }
         if (item.itemId == MENU_MOVE_CATEGORY) {
             showMoveConversationsCategoryDialog(currentSelectedIds)
             return true

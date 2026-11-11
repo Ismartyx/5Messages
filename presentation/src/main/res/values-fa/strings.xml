@@ -443,4 +443,32 @@
     <string name="code_copied_toast">کد %s کپی شد</string>
     <string name="number_copied_toast">%s کپی شد</string>
     <string name="menu_toggle_avatar">نمایش/مخفی کردن تصویر مخاطب</string>
+    <string name="settings_trash_retention_title">مدت نگهداری در سطل زباله</string>
+    <string name="settings_trash_retention_summary">حذف خودکار پیام‌های سطل زباله پس از %s</string>
+    <string-array name="trash_retention_options">
+        <item>۳۰ روز (۱ ماه - پیش‌فرض)</item>
+        <item>۷ روز (۱ هفته)</item>
+        <item>۶۰ روز (۲ ماه)</item>
+        <item>۹۰ روز (۳ ماه)</item>
+        <item>هرگز (حذف خودکار غیرفعال)</item>
+    </string-array>
+    <integer-array name="trash_retention_ids">
+        <item>30</item>
+        <item>7</item>
+        <item>60</item>
+        <item>90</item>
+        <item>0</item>
+    </integer-array>
+    <string name="drawer_trash">سطل زباله</string>
+    <string name="trash_empty_text">سطل زباله خالی است</string>
+    <string name="main_menu_restore">بازیابی</string>
+    <string name="main_menu_empty_trash">خالی کردن سطل زباله</string>
+    <string name="dialog_empty_trash_title">خالی کردن سطل زباله؟</string>
+    <string name="dialog_empty_trash_message">تمام گفتگوهای موجود در سطل زباله برای همیشه حذف خواهند شد.</string>
+    <string name="dialog_delete_permanent_title">حذف دائمی گفتگو؟</string>
+    <string name="dialog_delete_permanent_message">این گفتگوها برای همیشه پاک می‌شوند و قابل بازیابی نخواهند بود.</string>
+    <plurals name="conversations_moved_to_trash">
+        <item quantity="one">%d گفتگو به سطل زباله منتقل شد</item>
+        <item quantity="other">%d گفتگو به سطل زباله منتقل شد</item>
+    </plurals>
 </resources>

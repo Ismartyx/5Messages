@@ -1,4 +1,4 @@
-﻿package com.goodwy.messages.feature.settings
+package com.goodwy.messages.feature.settings
 
 import com.goodwy.messages.common.base.QkViewContract
 import com.goodwy.messages.common.widget.PreferenceView
@@ -18,6 +18,7 @@ interface SettingsView : QkViewContract<SettingsState> {
     fun autoDeleteChanged(): Observable<Int>
     fun mmsSizeSelected(): Observable<Int>
     fun searchElevationSelected(): Observable<Int>
+    fun trashRetentionSelected(): Observable<Int>
 
     fun showQksmsPlusSnackbar()
     fun showNightModeDialog()
@@ -31,6 +32,7 @@ interface SettingsView : QkViewContract<SettingsState> {
     suspend fun showAutoDeleteWarningDialog(messages: Int): Boolean
     fun showMmsSizePicker()
     fun showSearchElevationPicker()
+    fun showTrashRetentionPicker()
     fun showSpeechBubble()
     fun showSimConfigure()
     fun showSwipeActions()

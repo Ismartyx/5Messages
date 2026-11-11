@@ -32,13 +32,19 @@ object ConversationClassifier {
         // 0. اولویت اول: دسته‌بندی دستی که کاربر در گوشی انتخاب کرده است
         val manualByThread = manualPrefs.getString("thread_${conv.id}", null)
             ?: legacyPrefs.getString("thread_${conv.id}", null)
-        if (!manualByThread.isNullOrBlank()) {
+        if (manualByThread == "SAVED_NOTES") {
+            manualPrefs.edit().remove("thread_${conv.id}").apply()
+            legacyPrefs.edit().remove("thread_${conv.id}").apply()
+        } else if (!manualByThread.isNullOrBlank()) {
             return manualByThread
         }
         if (address.isNotEmpty()) {
             val manualByAddr = manualPrefs.getString("addr_$address", null)
                 ?: legacyPrefs.getString("addr_$address", null)
-            if (!manualByAddr.isNullOrBlank()) {
+            if (manualByAddr == "SAVED_NOTES") {
+                manualPrefs.edit().remove("addr_$address").apply()
+                legacyPrefs.edit().remove("addr_$address").apply()
+            } else if (!manualByAddr.isNullOrBlank()) {
                 return manualByAddr
             }
         }

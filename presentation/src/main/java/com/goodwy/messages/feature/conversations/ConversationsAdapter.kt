@@ -1,4 +1,4 @@
-﻿package com.goodwy.messages.feature.conversations
+package com.goodwy.messages.feature.conversations
 
 import android.content.Context
 import android.graphics.Typeface

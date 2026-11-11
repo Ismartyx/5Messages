@@ -23,6 +23,7 @@ interface MainView : QkView<MainState> {
     val swipeConversationIntent: Observable<Pair<Long, Int>>
     val changelogMoreIntent: Observable<*>
     val undoArchiveIntent: Observable<Unit>
+    val undoTrashIntent: Observable<Unit>
     val snackbarButtonIntent: Observable<Unit>
 
     fun requestDefaultSms()
@@ -34,7 +35,8 @@ interface MainView : QkView<MainState> {
     fun showDeleteDialog(conversations: List<Long>)
     fun showChangelog(changelog: ChangelogManager.CumulativeChangelog)
     fun showArchivedSnackbar()
+    fun showTrashSnackbar(conversations: List<Long>)
 
 }
 
-enum class NavItem { BACK, INBOX, ARCHIVED, BACKUP, SCHEDULED, BLOCKING, SETTINGS, PLUS, HELP, INVITE }
+enum class NavItem { BACK, INBOX, ARCHIVED, TRASH, BACKUP, SCHEDULED, BLOCKING, SETTINGS, PLUS, HELP, INVITE }

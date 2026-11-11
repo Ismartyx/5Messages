@@ -46,6 +46,22 @@
         </LinearLayout>
 
         <LinearLayout
+            android:id="@+id/trash"
+            style="@style/DrawerRow">
+
+            <ImageView
+                android:id="@+id/trashIcon"
+                style="@style/DrawerIcon"
+                android:src="@drawable/ic_delete_white_24dp"
+                tools:tint="?android:attr/textColorSecondary" />
+
+            <com.goodwy.messages.common.widget.QkTextView
+                style="@style/DrawerText"
+                android:text="@string/drawer_trash" />
+
+        </LinearLayout>
+
+        <LinearLayout
             android:id="@+id/savedNotes"
             style="@style/DrawerRow">
 

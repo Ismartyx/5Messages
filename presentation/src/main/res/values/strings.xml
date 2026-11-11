@@ -566,4 +566,32 @@
     <string name="code_copied_toast">Code %s copied</string>
     <string name="number_copied_toast">%s copied</string>
     <string name="menu_toggle_avatar">Show contact photo</string>
+    <string name="settings_trash_retention_title">Trash retention period</string>
+    <string name="settings_trash_retention_summary">Automatically delete messages in trash after %s</string>
+    <string-array name="trash_retention_options">
+        <item>30 days (1 month)</item>
+        <item>7 days (1 week)</item>
+        <item>60 days (2 months)</item>
+        <item>90 days (3 months)</item>
+        <item>Never</item>
+    </string-array>
+    <integer-array name="trash_retention_ids">
+        <item>30</item>
+        <item>7</item>
+        <item>60</item>
+        <item>90</item>
+        <item>0</item>
+    </integer-array>
+    <string name="drawer_trash">Trash</string>
+    <string name="trash_empty_text">Trash is empty</string>
+    <string name="main_menu_restore">Restore</string>
+    <string name="main_menu_empty_trash">Empty Trash</string>
+    <string name="dialog_empty_trash_title">Empty Trash?</string>
+    <string name="dialog_empty_trash_message">All conversations in trash will be permanently deleted.</string>
+    <string name="dialog_delete_permanent_title">Delete permanently?</string>
+    <string name="dialog_delete_permanent_message">This cannot be undone.</string>
+    <plurals name="conversations_moved_to_trash">
+        <item quantity="one">%d conversation moved to trash</item>
+        <item quantity="other">%d conversations moved to trash</item>
+    </plurals>
 </resources>

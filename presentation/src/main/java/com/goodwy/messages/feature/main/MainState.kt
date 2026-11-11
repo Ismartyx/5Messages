@@ -52,3 +52,8 @@ data class Archived(
     val data: RealmResults<Conversation>? = null,
     val selected: Int = 0
 ) : MainPage()
+
+data class Trash(
+    val selected: Int = 0,
+    val data: RealmResults<Conversation>? = null
+) : MainPage()
