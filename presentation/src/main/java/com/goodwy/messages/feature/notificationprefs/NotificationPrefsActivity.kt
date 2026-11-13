@@ -48,6 +48,7 @@ import kotlinx.android.synthetic.main.notification_prefs_activity.preferences
 import kotlinx.android.synthetic.main.settings_switch_widget.view.*
 import kotlinx.android.synthetic.main.settings_chevron_widget.view.*
 import javax.inject.Inject
+import com.goodwy.messages.util.Preferences
 
 class NotificationPrefsActivity : QkThemedActivity(), NotificationPrefsView {
 
