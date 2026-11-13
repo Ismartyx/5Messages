@@ -1,0 +1,157 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/calibrationRoot"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#000000">
+
+    <!-- Camera Ring View (FullScreen so it draws anywhere) -->
+    <com.goodwy.messages.feature.aod.AodCameraRingView
+        android:id="@+id/calibrationCameraRing"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:visibility="gone" />
+
+    <!-- Visual Target Crosshair (around the touch point) -->
+    <View
+        android:id="@+id/calibrationCrosshair"
+        android:layout_width="44dp"
+        android:layout_height="44dp"
+        android:background="@drawable/aod_crosshair_target"
+        android:visibility="gone" />
+
+    <!-- LED Dot View -->
+    <View
+        android:id="@+id/calibrationLedDot"
+        android:layout_width="8dp"
+        android:layout_height="8dp"
+        android:background="@drawable/aod_led_dot"
+        android:visibility="gone" />
+
+    <!-- Bottom Instruction & Fine Control Card -->
+    <LinearLayout
+        android:id="@+id/calibrationControlCard"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom"
+        android:layout_margin="16dp"
+        android:background="@drawable/aod_calibration_card_bg"
+        android:clickable="true"
+        android:focusable="true"
+        android:orientation="vertical"
+        android:padding="16dp">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center_horizontal"
+            android:text="🎯 تعیین موقعیت با لمس و کشیدن"
+            android:textColor="#0EA5E9"
+            android:textSize="15sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/calibrationHint"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:gravity="center"
+            android:text="انگشت خود را روی صفحه بکشید یا لمس کنید تا نقطه یا حلقه دقیقاً دور دوربین یا جای دلخواه قرار گیرد. با کلیدهای جهت‌نما می‌توانید تنظیم میلی‌متری انجام دهید."
+            android:textColor="#A1A1AA"
+            android:textSize="12sp" />
+
+        <TextView
+            android:id="@+id/calibrationCoords"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center_horizontal"
+            android:layout_marginTop="6dp"
+            android:text="مختصات: X = 0 | Y = 0"
+            android:textColor="#F59E0B"
+            android:textSize="13sp"
+            android:textStyle="bold" />
+
+        <!-- D-Pad Micro Adjust Buttons -->
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center_horizontal"
+            android:layout_marginTop="10dp"
+            android:gravity="center"
+            android:orientation="horizontal">
+
+            <Button
+                android:id="@+id/btnMoveLeft"
+                style="@style/Widget.AppCompat.Button.Borderless"
+                android:layout_width="48dp"
+                android:layout_height="40dp"
+                android:text="◀️"
+                android:textSize="16sp" />
+
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="vertical">
+
+                <Button
+                    android:id="@+id/btnMoveUp"
+                    style="@style/Widget.AppCompat.Button.Borderless"
+                    android:layout_width="48dp"
+                    android:layout_height="36dp"
+                    android:text="▲"
+                    android:textColor="#FFFFFF"
+                    android:textSize="14sp" />
+
+                <Button
+                    android:id="@+id/btnMoveDown"
+                    style="@style/Widget.AppCompat.Button.Borderless"
+                    android:layout_width="48dp"
+                    android:layout_height="36dp"
+                    android:text="▼"
+                    android:textColor="#FFFFFF"
+                    android:textSize="14sp" />
+            </LinearLayout>
+
+            <Button
+                android:id="@+id/btnMoveRight"
+                style="@style/Widget.AppCompat.Button.Borderless"
+                android:layout_width="48dp"
+                android:layout_height="40dp"
+                android:text="▶️"
+                android:textSize="16sp" />
+        </LinearLayout>
+
+        <!-- Action Buttons -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="14dp"
+            android:orientation="horizontal">
+
+            <Button
+                android:id="@+id/btnResetDefault"
+                android:layout_width="0dp"
+                android:layout_height="44dp"
+                android:layout_weight="1"
+                android:layout_marginEnd="6dp"
+                android:background="@drawable/aod_btn_secondary"
+                android:text="بازنشانی خودکار"
+                android:textColor="#9E9E9E"
+                android:textSize="13sp" />
+
+            <Button
+                android:id="@+id/btnSavePosition"
+                android:layout_width="0dp"
+                android:layout_height="44dp"
+                android:layout_weight="1"
+                android:layout_marginStart="6dp"
+                android:background="@drawable/aod_btn_primary"
+                android:text="✓ ذخیره موقعیت"
+                android:textColor="#FFFFFF"
+                android:textSize="13sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+
+    </LinearLayout>
+
+</FrameLayout>

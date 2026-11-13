@@ -113,6 +113,11 @@
             android:theme="@style/Theme.AodNotification"
             android:screenOrientation="portrait"
             android:configChanges="orientation|screenSize|screenLayout|keyboardHidden" />
+        <activity
+            android:name=".feature.aod.AodCalibrationActivity"
+            android:theme="@style/Theme.AodNotification"
+            android:screenOrientation="portrait"
+            android:configChanges="orientation|screenSize|screenLayout|keyboardHidden" />
 
         <receiver android:name=".receiver.BootReceiver">
             <intent-filter>

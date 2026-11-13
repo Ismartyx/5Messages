@@ -42,6 +42,12 @@ class Preferences @Inject constructor(
         const val AOD_POS_TOP_CENTER = "top_center"
         const val AOD_POS_TOP_LEFT = "top_left"
 
+        const val AOD_CLOCK_CLASSIC = "classic"
+        const val AOD_CLOCK_STACKED = "stacked"
+        const val AOD_CLOCK_ANALOG = "analog"
+        const val AOD_CLOCK_NEON = "neon"
+        const val AOD_CLOCK_DIAL = "circle_dial"
+
         const val NOTIFICATION_PREVIEWS_ALL = 0
         const val NOTIFICATION_PREVIEWS_NAME = 1
         const val NOTIFICATION_PREVIEWS_NONE = 2
@@ -232,4 +238,7 @@ class Preferences @Inject constructor(
     val aodOffsetX = rxPrefs.getInteger("aod_offset_x", 0)
     val aodDotSize = rxPrefs.getInteger("aod_dot_size", 6)
     val aodRingRadius = rxPrefs.getInteger("aod_ring_radius", 0)
+    val aodClockStyle = rxPrefs.getString("aod_clock_style", AOD_CLOCK_CLASSIC)
+    val aodCustomX = rxPrefs.getInteger("aod_custom_x", -1)
+    val aodCustomY = rxPrefs.getInteger("aod_custom_y", -1)
 }

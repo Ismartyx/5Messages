@@ -40,6 +40,7 @@
         android:gravity="center_horizontal"
         android:visibility="gone">
 
+        <!-- 1. Classic or Neon Horizontal Digital Clock -->
         <TextView
             android:id="@+id/aodClock"
             android:layout_width="wrap_content"
@@ -48,6 +49,77 @@
             android:textSize="56sp"
             android:fontFamily="sans-serif-thin"
             android:text="12:00" />
+
+        <!-- 2. Stacked Big Digital (Galaxy / Pixel Style) -->
+        <LinearLayout
+            android:id="@+id/aodClockStackedContainer"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:gravity="center"
+            android:visibility="gone">
+
+            <TextView
+                android:id="@+id/aodClockHours"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textColor="#FFFFFF"
+                android:textSize="60sp"
+                android:textStyle="bold"
+                android:includeFontPadding="false"
+                android:text="12" />
+
+            <TextView
+                android:id="@+id/aodClockMinutes"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textColor="#0EA5E9"
+                android:textSize="60sp"
+                android:textStyle="bold"
+                android:includeFontPadding="false"
+                android:text="45" />
+        </LinearLayout>
+
+        <!-- 3. Analog Clock -->
+        <com.goodwy.messages.feature.aod.AodAnalogClockView
+            android:id="@+id/aodAnalogClock"
+            android:layout_width="150dp"
+            android:layout_height="150dp"
+            android:layout_marginTop="8dp"
+            android:layout_marginBottom="8dp"
+            android:visibility="gone" />
+
+        <!-- 4. Circle Dial Badge (Battery + Time) -->
+        <LinearLayout
+            android:id="@+id/aodClockDialContainer"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:gravity="center"
+            android:background="@drawable/aod_dial_bg"
+            android:paddingStart="26dp"
+            android:paddingEnd="26dp"
+            android:paddingTop="12dp"
+            android:paddingBottom="12dp"
+            android:visibility="gone">
+
+            <TextView
+                android:id="@+id/aodBatteryBadge"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textColor="#10B981"
+                android:textSize="12sp"
+                android:text="⚡ 85% شارژ" />
+
+            <TextView
+                android:id="@+id/aodClockDialText"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textColor="#FFFFFF"
+                android:textSize="44sp"
+                android:textStyle="bold"
+                android:text="12:45" />
+        </LinearLayout>
 
         <TextView
             android:id="@+id/aodDate"

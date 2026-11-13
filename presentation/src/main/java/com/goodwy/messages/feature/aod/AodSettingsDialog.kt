@@ -93,6 +93,7 @@ object AodSettingsDialog {
         var currentOffsetX = prefs.aodOffsetX.get()
         var currentDotSize = prefs.aodDotSize.get()
         var currentRingRadius = prefs.aodRingRadius.get()
+        var currentClockStyle = prefs.aodClockStyle.get()
 
         // 2. Style Selector
         val styleOptions = arrayOf(
@@ -277,6 +278,59 @@ object AodSettingsDialog {
         }
         container.addView(offsetXRow)
 
+        // Interactive Drag & Drop Calibration Button
+        val calibrateBtn = Button(context).apply {
+            text = "🎯 تعیین موقعیت با لمس و کشیدن (Drag & Drop)"
+            textSize = 14f
+            setTextColor(Color.WHITE)
+            background = GradientDrawable().apply {
+                setColor(Color.parseColor("#10B981"))
+                cornerRadius = dp(12).toFloat()
+            }
+            val lp = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                dp(46)
+            ).apply {
+                topMargin = dp(14)
+                bottomMargin = dp(4)
+            }
+            layoutParams = lp
+            setOnClickListener {
+                prefs.aodEnabled.set(true)
+                prefs.aodStyle.set(currentStyle)
+                prefs.aodColor.set(currentColor)
+                prefs.aodDotSize.set(currentDotSize)
+                prefs.aodRingRadius.set(currentRingRadius)
+                prefs.aodClockStyle.set(currentClockStyle)
+                prefs.aodClockStyle.set(currentClockStyle)
+                AodCalibrationActivity.start(context)
+            }
+        }
+        container.addView(calibrateBtn)
+
+        // Clock Style Selector for Always On Display
+        val clockStyleOptions = arrayOf(
+            Pair(Preferences.AOD_CLOCK_CLASSIC, "🕒 دیجیتال افقی مینیمال (استاندارد)"),
+            Pair(Preferences.AOD_CLOCK_STACKED, "📱 دیجیتال دوطبقه بزرگ (ساعت بالا، دقیقه پایین - طرح سامسونگ/پیکسل)"),
+            Pair(Preferences.AOD_CLOCK_ANALOG, "⏱️ ساعت آنالوگ عقربه‌ای کلاسیک"),
+            Pair(Preferences.AOD_CLOCK_NEON, "✨ ساعت دیجیتال نئونی درخشان"),
+            Pair(Preferences.AOD_CLOCK_DIAL, "🔋 ساعت دایره‌ای مدرن با درصد شارژ باتری")
+        )
+        container.addView(createSectionTitle("مدل و سبک ساعت Always On Display"))
+        val clockRow = createOptionRow(
+            "مدل ساعت",
+            clockStyleOptions.firstOrNull { it.first == currentClockStyle }?.second ?: clockStyleOptions[0].second
+        ) { valTv ->
+            AlertDialog.Builder(context)
+                .setTitle("انتخاب مدل ساعت صفحه خاموش")
+                .setItems(clockStyleOptions.map { it.second }.toTypedArray()) { _, which ->
+                    currentClockStyle = clockStyleOptions[which].first
+                    valTv.text = clockStyleOptions[which].second
+                }
+                .show()
+        }
+        container.addView(clockRow)
+
         // 6. Test Preview Button
         val previewBtn = Button(context).apply {
             text = "👁️ تست و پیش‌نمایش افکت (Preview)"
@@ -305,6 +359,7 @@ object AodSettingsDialog {
                 prefs.aodOffsetX.set(currentOffsetX)
                 prefs.aodDotSize.set(currentDotSize)
                 prefs.aodRingRadius.set(currentRingRadius)
+                prefs.aodClockStyle.set(currentClockStyle)
 
                 AodNotificationActivity.start(
                     context = context,
@@ -331,6 +386,7 @@ object AodSettingsDialog {
                 prefs.aodOffsetX.set(currentOffsetX)
                 prefs.aodDotSize.set(currentDotSize)
                 prefs.aodRingRadius.set(currentRingRadius)
+                prefs.aodClockStyle.set(currentClockStyle)
                 onSaved?.invoke()
             }
             .setNegativeButton("انصراف", null)

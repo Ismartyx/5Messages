@@ -4,9 +4,11 @@ import android.animation.ValueAnimator
 import android.annotation.SuppressLint
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.content.res.ColorStateList
 import android.graphics.Color
 import android.graphics.drawable.GradientDrawable
+import android.os.BatteryManager
 import android.os.Build
 import android.os.Bundle
 import android.os.Handler
@@ -127,6 +129,7 @@ class AodNotificationActivity : AppCompatActivity() {
         val sp = getSharedPreferences("${packageName}_preferences", Context.MODE_PRIVATE)
         val aodStyle = sp.getString("aod_style", Preferences.AOD_STYLE_LED) ?: Preferences.AOD_STYLE_LED
         val aodPosition = sp.getString("aod_position", Preferences.AOD_POS_TOP_RIGHT) ?: Preferences.AOD_POS_TOP_RIGHT
+        val aodClockStyle = sp.getString("aod_clock_style", Preferences.AOD_CLOCK_CLASSIC) ?: Preferences.AOD_CLOCK_CLASSIC
         val aodColorPref = sp.getInt("aod_color", -1)
         val timeoutSeconds = if (isPreview) 6 else sp.getInt("aod_timeout", 30)
         val shamsiEnabled = sp.getBoolean("shamsi_calendar", true)
@@ -135,6 +138,8 @@ class AodNotificationActivity : AppCompatActivity() {
         val userOffsetX = sp.getInt("aod_offset_x", 0)
         val userDotSize = sp.getInt("aod_dot_size", 6)
         val userRingRadius = sp.getInt("aod_ring_radius", 0)
+        val customX = sp.getInt("aod_custom_x", -1)
+        val customY = sp.getInt("aod_custom_y", -1)
 
         val resolvedColor = when {
             aodColorPref != -1 -> aodColorPref
@@ -148,6 +153,13 @@ class AodNotificationActivity : AppCompatActivity() {
         val ledDot = findViewById<View>(R.id.aodLedDot)
         val minimalContainer = findViewById<LinearLayout>(R.id.aodMinimalContainer)
         val clockView = findViewById<TextView>(R.id.aodClock)
+        val stackedContainer = findViewById<LinearLayout>(R.id.aodClockStackedContainer)
+        val hoursView = findViewById<TextView>(R.id.aodClockHours)
+        val minutesView = findViewById<TextView>(R.id.aodClockMinutes)
+        val analogClock = findViewById<AodAnalogClockView>(R.id.aodAnalogClock)
+        val dialContainer = findViewById<LinearLayout>(R.id.aodClockDialContainer)
+        val dialText = findViewById<TextView>(R.id.aodClockDialText)
+        val batteryBadge = findViewById<TextView>(R.id.aodBatteryBadge)
         val dateView = findViewById<TextView>(R.id.aodDate)
         val senderView = findViewById<TextView>(R.id.aodSender)
         val snippetView = findViewById<TextView>(R.id.aodSnippet)
@@ -172,15 +184,16 @@ class AodNotificationActivity : AppCompatActivity() {
         val defaultRadius = 11f * density
 
         fun applyCameraPlacement(detectedX: Float, detectedY: Float, detectedR: Float) {
-            val baseY = detectedY
-            val baseX = when (aodPosition) {
-                Preferences.AOD_POS_TOP_LEFT -> if (detectedX < screenWidth / 3f) detectedX else (28f * density)
-                Preferences.AOD_POS_TOP_RIGHT -> if (detectedX > screenWidth * 2f / 3f) detectedX else screenWidth - (28f * density)
-                else -> if (detectedX >= screenWidth / 3f && detectedX <= screenWidth * 2f / 3f) detectedX else (screenWidth / 2f)
+            val isCustomPos = (customX >= 0 && customY >= 0)
+            val finalX = if (isCustomPos) customX.toFloat() else {
+                val baseX = when (aodPosition) {
+                    Preferences.AOD_POS_TOP_LEFT -> if (detectedX < screenWidth / 3f) detectedX else (28f * density)
+                    Preferences.AOD_POS_TOP_RIGHT -> if (detectedX > screenWidth * 2f / 3f) detectedX else screenWidth - (28f * density)
+                    else -> if (detectedX >= screenWidth / 3f && detectedX <= screenWidth * 2f / 3f) detectedX else (screenWidth / 2f)
+                }
+                baseX + (userOffsetX * density)
             }
-
-            val finalX = baseX + (userOffsetX * density)
-            val finalY = baseY + (userOffsetY * density)
+            val finalY = if (isCustomPos) customY.toFloat() else (detectedY + (userOffsetY * density))
             val finalRadius = if (userRingRadius > 0) (userRingRadius * density) else detectedR
 
             when (aodStyle) {
@@ -200,8 +213,54 @@ class AodNotificationActivity : AppCompatActivity() {
                 Preferences.AOD_STYLE_MINIMAL -> {
                     minimalContainer.visibility = View.VISIBLE
 
-                    val timePattern = if (DateFormat.is24HourFormat(this@AodNotificationActivity)) "HH:mm" else "h:mm a"
-                    clockView.text = SimpleDateFormat(timePattern, Locale.US).format(Date())
+                    val is24 = DateFormat.is24HourFormat(this@AodNotificationActivity)
+                    val timePattern = if (is24) "HH:mm" else "h:mm a"
+                    val timeString = SimpleDateFormat(timePattern, Locale.US).format(Date())
+
+                    val hoursPattern = if (is24) "HH" else "hh"
+                    val hoursString = SimpleDateFormat(hoursPattern, Locale.US).format(Date())
+                    val minutesString = SimpleDateFormat("mm", Locale.US).format(Date())
+
+                    clockView.visibility = View.GONE
+                    stackedContainer.visibility = View.GONE
+                    analogClock.visibility = View.GONE
+                    dialContainer.visibility = View.GONE
+
+                    when (aodClockStyle) {
+                        Preferences.AOD_CLOCK_STACKED -> {
+                            stackedContainer.visibility = View.VISIBLE
+                            hoursView.text = hoursString
+                            minutesView.text = minutesString
+                            minutesView.setTextColor(resolvedColor)
+                        }
+                        Preferences.AOD_CLOCK_ANALOG -> {
+                            analogClock.visibility = View.VISIBLE
+                            analogClock.setAccentColor(resolvedColor)
+                        }
+                        Preferences.AOD_CLOCK_NEON -> {
+                            clockView.visibility = View.VISIBLE
+                            clockView.text = timeString
+                            clockView.setShadowLayer(25f, 0f, 0f, resolvedColor)
+                            clockView.setTextColor(Color.WHITE)
+                        }
+                        Preferences.AOD_CLOCK_DIAL -> {
+                            dialContainer.visibility = View.VISIBLE
+                            dialText.text = timeString
+                            val pct = getBatteryPercentage(this@AodNotificationActivity)
+                            if (pct >= 0) {
+                                batteryBadge.text = "⚡ $pct% شارژ باتری"
+                                batteryBadge.visibility = View.VISIBLE
+                            } else {
+                                batteryBadge.visibility = View.GONE
+                            }
+                        }
+                        else -> { // Classic
+                            clockView.visibility = View.VISIBLE
+                            clockView.text = timeString
+                            clockView.setShadowLayer(0f, 0f, 0f, 0)
+                            clockView.setTextColor(Color.WHITE)
+                        }
+                    }
 
                     val now = System.currentTimeMillis()
                     if (shamsiEnabled) {
@@ -237,21 +296,27 @@ class AodNotificationActivity : AppCompatActivity() {
                     params.height = dotSizePx
                     params.topMargin = (finalY - dotSizePx / 2f).toInt().coerceAtLeast(0)
 
-                    when (aodPosition) {
-                        Preferences.AOD_POS_TOP_LEFT -> {
-                            params.gravity = Gravity.TOP or Gravity.START
-                            params.marginStart = (finalX - dotSizePx / 2f).toInt().coerceAtLeast(10)
-                            params.marginEnd = 0
-                        }
-                        Preferences.AOD_POS_TOP_RIGHT -> {
-                            params.gravity = Gravity.TOP or Gravity.END
-                            params.marginStart = 0
-                            params.marginEnd = ((screenWidth - finalX) - dotSizePx / 2f).toInt().coerceAtLeast(10)
-                        }
-                        else -> {
-                            params.gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
-                            params.marginStart = (userOffsetX * density).toInt()
-                            params.marginEnd = 0
+                    if (isCustomPos) {
+                        params.gravity = Gravity.TOP or Gravity.START
+                        params.marginStart = (finalX - dotSizePx / 2f).toInt().coerceAtLeast(0)
+                        params.marginEnd = 0
+                    } else {
+                        when (aodPosition) {
+                            Preferences.AOD_POS_TOP_LEFT -> {
+                                params.gravity = Gravity.TOP or Gravity.START
+                                params.marginStart = (finalX - dotSizePx / 2f).toInt().coerceAtLeast(10)
+                                params.marginEnd = 0
+                            }
+                            Preferences.AOD_POS_TOP_RIGHT -> {
+                                params.gravity = Gravity.TOP or Gravity.END
+                                params.marginStart = 0
+                                params.marginEnd = ((screenWidth - finalX) - dotSizePx / 2f).toInt().coerceAtLeast(10)
+                            }
+                            else -> {
+                                params.gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
+                                params.marginStart = (userOffsetX * density).toInt()
+                                params.marginEnd = 0
+                            }
                         }
                     }
                     ledDot.layoutParams = params
@@ -342,6 +407,17 @@ class AodNotificationActivity : AppCompatActivity() {
             } catch (_: Exception) {}
         }
         finish()
+    }
+
+    private fun getBatteryPercentage(context: Context): Int {
+        return try {
+            val intent = context.registerReceiver(null, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
+            val level = intent?.getIntExtra(BatteryManager.EXTRA_LEVEL, -1) ?: -1
+            val scale = intent?.getIntExtra(BatteryManager.EXTRA_SCALE, -1) ?: -1
+            if (level >= 0 && scale > 0) (level * 100 / scale) else -1
+        } catch (_: Exception) {
+            -1
+        }
     }
 
     override fun onDestroy() {
