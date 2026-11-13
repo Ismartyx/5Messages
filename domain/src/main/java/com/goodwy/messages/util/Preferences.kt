@@ -33,6 +33,15 @@ class Preferences @Inject constructor(
         const val BOLD_NAMES_MEDIUM = 1
         const val BOLD_NAMES_BOLD = 2
 
+        const val AOD_STYLE_LED = "led_dot"
+        const val AOD_STYLE_CAMERA_RING = "camera_ring"
+        const val AOD_STYLE_EDGE_LIGHTING = "edge_lighting"
+        const val AOD_STYLE_MINIMAL = "minimal_aod"
+
+        const val AOD_POS_TOP_RIGHT = "top_right"
+        const val AOD_POS_TOP_CENTER = "top_center"
+        const val AOD_POS_TOP_LEFT = "top_left"
+
         const val NOTIFICATION_PREVIEWS_ALL = 0
         const val NOTIFICATION_PREVIEWS_NAME = 1
         const val NOTIFICATION_PREVIEWS_NONE = 2
@@ -213,4 +222,10 @@ class Preferences @Inject constructor(
             else -> rxPrefs.getString("ringtone_$threadId", default.get())
         }
     }
+
+    val aodEnabled = rxPrefs.getBoolean("aod_enabled", false)
+    val aodStyle = rxPrefs.getString("aod_style", AOD_STYLE_LED)
+    val aodPosition = rxPrefs.getString("aod_position", AOD_POS_TOP_RIGHT)
+    val aodColor = rxPrefs.getInteger("aod_color", -1)
+    val aodTimeout = rxPrefs.getInteger("aod_timeout", 30)
 }

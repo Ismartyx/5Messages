@@ -40,5 +40,6 @@ data class SettingsState(
     val maxMmsSizeId: Int = 100,
     val maxSearchElevationSummary: String = "Normal",
     val maxSearchElevationId: Int = 32,
+    val aodSummary: String = "",
     val syncProgress: SyncRepository.SyncProgress = SyncRepository.SyncProgress.Idle
 )

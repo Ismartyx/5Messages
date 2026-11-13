@@ -53,6 +53,7 @@ class NotificationPrefsActivity : QkThemedActivity(), NotificationPrefsView {
 
     @Inject lateinit var previewModeDialog: Dialog
     @Inject lateinit var actionsDialog: Dialog
+    @Inject lateinit var prefs: Preferences
     @Inject lateinit var viewModelFactory: ViewModelProvider.Factory
 
     override val preferenceClickIntent: Subject<PreferenceView> = PublishSubject.create()
@@ -85,6 +86,14 @@ class NotificationPrefsActivity : QkThemedActivity(), NotificationPrefsView {
         previewModeDialog.adapter.setData(R.array.notification_preview_options)
         actionsDialog.adapter.setData(R.array.notification_actions)
 
+        aodNotification.clicks()
+            .autoDisposable(scope())
+            .subscribe {
+                com.goodwy.messages.feature.aod.AodSettingsDialog.show(this, prefs) {
+                    updateAodSummary()
+                }
+            }
+
         // Listen to clicks for all of the preferences
         (0 until preferences.childCount)
                 .map { index -> preferences.getChildAt(index) }
@@ -115,6 +124,7 @@ class NotificationPrefsActivity : QkThemedActivity(), NotificationPrefsView {
         wake.checkbox.isChecked = state.wakeEnabled
         vibration.checkbox.isChecked = state.vibrationEnabled
         ringtone.value = state.ringtoneName
+        updateAodSummary()
 
         actionsDivider.isVisible = state.threadId == 0L
         actionsTitle.isVisible = state.threadId == 0L
@@ -155,6 +165,14 @@ class NotificationPrefsActivity : QkThemedActivity(), NotificationPrefsView {
         if (requestCode == 123 && resultCode == Activity.RESULT_OK) {
             val uri: Uri? = data?.getParcelableExtra(RingtoneManager.EXTRA_RINGTONE_PICKED_URI)
             ringtoneSelectedIntent.onNext(uri?.toString() ?: "")
+        }
+    }
+
+    private fun updateAodSummary() {
+        aodNotification.summary = if (prefs.aodEnabled.get()) {
+            "فعال: " + com.goodwy.messages.feature.aod.AodSettingsDialog.getStyleTitle(this, prefs.aodStyle.get())
+        } else {
+            "غیرفعال"
         }
     }
 

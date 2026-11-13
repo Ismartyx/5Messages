@@ -142,6 +142,16 @@ class SettingsPresenter @Inject constructor(
                     newState { copy(trashRetentionSummary = summary, trashRetentionId = days) }
                 }
 
+        disposables += io.reactivex.Observable.combineLatest(
+            prefs.aodEnabled.asObservable(),
+            prefs.aodStyle.asObservable()
+        ) { enabled: Boolean, style: String ->
+            if (enabled) "فعال: " + com.goodwy.messages.feature.aod.AodSettingsDialog.getStyleTitle(context, style)
+            else "غیرفعال"
+        }.subscribe { summary ->
+            newState { copy(aodSummary = summary) }
+        }
+
         disposables += prefs.unicode.asObservable()
                 .subscribe { enabled -> newState { copy(stripUnicodeEnabled = enabled) } }
 
@@ -242,6 +252,8 @@ class SettingsPresenter @Inject constructor(
                         R.id.showToolbarAvatar -> prefs.showToolbarAvatar.set(!prefs.showToolbarAvatar.get())
 
                         R.id.trashRetention -> view.showTrashRetentionPicker()
+
+                        R.id.aodNotification -> view.showAodSettingsDialog()
 
                         R.id.boldNames -> view.showBoldNamesPicker()
 

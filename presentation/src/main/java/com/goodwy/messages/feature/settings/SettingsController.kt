@@ -62,6 +62,7 @@ class SettingsController : QkController<SettingsView, SettingsState, SettingsPre
     @Inject lateinit var mmsSizeDialog: Dialog
     @Inject lateinit var searchElevationDialog: Dialog
     @Inject lateinit var trashRetentionDialog: Dialog
+    @Inject lateinit var prefs: Preferences
 
     @Inject override lateinit var presenter: SettingsPresenter
 
@@ -212,6 +213,7 @@ class SettingsController : QkController<SettingsView, SettingsState, SettingsPre
         trashRetention.value = state.trashRetentionSummary
         trashRetentionDialog.adapter.selectedItem = state.trashRetentionId
         boldNamesDialog.adapter.selectedItem = state.boldNamesId
+        aodNotification.summary = state.aodSummary
 
         unicode.checkbox.isChecked = state.stripUnicodeEnabled
         mobileOnly.checkbox.isChecked = state.mobileOnly
@@ -322,6 +324,10 @@ class SettingsController : QkController<SettingsView, SettingsState, SettingsPre
         router.pushController(RouterTransaction.with(AboutController())
                 .pushChangeHandler(ChangeHandler())
                 .popChangeHandler(ChangeHandler()))
+    }
+
+    override fun showAodSettingsDialog() {
+        com.goodwy.messages.feature.aod.AodSettingsDialog.show(activity ?: return, prefs)
     }
 
 }

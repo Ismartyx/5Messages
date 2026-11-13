@@ -1,0 +1,127 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/aodRoot"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#000000"
+    android:keepScreenOn="true">
+
+    <!-- Edge Lighting Effect -->
+    <com.goodwy.messages.feature.aod.AodEdgeLightingView
+        android:id="@+id/aodEdgeLighting"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:visibility="gone" />
+
+    <!-- Punch-Hole Camera Light Ring Effect -->
+    <com.goodwy.messages.feature.aod.AodCameraRingView
+        android:id="@+id/aodCameraRing"
+        android:layout_width="56dp"
+        android:layout_height="56dp"
+        android:layout_gravity="top|center_horizontal"
+        android:layout_marginTop="14dp"
+        android:visibility="gone" />
+
+    <!-- Classic Blinking LED Dot Effect -->
+    <View
+        android:id="@+id/aodLedDot"
+        android:layout_width="14dp"
+        android:layout_height="14dp"
+        android:layout_gravity="top|end"
+        android:layout_marginTop="20dp"
+        android:layout_marginEnd="24dp"
+        android:background="@drawable/aod_led_dot"
+        android:visibility="gone" />
+
+    <!-- Minimal Always On Display Message Container -->
+    <LinearLayout
+        android:id="@+id/aodMinimalContainer"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:layout_marginStart="24dp"
+        android:layout_marginEnd="24dp"
+        android:orientation="vertical"
+        android:gravity="center_horizontal"
+        android:visibility="gone">
+
+        <TextView
+            android:id="@+id/aodClock"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textColor="#FFFFFF"
+            android:textSize="56sp"
+            android:fontFamily="sans-serif-thin"
+            android:text="12:00" />
+
+        <TextView
+            android:id="@+id/aodDate"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:textColor="#9E9E9E"
+            android:textSize="14sp"
+            android:text="تاریخ" />
+
+        <LinearLayout
+            android:id="@+id/aodMessageCard"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="28dp"
+            android:background="@drawable/aod_message_card_bg"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:padding="16dp">
+
+            <ImageView
+                android:id="@+id/aodIcon"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:src="@drawable/ic_notification"
+                android:background="@drawable/aod_icon_bg"
+                android:padding="10dp" />
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:layout_marginStart="14dp"
+                android:orientation="vertical">
+
+                <TextView
+                    android:id="@+id/aodSender"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textColor="#FFFFFF"
+                    android:textSize="16sp"
+                    android:textStyle="bold"
+                    android:text="فرستنده" />
+
+                <TextView
+                    android:id="@+id/aodSnippet"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:textColor="#A1A1AA"
+                    android:textSize="13sp"
+                    android:maxLines="2"
+                    android:ellipsize="end"
+                    android:text="متن پیام" />
+            </LinearLayout>
+
+        </LinearLayout>
+
+    </LinearLayout>
+
+    <!-- Dismiss Hint -->
+    <TextView
+        android:id="@+id/aodDismissHint"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom|center_horizontal"
+        android:layout_marginBottom="32dp"
+        android:textColor="#71717A"
+        android:textSize="12sp"
+        android:text="@string/aod_dismiss_hint" />
+
+</FrameLayout>

@@ -594,4 +594,7 @@
         <item quantity="one">%d conversation moved to trash</item>
         <item quantity="other">%d conversations moved to trash</item>
     </plurals>
+    <string name="settings_aod_title">Notification Light &amp; Always On Display</string>
+    <string name="settings_aod_summary">Blinking LED dot, camera ring, edge lighting or AOD clock on locked screen</string>
+    <string name="aod_dismiss_hint">Double tap to dismiss</string>
 </resources>

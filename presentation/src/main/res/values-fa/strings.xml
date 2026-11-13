@@ -471,4 +471,7 @@
         <item quantity="one">%d گفتگو به سطل زباله منتقل شد</item>
         <item quantity="other">%d گفتگو به سطل زباله منتقل شد</item>
     </plurals>
+    <string name="settings_aod_title">چراغ اعلان و Always On Display</string>
+    <string name="settings_aod_summary">نقطه چشمک‌زن، حلقه دور دوربین، لبه‌های نوری یا ساعت روی صفحه خاموش</string>
+    <string name="aod_dismiss_hint">برای بستن صفحه دو بار ضربه بزنید</string>
 </resources>

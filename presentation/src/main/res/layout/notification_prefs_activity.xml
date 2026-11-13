@@ -64,6 +64,14 @@
                 app:widget="@layout/settings_switch_widget" />
 
             <com.goodwy.messages.common.widget.PreferenceView
+                android:id="@+id/aodNotification"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                app:title="@string/settings_aod_title"
+                app:summary="@string/settings_aod_summary"
+                app:widget="@layout/settings_chevron_widget" />
+
+            <com.goodwy.messages.common.widget.PreferenceView
                 android:id="@+id/vibration"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"

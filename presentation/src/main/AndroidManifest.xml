@@ -103,6 +103,16 @@
         <activity android:name=".feature.scheduled.ScheduledActivity" />
         <activity android:name=".feature.backup.BackupActivity" />
         <activity android:name=".feature.contacts.ContactsActivity" />
+        <activity
+            android:name=".feature.aod.AodNotificationActivity"
+            android:excludeFromRecents="true"
+            android:launchMode="singleTop"
+            android:showWhenLocked="true"
+            android:turnScreenOn="true"
+            android:taskAffinity=""
+            android:theme="@style/Theme.AodNotification"
+            android:screenOrientation="portrait"
+            android:configChanges="orientation|screenSize|screenLayout|keyboardHidden" />
 
         <receiver android:name=".receiver.BootReceiver">
             <intent-filter>

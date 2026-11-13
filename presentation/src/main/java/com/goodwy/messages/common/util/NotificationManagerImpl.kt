@@ -352,6 +352,27 @@ class NotificationManagerImpl @Inject constructor(
 
         notificationManager.notify(threadId.toInt(), notification.build())
 
+        // Trigger Always On Display / Notification Light if enabled and screen is off
+        if (prefs.aodEnabled.get()) {
+            try {
+                val powerManager = context.getSystemService(Context.POWER_SERVICE) as? PowerManager
+                val isScreenOff = powerManager?.isInteractive == false
+                if (isScreenOff) {
+                    val senderName = conversation.getTitle()
+                    val snippet = conversation.lastMessage?.body ?: ""
+                    val notifColor = colors.theme(lastRecipient).theme
+                    com.goodwy.messages.feature.aod.AodNotificationActivity.start(
+                        context = context,
+                        threadId = threadId,
+                        sender = senderName,
+                        snippet = snippet,
+                        color = notifColor,
+                        isPreview = false
+                    )
+                }
+            } catch (_: Exception) {}
+        }
+
         // Wake screen
         if (prefs.wakeScreen(threadId).get()) {
             context.getSystemService<PowerManager>()?.let { powerManager ->
