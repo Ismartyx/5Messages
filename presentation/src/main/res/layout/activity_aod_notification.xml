@@ -13,23 +13,18 @@
         android:layout_height="match_parent"
         android:visibility="gone" />
 
-    <!-- Punch-Hole Camera Light Ring Effect -->
+    <!-- Punch-Hole Camera Light Ring Effect (Full Screen for exact coordinate drawing) -->
     <com.goodwy.messages.feature.aod.AodCameraRingView
         android:id="@+id/aodCameraRing"
-        android:layout_width="56dp"
-        android:layout_height="56dp"
-        android:layout_gravity="top|center_horizontal"
-        android:layout_marginTop="14dp"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
         android:visibility="gone" />
 
-    <!-- Classic Blinking LED Dot Effect -->
+    <!-- Classic Blinking LED Dot Effect (Subtle small dot) -->
     <View
         android:id="@+id/aodLedDot"
-        android:layout_width="14dp"
-        android:layout_height="14dp"
-        android:layout_gravity="top|end"
-        android:layout_marginTop="20dp"
-        android:layout_marginEnd="24dp"
+        android:layout_width="7dp"
+        android:layout_height="7dp"
         android:background="@drawable/aod_led_dot"
         android:visibility="gone" />
 

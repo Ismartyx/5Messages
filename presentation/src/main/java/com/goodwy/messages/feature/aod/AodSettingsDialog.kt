@@ -89,6 +89,10 @@ object AodSettingsDialog {
         var currentPos = prefs.aodPosition.get()
         var currentColor = prefs.aodColor.get()
         var currentTimeout = prefs.aodTimeout.get()
+        var currentOffsetY = prefs.aodOffsetY.get()
+        var currentOffsetX = prefs.aodOffsetX.get()
+        var currentDotSize = prefs.aodDotSize.get()
+        var currentRingRadius = prefs.aodRingRadius.get()
 
         // 2. Style Selector
         val styleOptions = arrayOf(
@@ -182,6 +186,97 @@ object AodSettingsDialog {
         }
         container.addView(timeoutRow)
 
+        // 6. Fine-tuning Size and Position (Alignment with Camera Hole)
+        container.addView(createSectionTitle("تنظیم اندازه و موقعیت دقیق (تراز با دوربین)"))
+
+        val dotSizeOptions = arrayOf(
+            Pair(5, "۵dp (ریز و ظریف - مانند چراغ LED گوشی‌های کلاسیک)"),
+            Pair(6, "۶dp (پیش‌فرض)"),
+            Pair(7, "۷dp (متوسط)"),
+            Pair(9, "۹dp (درشت و برجسته)")
+        )
+        val dotSizeRow = createOptionRow(
+            "اندازه نقطه LED",
+            dotSizeOptions.firstOrNull { it.first == currentDotSize }?.second ?: "${currentDotSize}dp"
+        ) { valTv ->
+            AlertDialog.Builder(context)
+                .setTitle("انتخاب اندازه نقطه چشمک‌زن")
+                .setItems(dotSizeOptions.map { it.second }.toTypedArray()) { _, which ->
+                    currentDotSize = dotSizeOptions[which].first
+                    valTv.text = dotSizeOptions[which].second
+                }
+                .show()
+        }
+        container.addView(dotSizeRow)
+
+        val ringRadiusOptions = arrayOf(
+            Pair(0, "خودکار (تشخیص خودکار پانچ‌هول دوربین)"),
+            Pair(9, "۹dp (خیلی ریز - پانچ‌هول بسیار کوچک)"),
+            Pair(11, "۱۱dp (استاندارد دور لنز دوربین)"),
+            Pair(13, "۱۳dp (متوسط)"),
+            Pair(15, "۱۵dp (بزرگ)"),
+            Pair(18, "۱۸dp (خیلی بزرگ)")
+        )
+        val ringRadiusRow = createOptionRow(
+            "شعاع حلقه دور دوربین",
+            ringRadiusOptions.firstOrNull { it.first == currentRingRadius }?.second ?: (if (currentRingRadius == 0) "خودکار" else "${currentRingRadius}dp")
+        ) { valTv ->
+            AlertDialog.Builder(context)
+                .setTitle("انتخاب اندازه حلقه نوری دور دوربین")
+                .setItems(ringRadiusOptions.map { it.second }.toTypedArray()) { _, which ->
+                    currentRingRadius = ringRadiusOptions[which].first
+                    valTv.text = ringRadiusOptions[which].second
+                }
+                .show()
+        }
+        container.addView(ringRadiusRow)
+
+        val offsetYOptions = arrayOf(
+            Pair(-20, "۲۰- dp (خیلی بالا)"),
+            Pair(-15, "۱۵- dp (بالاتر)"),
+            Pair(-10, "۱۰- dp"),
+            Pair(-5, "۵- dp"),
+            Pair(0, "۰ dp (هم‌تراز پیش‌فرض با دوربین)"),
+            Pair(5, "۵+ dp"),
+            Pair(10, "۱۰+ dp"),
+            Pair(15, "۱۵+ dp (پایین‌تر)"),
+            Pair(20, "۲۰+ dp (خیلی پایین)")
+        )
+        val offsetYRow = createOptionRow(
+            "تنظیم ارتفاع عمودی (بالا / پایین)",
+            offsetYOptions.firstOrNull { it.first == currentOffsetY }?.second ?: "${currentOffsetY}dp"
+        ) { valTv ->
+            AlertDialog.Builder(context)
+                .setTitle("تنظیم ارتفاع افکت نور و حلقه")
+                .setItems(offsetYOptions.map { it.second }.toTypedArray()) { _, which ->
+                    currentOffsetY = offsetYOptions[which].first
+                    valTv.text = offsetYOptions[which].second
+                }
+                .show()
+        }
+        container.addView(offsetYRow)
+
+        val offsetXOptions = arrayOf(
+            Pair(-25, "۲۵- dp (سمت چپ)"),
+            Pair(-15, "۱۵- dp (کمی چپ)"),
+            Pair(0, "۰ dp (وسط / بدون تغییر)"),
+            Pair(15, "۱۵+ dp (کمی راست)"),
+            Pair(25, "۲۵+ dp (سمت راست)")
+        )
+        val offsetXRow = createOptionRow(
+            "تنظیم جابجایی افقی (چپ / راست)",
+            offsetXOptions.firstOrNull { it.first == currentOffsetX }?.second ?: "${currentOffsetX}dp"
+        ) { valTv ->
+            AlertDialog.Builder(context)
+                .setTitle("تنظیم جابجایی افقی افکت نور")
+                .setItems(offsetXOptions.map { it.second }.toTypedArray()) { _, which ->
+                    currentOffsetX = offsetXOptions[which].first
+                    valTv.text = offsetXOptions[which].second
+                }
+                .show()
+        }
+        container.addView(offsetXRow)
+
         // 6. Test Preview Button
         val previewBtn = Button(context).apply {
             text = "👁️ تست و پیش‌نمایش افکت (Preview)"
@@ -206,6 +301,10 @@ object AodSettingsDialog {
                 prefs.aodPosition.set(currentPos)
                 prefs.aodColor.set(currentColor)
                 prefs.aodTimeout.set(currentTimeout)
+                prefs.aodOffsetY.set(currentOffsetY)
+                prefs.aodOffsetX.set(currentOffsetX)
+                prefs.aodDotSize.set(currentDotSize)
+                prefs.aodRingRadius.set(currentRingRadius)
 
                 AodNotificationActivity.start(
                     context = context,
@@ -228,6 +327,10 @@ object AodSettingsDialog {
                 prefs.aodPosition.set(currentPos)
                 prefs.aodColor.set(currentColor)
                 prefs.aodTimeout.set(currentTimeout)
+                prefs.aodOffsetY.set(currentOffsetY)
+                prefs.aodOffsetX.set(currentOffsetX)
+                prefs.aodDotSize.set(currentDotSize)
+                prefs.aodRingRadius.set(currentRingRadius)
                 onSaved?.invoke()
             }
             .setNegativeButton("انصراف", null)

@@ -182,14 +182,14 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          VERSION_NAME="1.4.8"
+          VERSION_NAME="1.4.9"
           TAG_NAME="v${VERSION_NAME}"
           gh release delete "$TAG_NAME" --yes || true
           git tag -d "$TAG_NAME" || true
           git push origin ":refs/tags/$TAG_NAME" || true
           gh release create "$TAG_NAME" signed_out/5Messages.apk \
             --title "5Messages v${VERSION_NAME}" \
-            --notes "نسخه 1.4.8: اضافه شدن چراغ اعلان و Always On Display روی صفحه خاموش (AOD) — شامل نقطه چشمک‌زن LED گوشی‌های قدیمی، حلقه نوری دور دوربین سلفی، نورپردازی لبه‌های صفحه (Edge Lighting)، ساعت و پیش‌نمایش پیام در صفحه خاموش، انتخاب رنگ و مدت زمان، و دکمه تست پیش‌نمایش مستقیم" \
+            --notes "نسخه 1.4.9: بهبود و تراز دقیق چراغ اعلان و حلقه دور دوربین سلفی بر اساس DisplayCutout و رفع رفتن حلقه به زیر دوربین، بهینه‌سازی ابعاد نقطه LED به اندازه استاندارد و ظریف، و اضافه شدن گزینه‌های تنظیم دستی اندازه نقطه/حلقه و جابجایی عمودی (بالا/پایین) و افقی (چپ/راست) در پنجره تنظیمات چراغ اعلان" \
             --latest || gh release upload "$TAG_NAME" signed_out/5Messages.apk --clobber
 
       - name: Upload APK

@@ -19,15 +19,19 @@ class AodCameraRingView @JvmOverloads constructor(
     private var lightColor: Int = Color.parseColor("#0EA5E9")
     private val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.STROKE
-        strokeWidth = 10f
+        strokeWidth = 6f
     }
     private val glowPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.STROKE
-        strokeWidth = 20f
+        strokeWidth = 14f
     }
     private var pulseAlpha: Float = 1.0f
     private var rotationAngle: Float = 0f
     private var animator: ValueAnimator? = null
+
+    private var targetCenterX: Float = 0f
+    private var targetCenterY: Float = 0f
+    private var targetRadius: Float = 0f
 
     init {
         startAnimation()
@@ -35,6 +39,13 @@ class AodCameraRingView @JvmOverloads constructor(
 
     fun setColor(color: Int) {
         this.lightColor = color
+        invalidate()
+    }
+
+    fun setTarget(cx: Float, cy: Float, radius: Float) {
+        this.targetCenterX = cx
+        this.targetCenterY = cy
+        this.targetRadius = radius
         invalidate()
     }
 
@@ -47,7 +58,7 @@ class AodCameraRingView @JvmOverloads constructor(
             addUpdateListener {
                 rotationAngle = it.animatedValue as Float
                 val fraction = it.animatedFraction
-                pulseAlpha = 0.45f + 0.55f * kotlin.math.abs(kotlin.math.sin(fraction * Math.PI.toFloat()))
+                pulseAlpha = 0.5f + 0.5f * kotlin.math.abs(kotlin.math.sin(fraction * Math.PI.toFloat()))
                 invalidate()
             }
             start()
@@ -61,17 +72,17 @@ class AodCameraRingView @JvmOverloads constructor(
 
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
-        val cx = width / 2f
-        val cy = height / 2f
-        val radius = (Math.min(width, height) / 2f) - 15f
+        val cx = if (targetCenterX > 0) targetCenterX else (width / 2f)
+        val cy = if (targetCenterY > 0) targetCenterY else (24f * resources.displayMetrics.density)
+        val radius = if (targetRadius > 0) targetRadius else (12f * resources.displayMetrics.density)
         if (radius <= 0) return
 
-        // Outer glow
+        // Outer subtle glow
         glowPaint.color = lightColor
-        glowPaint.alpha = (pulseAlpha * 85).toInt().coerceIn(0, 255)
+        glowPaint.alpha = (pulseAlpha * 80).toInt().coerceIn(0, 255)
         canvas.drawCircle(cx, cy, radius, glowPaint)
 
-        // Main glowing ring with sweep gradient
+        // Main rotating glowing ring
         val colors = intArrayOf(
             lightColor,
             Color.TRANSPARENT,

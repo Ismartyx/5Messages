@@ -94,6 +94,10 @@ class AodNotificationActivity : AppCompatActivity() {
                 WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON
             )
         }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            window.attributes.layoutInDisplayCutoutMode =
+                WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
+        }
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
 
         // Immersive sticky fullscreen
@@ -105,6 +109,11 @@ class AodNotificationActivity : AppCompatActivity() {
             View.SYSTEM_UI_FLAG_FULLSCREEN or
             View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
         )
+    }
+
+    private fun getStatusBarHeight(): Int {
+        val resId = resources.getIdentifier("status_bar_height", "dimen", "android")
+        return if (resId > 0) resources.getDimensionPixelSize(resId) else (24 * resources.displayMetrics.density).toInt()
     }
 
     @SuppressLint("ClickableViewAccessibility")
@@ -121,6 +130,11 @@ class AodNotificationActivity : AppCompatActivity() {
         val aodColorPref = sp.getInt("aod_color", -1)
         val timeoutSeconds = if (isPreview) 6 else sp.getInt("aod_timeout", 30)
         val shamsiEnabled = sp.getBoolean("shamsi_calendar", true)
+
+        val userOffsetY = sp.getInt("aod_offset_y", 0)
+        val userOffsetX = sp.getInt("aod_offset_x", 0)
+        val userDotSize = sp.getInt("aod_dot_size", 6)
+        val userRingRadius = sp.getInt("aod_ring_radius", 0)
 
         val resolvedColor = when {
             aodColorPref != -1 -> aodColorPref
@@ -151,101 +165,118 @@ class AodNotificationActivity : AppCompatActivity() {
         ledDot.visibility = View.GONE
         minimalContainer.visibility = View.GONE
 
-        // Density for dp calculations
         val density = resources.displayMetrics.density
+        val screenWidth = resources.displayMetrics.widthPixels.toFloat()
+        val statusBarH = getStatusBarHeight().toFloat()
+        val defaultCenterY = if (statusBarH > 0) statusBarH / 2f else (22f * density)
+        val defaultRadius = 11f * density
 
-        when (aodStyle) {
-            Preferences.AOD_STYLE_EDGE_LIGHTING -> {
-                edgeLighting.visibility = View.VISIBLE
-                edgeLighting.setColor(resolvedColor)
-                edgeLighting.startAnimation()
+        fun applyCameraPlacement(detectedX: Float, detectedY: Float, detectedR: Float) {
+            val baseY = detectedY
+            val baseX = when (aodPosition) {
+                Preferences.AOD_POS_TOP_LEFT -> if (detectedX < screenWidth / 3f) detectedX else (28f * density)
+                Preferences.AOD_POS_TOP_RIGHT -> if (detectedX > screenWidth * 2f / 3f) detectedX else screenWidth - (28f * density)
+                else -> if (detectedX >= screenWidth / 3f && detectedX <= screenWidth * 2f / 3f) detectedX else (screenWidth / 2f)
             }
 
-            Preferences.AOD_STYLE_CAMERA_RING -> {
-                cameraRing.visibility = View.VISIBLE
-                cameraRing.setColor(resolvedColor)
-                val params = cameraRing.layoutParams as FrameLayout.LayoutParams
-                when (aodPosition) {
-                    Preferences.AOD_POS_TOP_LEFT -> {
-                        params.gravity = Gravity.TOP or Gravity.START
-                        params.marginStart = (20 * density).toInt()
-                        params.marginEnd = 0
+            val finalX = baseX + (userOffsetX * density)
+            val finalY = baseY + (userOffsetY * density)
+            val finalRadius = if (userRingRadius > 0) (userRingRadius * density) else detectedR
+
+            when (aodStyle) {
+                Preferences.AOD_STYLE_CAMERA_RING -> {
+                    cameraRing.visibility = View.VISIBLE
+                    cameraRing.setColor(resolvedColor)
+                    cameraRing.setTarget(finalX, finalY, finalRadius)
+                    cameraRing.startAnimation()
+                }
+
+                Preferences.AOD_STYLE_EDGE_LIGHTING -> {
+                    edgeLighting.visibility = View.VISIBLE
+                    edgeLighting.setColor(resolvedColor)
+                    edgeLighting.startAnimation()
+                }
+
+                Preferences.AOD_STYLE_MINIMAL -> {
+                    minimalContainer.visibility = View.VISIBLE
+
+                    val timePattern = if (DateFormat.is24HourFormat(this@AodNotificationActivity)) "HH:mm" else "h:mm a"
+                    clockView.text = SimpleDateFormat(timePattern, Locale.US).format(Date())
+
+                    val now = System.currentTimeMillis()
+                    if (shamsiEnabled) {
+                        val j = JalaliDateHelper.fromMillis(now)
+                        val weekday = JalaliDateHelper.getWeekdayName(now)
+                        val monthName = JalaliDateHelper.getMonthName(j.month)
+                        dateView.text = "$weekday، ${j.day} $monthName ${j.year}"
+                    } else {
+                        dateView.text = SimpleDateFormat("EEEE, d MMMM", Locale.getDefault()).format(Date(now))
                     }
-                    Preferences.AOD_POS_TOP_RIGHT -> {
-                        params.gravity = Gravity.TOP or Gravity.END
-                        params.marginStart = 0
-                        params.marginEnd = (20 * density).toInt()
-                    }
-                    else -> {
-                        params.gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
-                        params.marginStart = 0
-                        params.marginEnd = 0
+
+                    senderView.text = if (sender.isNotBlank()) sender else "پیام جدید"
+                    snippetView.text = if (snippet.isNotBlank()) snippet else "..."
+                    iconView.imageTintList = ColorStateList.valueOf(resolvedColor)
+
+                    cardView.setOnClickListener {
+                        openConversation()
                     }
                 }
-                params.topMargin = (14 * density).toInt()
-                cameraRing.layoutParams = params
-                cameraRing.startAnimation()
+
+                else -> { // LED Dot
+                    ledDot.visibility = View.VISIBLE
+                    val dotSizePx = (userDotSize * density).toInt()
+
+                    val bg = GradientDrawable().apply {
+                        shape = GradientDrawable.OVAL
+                        setColor(resolvedColor)
+                    }
+                    ledDot.background = bg
+
+                    val params = ledDot.layoutParams as FrameLayout.LayoutParams
+                    params.width = dotSizePx
+                    params.height = dotSizePx
+                    params.topMargin = (finalY - dotSizePx / 2f).toInt().coerceAtLeast(0)
+
+                    when (aodPosition) {
+                        Preferences.AOD_POS_TOP_LEFT -> {
+                            params.gravity = Gravity.TOP or Gravity.START
+                            params.marginStart = (finalX - dotSizePx / 2f).toInt().coerceAtLeast(10)
+                            params.marginEnd = 0
+                        }
+                        Preferences.AOD_POS_TOP_RIGHT -> {
+                            params.gravity = Gravity.TOP or Gravity.END
+                            params.marginStart = 0
+                            params.marginEnd = ((screenWidth - finalX) - dotSizePx / 2f).toInt().coerceAtLeast(10)
+                        }
+                        else -> {
+                            params.gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
+                            params.marginStart = (userOffsetX * density).toInt()
+                            params.marginEnd = 0
+                        }
+                    }
+                    ledDot.layoutParams = params
+
+                    startDotAnimation(ledDot)
+                }
             }
+        }
 
-            Preferences.AOD_STYLE_MINIMAL -> {
-                minimalContainer.visibility = View.VISIBLE
-
-                // Set time
-                val timePattern = if (DateFormat.is24HourFormat(this)) "HH:mm" else "h:mm a"
-                clockView.text = SimpleDateFormat(timePattern, Locale.US).format(Date())
-
-                // Set date
-                val now = System.currentTimeMillis()
-                if (shamsiEnabled) {
-                    val j = JalaliDateHelper.fromMillis(now)
-                    val weekday = JalaliDateHelper.getWeekdayName(now)
-                    val monthName = JalaliDateHelper.getMonthName(j.month)
-                    dateView.text = "$weekday، ${j.day} $monthName ${j.year}"
+        // Detect cutout
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            window.decorView.post {
+                val cutout = window.decorView.rootWindowInsets?.displayCutout
+                val rect = cutout?.boundingRects?.firstOrNull()
+                if (rect != null) {
+                    val cx = rect.centerX().toFloat()
+                    val cy = rect.centerY().toFloat()
+                    val r = (Math.max(rect.width(), rect.height()) / 2f) + (2f * density)
+                    applyCameraPlacement(cx, cy, r)
                 } else {
-                    dateView.text = SimpleDateFormat("EEEE, d MMMM", Locale.getDefault()).format(Date(now))
-                }
-
-                senderView.text = if (sender.isNotBlank()) sender else "پیام جدید"
-                snippetView.text = if (snippet.isNotBlank()) snippet else "..."
-                iconView.imageTintList = ColorStateList.valueOf(resolvedColor)
-
-                cardView.setOnClickListener {
-                    openConversation()
+                    applyCameraPlacement(screenWidth / 2f, defaultCenterY, defaultRadius)
                 }
             }
-
-            else -> { // Default: LED dot
-                ledDot.visibility = View.VISIBLE
-                val bg = GradientDrawable().apply {
-                    shape = GradientDrawable.OVAL
-                    setColor(resolvedColor)
-                    setSize((14 * density).toInt(), (14 * density).toInt())
-                }
-                ledDot.background = bg
-
-                val params = ledDot.layoutParams as FrameLayout.LayoutParams
-                when (aodPosition) {
-                    Preferences.AOD_POS_TOP_LEFT -> {
-                        params.gravity = Gravity.TOP or Gravity.START
-                        params.marginStart = (24 * density).toInt()
-                        params.marginEnd = 0
-                    }
-                    Preferences.AOD_POS_TOP_CENTER -> {
-                        params.gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
-                        params.marginStart = 0
-                        params.marginEnd = 0
-                    }
-                    else -> {
-                        params.gravity = Gravity.TOP or Gravity.END
-                        params.marginStart = 0
-                        params.marginEnd = (24 * density).toInt()
-                    }
-                }
-                params.topMargin = (20 * density).toInt()
-                ledDot.layoutParams = params
-
-                startDotAnimation(ledDot)
-            }
+        } else {
+            applyCameraPlacement(screenWidth / 2f, defaultCenterY, defaultRadius)
         }
 
         // Double-tap detector to dismiss
@@ -284,15 +315,15 @@ class AodNotificationActivity : AppCompatActivity() {
 
     private fun startDotAnimation(dotView: View) {
         dotAnimator?.cancel()
-        dotAnimator = ValueAnimator.ofFloat(0.12f, 1.0f).apply {
-            duration = 1100L
+        dotAnimator = ValueAnimator.ofFloat(0.2f, 1.0f).apply {
+            duration = 1000L
             repeatCount = ValueAnimator.INFINITE
             repeatMode = ValueAnimator.REVERSE
             interpolator = AccelerateDecelerateInterpolator()
             addUpdateListener {
                 val alpha = it.animatedValue as Float
                 dotView.alpha = alpha
-                val scale = 0.85f + 0.3f * alpha
+                val scale = 0.95f + 0.1f * alpha
                 dotView.scaleX = scale
                 dotView.scaleY = scale
             }

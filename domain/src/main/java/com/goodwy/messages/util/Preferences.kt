@@ -228,4 +228,8 @@ class Preferences @Inject constructor(
     val aodPosition = rxPrefs.getString("aod_position", AOD_POS_TOP_RIGHT)
     val aodColor = rxPrefs.getInteger("aod_color", -1)
     val aodTimeout = rxPrefs.getInteger("aod_timeout", 30)
+    val aodOffsetY = rxPrefs.getInteger("aod_offset_y", 0)
+    val aodOffsetX = rxPrefs.getInteger("aod_offset_x", 0)
+    val aodDotSize = rxPrefs.getInteger("aod_dot_size", 6)
+    val aodRingRadius = rxPrefs.getInteger("aod_ring_radius", 0)
 }
