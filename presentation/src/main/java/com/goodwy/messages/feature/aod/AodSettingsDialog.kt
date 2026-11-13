@@ -57,7 +57,12 @@ object AodSettingsDialog {
             }
         }
 
-        fun createOptionRow(label: String, currentValue: String, onClick: () -> Unit): Pair<LinearLayout, TextView> {
+        fun createOptionRow(label: String, currentValue: String, onClick: (TextView) -> Unit): LinearLayout {
+            val valTv = TextView(context).apply {
+                text = currentValue
+                textSize = 13f
+                setTextColor(Color.parseColor("#9CA3AF"))
+            }
             val row = LinearLayout(context).apply {
                 orientation = LinearLayout.HORIZONTAL
                 gravity = Gravity.CENTER_VERTICAL
@@ -67,21 +72,16 @@ object AodSettingsDialog {
                     cornerRadius = dp(10).toFloat()
                     setStroke(dp(1), Color.parseColor("#262626"))
                 }
-                setOnClickListener { onClick() }
+                setOnClickListener { onClick(valTv) }
             }
             val titleTv = TextView(context).apply {
                 text = label
                 textSize = 14f
                 layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
             }
-            val valTv = TextView(context).apply {
-                text = currentValue
-                textSize = 13f
-                setTextColor(Color.parseColor("#9CA3AF"))
-            }
             row.addView(titleTv)
             row.addView(valTv)
-            return Pair(row, valTv)
+            return row
         }
 
         // Current state variables
@@ -98,15 +98,15 @@ object AodSettingsDialog {
             Pair(Preferences.AOD_STYLE_MINIMAL, "🕒 ساعت و پیام صفحه خاموش (Always On Display)")
         )
         container.addView(createSectionTitle("سبک افکت اعلان"))
-        val (styleRow, styleValTv) = createOptionRow(
+        val styleRow = createOptionRow(
             "سبک افکت",
             styleOptions.firstOrNull { it.first == currentStyle }?.second ?: styleOptions[0].second
-        ) {
+        ) { valTv ->
             AlertDialog.Builder(context)
                 .setTitle("انتخاب سبک افکت اعلان")
                 .setItems(styleOptions.map { it.second }.toTypedArray()) { _, which ->
                     currentStyle = styleOptions[which].first
-                    styleValTv.text = styleOptions[which].second
+                    valTv.text = styleOptions[which].second
                 }
                 .show()
         }
@@ -119,15 +119,15 @@ object AodSettingsDialog {
             Pair(Preferences.AOD_POS_TOP_LEFT, "گوشه بالا چپ")
         )
         container.addView(createSectionTitle("موقعیت نور (برای نقطه و حلقه دور دوربین)"))
-        val (posRow, posValTv) = createOptionRow(
+        val posRow = createOptionRow(
             "موقعیت افکت",
             posOptions.firstOrNull { it.first == currentPos }?.second ?: posOptions[0].second
-        ) {
+        ) { valTv ->
             AlertDialog.Builder(context)
                 .setTitle("انتخاب موقعیت افکت")
                 .setItems(posOptions.map { it.second }.toTypedArray()) { _, which ->
                     currentPos = posOptions[which].first
-                    posValTv.text = posOptions[which].second
+                    valTv.text = posOptions[which].second
                 }
                 .show()
         }
@@ -144,15 +144,15 @@ object AodSettingsDialog {
             Pair(Color.parseColor("#FFFFFF"), "⚪ سفید یخی")
         )
         container.addView(createSectionTitle("رنگ نورپردازی"))
-        val (colorRow, colorValTv) = createOptionRow(
+        val colorRow = createOptionRow(
             "رنگ نور",
             colorOptions.firstOrNull { it.first == currentColor }?.second ?: colorOptions[0].second
-        ) {
+        ) { valTv ->
             AlertDialog.Builder(context)
                 .setTitle("انتخاب رنگ نورپردازی")
                 .setItems(colorOptions.map { it.second }.toTypedArray()) { _, which ->
                     currentColor = colorOptions[which].first
-                    colorValTv.text = colorOptions[which].second
+                    valTv.text = colorOptions[which].second
                 }
                 .show()
         }
@@ -168,15 +168,15 @@ object AodSettingsDialog {
             Pair(0, "دائم (تا زمان لمس صفحه)")
         )
         container.addView(createSectionTitle("مدت زمان روشن ماندن صفحه"))
-        val (timeoutRow, timeoutValTv) = createOptionRow(
+        val timeoutRow = createOptionRow(
             "زمان خاموشی",
             timeoutOptions.firstOrNull { it.first == currentTimeout }?.second ?: timeoutOptions[1].second
-        ) {
+        ) { valTv ->
             AlertDialog.Builder(context)
                 .setTitle("مدت زمان روشن ماندن")
                 .setItems(timeoutOptions.map { it.second }.toTypedArray()) { _, which ->
                     currentTimeout = timeoutOptions[which].first
-                    timeoutValTv.text = timeoutOptions[which].second
+                    valTv.text = timeoutOptions[which].second
                 }
                 .show()
         }

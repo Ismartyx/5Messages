@@ -143,12 +143,13 @@ class SettingsPresenter @Inject constructor(
                 }
 
         disposables += io.reactivex.Observable.combineLatest(
-            prefs.aodEnabled.asObservable(),
-            prefs.aodStyle.asObservable()
-        ) { enabled: Boolean, style: String ->
+            listOf(prefs.aodEnabled.asObservable(), prefs.aodStyle.asObservable())
+        ) { args: Array<Any> ->
+            val enabled = args[0] as Boolean
+            val style = args[1] as String
             if (enabled) "فعال: " + com.goodwy.messages.feature.aod.AodSettingsDialog.getStyleTitle(context, style)
             else "غیرفعال"
-        }.subscribe { summary ->
+        }.subscribe { summary: String ->
             newState { copy(aodSummary = summary) }
         }
 

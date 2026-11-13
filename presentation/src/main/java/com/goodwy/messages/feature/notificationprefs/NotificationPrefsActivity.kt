@@ -54,7 +54,6 @@ class NotificationPrefsActivity : QkThemedActivity(), NotificationPrefsView {
 
     @Inject lateinit var previewModeDialog: Dialog
     @Inject lateinit var actionsDialog: Dialog
-    @Inject lateinit var prefs: Preferences
     @Inject lateinit var viewModelFactory: ViewModelProvider.Factory
 
     override val preferenceClickIntent: Subject<PreferenceView> = PublishSubject.create()
