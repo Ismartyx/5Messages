@@ -13,6 +13,7 @@ import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.os.PowerManager
 import android.text.format.DateFormat
 import android.view.GestureDetector
 import android.view.Gravity
@@ -50,15 +51,27 @@ class AodNotificationActivity : AppCompatActivity() {
             color: Int = -1,
             isPreview: Boolean = false
         ) {
+            try {
+                val pm = context.getSystemService(Context.POWER_SERVICE) as? PowerManager
+                @Suppress("DEPRECATION")
+                val wakeLock = pm?.newWakeLock(
+                    PowerManager.FULL_WAKE_LOCK or PowerManager.ACQUIRE_CAUSES_WAKEUP or PowerManager.ON_AFTER_RELEASE,
+                    "5Messages:AodWakeLock"
+                )
+                wakeLock?.acquire(4000)
+            } catch (_: Exception) {}
+
             val intent = Intent(context, AodNotificationActivity::class.java).apply {
                 putExtra(EXTRA_THREAD_ID, threadId)
                 putExtra(EXTRA_SENDER, sender)
                 putExtra(EXTRA_SNIPPET, snippet)
                 putExtra(EXTRA_COLOR, color)
                 putExtra(EXTRA_IS_PREVIEW, isPreview)
-                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
             }
-            context.startActivity(intent)
+            try {
+                context.startActivity(intent)
+            } catch (_: Exception) {}
         }
     }
 
@@ -88,14 +101,14 @@ class AodNotificationActivity : AppCompatActivity() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
             setShowWhenLocked(true)
             setTurnScreenOn(true)
-        } else {
-            @Suppress("DEPRECATION")
-            window.addFlags(
-                WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or
-                WindowManager.LayoutParams.FLAG_DISMISS_KEYGUARD or
-                WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON
-            )
         }
+        @Suppress("DEPRECATION")
+        window.addFlags(
+            WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or
+            WindowManager.LayoutParams.FLAG_DISMISS_KEYGUARD or
+            WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON or
+            WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON
+        )
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
             window.attributes.layoutInDisplayCutoutMode =
                 WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES

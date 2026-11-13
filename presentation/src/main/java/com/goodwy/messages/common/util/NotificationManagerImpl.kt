@@ -18,6 +18,7 @@
  */
 package com.goodwy.messages.common.util
 
+import android.app.KeyguardManager
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -350,14 +351,42 @@ class NotificationManagerImpl @Inject constructor(
             context.startActivity(intent)
         }
 
+        // Attach Full-Screen Intent for Always On Display / Lock screen
+        if (prefs.aodEnabled.get()) {
+            val senderName = conversation.getTitle()
+            val snippet = conversation.lastMessage?.body ?: ""
+            val notifColor = colors.theme(lastRecipient).theme
+
+            val aodIntent = Intent(context, com.goodwy.messages.feature.aod.AodNotificationActivity::class.java).apply {
+                putExtra(com.goodwy.messages.feature.aod.AodNotificationActivity.EXTRA_THREAD_ID, threadId)
+                putExtra(com.goodwy.messages.feature.aod.AodNotificationActivity.EXTRA_SENDER, senderName)
+                putExtra(com.goodwy.messages.feature.aod.AodNotificationActivity.EXTRA_SNIPPET, snippet)
+                putExtra(com.goodwy.messages.feature.aod.AodNotificationActivity.EXTRA_COLOR, notifColor)
+                putExtra(com.goodwy.messages.feature.aod.AodNotificationActivity.EXTRA_IS_PREVIEW, false)
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            }
+            val aodPI = PendingIntent.getActivity(
+                context,
+                (threadId + 777000).toInt(),
+                aodIntent,
+                PendingIntent.FLAG_UPDATE_CURRENT or (if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) PendingIntent.FLAG_IMMUTABLE else 0)
+            )
+            notification.setFullScreenIntent(aodPI, true)
+            notification.priority = NotificationCompat.PRIORITY_MAX
+            notification.setCategory(NotificationCompat.CATEGORY_ALARM)
+        }
+
         notificationManager.notify(threadId.toInt(), notification.build())
 
-        // Trigger Always On Display / Notification Light if enabled and screen is off
+        // Trigger Always On Display / Notification Light if enabled and screen is off or locked
         if (prefs.aodEnabled.get()) {
             try {
                 val powerManager = context.getSystemService(Context.POWER_SERVICE) as? PowerManager
+                val keyguardManager = context.getSystemService(Context.KEYGUARD_SERVICE) as? KeyguardManager
                 val isScreenOff = powerManager?.isInteractive == false
-                if (isScreenOff) {
+                val isLocked = keyguardManager?.isKeyguardLocked == true
+
+                if (isScreenOff || isLocked) {
                     val senderName = conversation.getTitle()
                     val snippet = conversation.lastMessage?.body ?: ""
                     val notifColor = colors.theme(lastRecipient).theme

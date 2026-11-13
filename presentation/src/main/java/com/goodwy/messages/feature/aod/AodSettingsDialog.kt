@@ -2,9 +2,13 @@ package com.goodwy.messages.feature.aod
 
 import android.app.AlertDialog
 import android.content.Context
+import android.content.Intent
 import android.graphics.Color
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
+import android.net.Uri
+import android.os.Build
+import android.provider.Settings
 import android.view.Gravity
 import android.view.View
 import android.widget.Button
@@ -46,6 +50,79 @@ object AodSettingsDialog {
             setPadding(dp(8), dp(4), dp(8), dp(4))
         }
         container.addView(enableCheck)
+
+        // Permission check & guidance for Xiaomi / Samsung / modern Android
+        val hasOverlay = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            Settings.canDrawOverlays(context)
+        } else {
+            true
+        }
+
+        if (!hasOverlay) {
+            val permBtn = Button(context).apply {
+                text = "⚠️ فعال‌سازی مجوز نمایش روی صفحه قفل و سایر برنامه‌ها"
+                textSize = 12f
+                setTextColor(Color.WHITE)
+                background = GradientDrawable().apply {
+                    setColor(Color.parseColor("#DC2626"))
+                    cornerRadius = dp(10).toFloat()
+                }
+                val lp = LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    dp(42)
+                ).apply {
+                    topMargin = dp(8)
+                    bottomMargin = dp(4)
+                }
+                layoutParams = lp
+                setOnClickListener {
+                    try {
+                        val intent = Intent(
+                            Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                            Uri.parse("package:${context.packageName}")
+                        )
+                        context.startActivity(intent)
+                    } catch (_: Exception) {}
+                }
+            }
+            container.addView(permBtn)
+        }
+
+        val appSettingsBtn = Button(context).apply {
+            text = "⚙️ دسترسی‌های صفحه قفل (مخصوص شیائومی و سامسونگ)"
+            textSize = 12f
+            setTextColor(Color.parseColor("#38BDF8"))
+            background = GradientDrawable().apply {
+                setColor(Color.parseColor("#1E293B"))
+                cornerRadius = dp(10).toFloat()
+                setStroke(dp(1), Color.parseColor("#0284C7"))
+            }
+            val lp = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                dp(42)
+            ).apply {
+                topMargin = dp(6)
+                bottomMargin = dp(8)
+            }
+            layoutParams = lp
+            setOnClickListener {
+                try {
+                    val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                        data = Uri.fromParts("package", context.packageName, null)
+                    }
+                    context.startActivity(intent)
+                } catch (_: Exception) {}
+            }
+        }
+        container.addView(appSettingsBtn)
+
+        val noteTv = TextView(context).apply {
+            text = "💡 نکته: در گوشی‌های شیائومی (MIUI/HyperOS)، دکمه بالا را بزنید و در بخش «دسترسی‌های دیگر (Other permissions)»، حتماً «نمایش در صفحه قفل» و «پنجره‌های بازشو در پس‌زمینه» را فعال کنید تا افکت همیشه نمایش داده شود."
+            textSize = 11f
+            setTextColor(Color.parseColor("#94A3B8"))
+            setPadding(dp(4), dp(2), dp(4), dp(8))
+        }
+        container.addView(noteTv)
 
         fun createSectionTitle(title: String): TextView {
             return TextView(context).apply {

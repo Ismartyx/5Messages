@@ -182,14 +182,14 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          VERSION_NAME="1.5.0"
+          VERSION_NAME="1.5.1"
           TAG_NAME="v${VERSION_NAME}"
           gh release delete "$TAG_NAME" --yes || true
           git tag -d "$TAG_NAME" || true
           git push origin ":refs/tags/$TAG_NAME" || true
           gh release create "$TAG_NAME" signed_out/5Messages.apk \
             --title "5Messages v${VERSION_NAME}" \
-            --notes "نسخه 1.5.0: اضافه شدن قابلیت تنظیم آزادانه موقعیت نقطه LED و حلقه دور دوربین با لمس و کشیدن انگشت روی صفحه (Drag & Drop) همراه با کلیدهای تنظیم میلی‌متری، و تنوع مدل‌های ساعت Always On Display شامل ساعت دیجیتال مینیمال، ساعت دوطبقه بزرگ استک (سامسونگ/پیکسل)، ساعت آنالوگ عقربه‌ای کلاسیک، ساعت نئونی درخشان و ساعت دایره‌ای با نشانگر درصد شارژ باتری" \
+            --notes "نسخه 1.5.1: رفع مشکل عدم نمایش AOD هنگام دریافت پیام واقعی با اضافه کردن FullScreenIntent نوتیفیکیشن، WakeLock روشن‌کردن صفحه، بررسی وضعیت قفل بودن صفحه (isKeyguardLocked)، پشتیبانی از مجوزهای نمایش در صفحه قفل شیائومی (MIUI/HyperOS) و سامسونگ، و اضافه شدن دکمه‌های هدایت سریع به مجوزها در پنجره تنظیمات" \
             --latest || gh release upload "$TAG_NAME" signed_out/5Messages.apk --clobber
 
       - name: Upload APK

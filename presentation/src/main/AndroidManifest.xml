@@ -17,6 +17,9 @@
     <uses-permission android:name="android.permission.SEND_SMS" />
     <uses-permission android:name="android.permission.VIBRATE" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+    <uses-permission android:name="android.permission.DISABLE_KEYGUARD" />
     <uses-permission
         android:name="android.permission.WRITE_EXTERNAL_STORAGE"
         android:maxSdkVersion="29" />
@@ -108,7 +111,9 @@
             android:excludeFromRecents="true"
             android:launchMode="singleTop"
             android:showWhenLocked="true"
+            android:showOnLockScreen="true"
             android:turnScreenOn="true"
+            android:inheritShowWhenLocked="true"
             android:taskAffinity=""
             android:theme="@style/Theme.AodNotification"
             android:screenOrientation="portrait"
