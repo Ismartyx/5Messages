@@ -23,7 +23,7 @@ class AodAnalogClockView @JvmOverloads constructor(
     }
 
     private val tickPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        style = Paint.FILL_AND_STROKE
+        style = Paint.Style.STROKE
         color = Color.parseColor("#888888")
     }
 
