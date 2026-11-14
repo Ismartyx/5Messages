@@ -180,37 +180,107 @@
 
     </LinearLayout>
 
-    <!-- Peeked Clock on Single Tap (Higher up, Center) -->
+    <!-- Peeked Clock on Single Tap (Supports all selected styles, Higher up, Center) -->
     <LinearLayout
         android:id="@+id/aodPeekClockContainer"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_gravity="top|center_horizontal"
-        android:layout_marginTop="75dp"
+        android:layout_marginTop="60dp"
         android:orientation="vertical"
         android:gravity="center"
         android:visibility="gone">
 
+        <!-- 1. Classic or Neon Horizontal Digital Clock -->
         <TextView
             android:id="@+id/aodPeekClockTime"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:textColor="#FFFFFF"
-            android:textSize="36sp"
+            android:textSize="44sp"
             android:fontFamily="sans-serif-thin"
             android:includeFontPadding="false"
-            android:alpha="0.65"
             android:text="12:45" />
+
+        <!-- 2. Stacked Big Digital (Galaxy / Pixel Style) -->
+        <LinearLayout
+            android:id="@+id/aodPeekClockStackedContainer"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:gravity="center"
+            android:visibility="gone">
+
+            <TextView
+                android:id="@+id/aodPeekClockHours"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textColor="#FFFFFF"
+                android:textSize="48sp"
+                android:textStyle="bold"
+                android:includeFontPadding="false"
+                android:text="12" />
+
+            <TextView
+                android:id="@+id/aodPeekClockMinutes"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textColor="#0EA5E9"
+                android:textSize="48sp"
+                android:textStyle="bold"
+                android:includeFontPadding="false"
+                android:text="45" />
+        </LinearLayout>
+
+        <!-- 3. Analog Clock -->
+        <com.goodwy.messages.feature.aod.AodAnalogClockView
+            android:id="@+id/aodPeekAnalogClock"
+            android:layout_width="140dp"
+            android:layout_height="140dp"
+            android:layout_marginTop="4dp"
+            android:layout_marginBottom="4dp"
+            android:visibility="gone" />
+
+        <!-- 4. Circle Dial Badge (Battery + Time) -->
+        <LinearLayout
+            android:id="@+id/aodPeekClockDialContainer"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:gravity="center"
+            android:background="@drawable/aod_dial_bg"
+            android:paddingStart="22dp"
+            android:paddingEnd="22dp"
+            android:paddingTop="10dp"
+            android:paddingBottom="10dp"
+            android:visibility="gone">
+
+            <TextView
+                android:id="@+id/aodPeekBatteryBadge"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textColor="#10B981"
+                android:textSize="11sp"
+                android:text="⚡ 85% باتری" />
+
+            <TextView
+                android:id="@+id/aodPeekClockDialText"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textColor="#FFFFFF"
+                android:textSize="36sp"
+                android:textStyle="bold"
+                android:text="12:45" />
+        </LinearLayout>
 
         <TextView
             android:id="@+id/aodPeekClockDate"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="3dp"
+            android:layout_marginTop="6dp"
             android:textColor="#94A3B8"
-            android:textSize="12sp"
+            android:textSize="13sp"
             android:includeFontPadding="false"
-            android:alpha="0.5"
             android:text="تاریخ" />
     </LinearLayout>
 

@@ -2,12 +2,17 @@ package com.goodwy.messages.feature.aod
 
 import android.animation.ValueAnimator
 import android.annotation.SuppressLint
+import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.content.res.ColorStateList
 import android.graphics.Color
 import android.graphics.drawable.GradientDrawable
+import android.hardware.Sensor
+import android.hardware.SensorEvent
+import android.hardware.SensorEventListener
+import android.hardware.SensorManager
 import android.os.BatteryManager
 import android.os.Build
 import android.os.Bundle
@@ -42,6 +47,7 @@ class AodNotificationActivity : AppCompatActivity() {
         const val EXTRA_SNIPPET = "extra_snippet"
         const val EXTRA_COLOR = "extra_color"
         const val EXTRA_IS_PREVIEW = "extra_is_preview"
+        const val EXTRA_ALWAYS_ON = "extra_always_on"
 
         fun start(
             context: Context,
@@ -49,7 +55,8 @@ class AodNotificationActivity : AppCompatActivity() {
             sender: String,
             snippet: String,
             color: Int = -1,
-            isPreview: Boolean = false
+            isPreview: Boolean = false,
+            isAlwaysOn: Boolean = false
         ) {
             try {
                 val pm = context.getSystemService(Context.POWER_SERVICE) as? PowerManager
@@ -67,11 +74,70 @@ class AodNotificationActivity : AppCompatActivity() {
                 putExtra(EXTRA_SNIPPET, snippet)
                 putExtra(EXTRA_COLOR, color)
                 putExtra(EXTRA_IS_PREVIEW, isPreview)
+                putExtra(EXTRA_ALWAYS_ON, isAlwaysOn)
                 flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
             }
             try {
                 context.startActivity(intent)
             } catch (_: Exception) {}
+        }
+
+        fun startAlwaysOn(context: Context) {
+            val hasUnread = hasUnreadSms(context)
+            val latest = if (hasUnread) getLatestUnreadSms(context) else null
+            val threadId = latest?.first ?: -1L
+            val sender = latest?.second ?: ""
+            val snippet = latest?.third ?: ""
+
+            start(
+                context = context,
+                threadId = threadId,
+                sender = sender,
+                snippet = snippet,
+                color = -1,
+                isPreview = false,
+                isAlwaysOn = true
+            )
+        }
+
+        fun hasUnreadSms(context: Context): Boolean {
+            return try {
+                val cursor = context.contentResolver.query(
+                    android.provider.Telephony.Sms.Inbox.CONTENT_URI,
+                    arrayOf("_id"),
+                    "read = 0",
+                    null,
+                    null
+                )
+                val count = cursor?.count ?: 0
+                cursor?.close()
+                count > 0
+            } catch (_: Exception) {
+                false
+            }
+        }
+
+        fun getLatestUnreadSms(context: Context): Triple<Long, String, String>? {
+            return try {
+                val cursor = context.contentResolver.query(
+                    android.provider.Telephony.Sms.Inbox.CONTENT_URI,
+                    arrayOf("thread_id", "address", "body"),
+                    "read = 0",
+                    null,
+                    "date DESC LIMIT 1"
+                )
+                var result: Triple<Long, String, String>? = null
+                if (cursor != null && cursor.moveToFirst()) {
+                    val threadId = cursor.getLong(0)
+                    val address = cursor.getString(1) ?: ""
+                    val body = cursor.getString(2) ?: ""
+                    result = Triple(threadId, address, body)
+                }
+                cursor?.close()
+                result
+            } catch (_: Exception) {
+                null
+            }
         }
     }
 
@@ -82,12 +148,25 @@ class AodNotificationActivity : AppCompatActivity() {
 
     private var currentThreadId: Long = -1L
     private var isPreview: Boolean = false
+    private var isAlwaysOn: Boolean = false
+    private var hasNewMessage: Boolean = false
+
+    // Proximity Sensor for Pocket Mode (Battery Saver)
+    private var sensorManager: SensorManager? = null
+    private var proximitySensor: Sensor? = null
+    private var proximityListener: SensorEventListener? = null
+    private var isPocketed: Boolean = false
+
+    // Broadcast receiver to dismiss AOD when user unlocks phone
+    private var unlockReceiver: BroadcastReceiver? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         setupWindowFlags()
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_aod_notification)
 
+        setupProximitySensor()
+        setupUnlockReceiver()
         initViews(intent)
     }
 
@@ -115,6 +194,11 @@ class AodNotificationActivity : AppCompatActivity() {
         }
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
 
+        // Dim brightness to 3% to preserve maximum battery on AMOLED/OLED screens
+        val lp = window.attributes
+        lp.screenBrightness = 0.03f
+        window.attributes = lp
+
         // Immersive sticky fullscreen
         window.decorView.systemUiVisibility = (
             View.SYSTEM_UI_FLAG_LAYOUT_STABLE or
@@ -124,6 +208,71 @@ class AodNotificationActivity : AppCompatActivity() {
             View.SYSTEM_UI_FLAG_FULLSCREEN or
             View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
         )
+    }
+
+    private fun setupProximitySensor() {
+        val sp = getSharedPreferences("${packageName}_preferences", Context.MODE_PRIVATE)
+        val pocketMode = sp.getBoolean("aod_pocket_mode", true)
+        if (!pocketMode) return
+
+        sensorManager = getSystemService(Context.SENSOR_SERVICE) as? SensorManager
+        proximitySensor = sensorManager?.getDefaultSensor(Sensor.TYPE_PROXIMITY)
+
+        if (proximitySensor != null) {
+            proximityListener = object : SensorEventListener {
+                override fun onSensorChanged(event: SensorEvent?) {
+                    val distance = event?.values?.getOrNull(0) ?: return
+                    val maxRange = proximitySensor?.maximumRange ?: 5f
+                    val near = distance < Math.min(maxRange, 4.5f)
+                    if (near != isPocketed) {
+                        isPocketed = near
+                        onPocketStateChanged(isPocketed)
+                    }
+                }
+                override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {}
+            }
+            try {
+                sensorManager?.registerListener(
+                    proximityListener,
+                    proximitySensor,
+                    SensorManager.SENSOR_DELAY_NORMAL
+                )
+            } catch (_: Exception) {}
+        }
+    }
+
+    private fun onPocketStateChanged(inPocket: Boolean) {
+        val root = findViewById<View>(R.id.aodRoot)
+        val lp = window.attributes
+        if (inPocket) {
+            // Turn off display brightness to 0 and hide views (100% battery saving in pocket)
+            lp.screenBrightness = 0.0f
+            window.attributes = lp
+            root?.visibility = View.INVISIBLE
+        } else {
+            // Restore dim display
+            lp.screenBrightness = 0.03f
+            window.attributes = lp
+            root?.visibility = View.VISIBLE
+        }
+    }
+
+    private fun setupUnlockReceiver() {
+        if (unlockReceiver != null) return
+        val filter = IntentFilter().apply {
+            addAction(Intent.ACTION_USER_PRESENT)
+            addAction(AodService.ACTION_DISMISS_AOD)
+        }
+        unlockReceiver = object : BroadcastReceiver() {
+            override fun onReceive(context: Context?, intent: Intent?) {
+                if (!isFinishing && !isDestroyed) {
+                    finish()
+                }
+            }
+        }
+        try {
+            registerReceiver(unlockReceiver, filter)
+        } catch (_: Exception) {}
     }
 
     private fun getStatusBarHeight(): Int {
@@ -138,6 +287,7 @@ class AodNotificationActivity : AppCompatActivity() {
         val snippet = intent.getStringExtra(EXTRA_SNIPPET) ?: ""
         val incomingColor = intent.getIntExtra(EXTRA_COLOR, -1)
         isPreview = intent.getBooleanExtra(EXTRA_IS_PREVIEW, false)
+        isAlwaysOn = intent.getBooleanExtra(EXTRA_ALWAYS_ON, false)
 
         val sp = getSharedPreferences("${packageName}_preferences", Context.MODE_PRIVATE)
         val aodStyle = sp.getString("aod_style", Preferences.AOD_STYLE_LED) ?: Preferences.AOD_STYLE_LED
@@ -160,6 +310,9 @@ class AodNotificationActivity : AppCompatActivity() {
             else -> Color.parseColor("#0EA5E9")
         }
 
+        // Determine if an unread / new message exists
+        hasNewMessage = isPreview || sender.isNotBlank() || currentThreadId > 0 || hasUnreadSms(this)
+
         val aodRoot = findViewById<FrameLayout>(R.id.aodRoot)
         val edgeLighting = findViewById<AodEdgeLightingView>(R.id.aodEdgeLighting)
         val cameraRing = findViewById<AodCameraRingView>(R.id.aodCameraRing)
@@ -180,12 +333,8 @@ class AodNotificationActivity : AppCompatActivity() {
         val cardView = findViewById<LinearLayout>(R.id.aodMessageCard)
         val peekContainer = findViewById<LinearLayout>(R.id.aodPeekNamesContainer)
         val peekSenderName = findViewById<TextView>(R.id.aodPeekSenderName)
-        val peekClockContainer = findViewById<LinearLayout>(R.id.aodPeekClockContainer)
-        val peekClockTime = findViewById<TextView>(R.id.aodPeekClockTime)
-        val peekClockDate = findViewById<TextView>(R.id.aodPeekClockDate)
 
         val tapRevealNames = sp.getBoolean("aod_tap_reveal_names", true)
-        val tapRevealClock = sp.getBoolean("aod_tap_reveal_clock", true)
         val namesPos = sp.getString("aod_names_position", Preferences.AOD_NAMES_POS_RIGHT) ?: Preferences.AOD_NAMES_POS_RIGHT
         val namesTextSize = sp.getInt("aod_names_text_size", 14)
         val namesOpacity = sp.getInt("aod_names_opacity", 40)
@@ -196,27 +345,11 @@ class AodNotificationActivity : AppCompatActivity() {
             else -> namesColorPref
         }
 
-        peekSenderName?.text = if (sender.isNotBlank()) sender else "پیام جدید"
+        peekSenderName?.text = if (sender.isNotBlank()) sender else (if (hasNewMessage) "پیام جدید" else "")
         peekSenderName?.textSize = namesTextSize.toFloat()
         peekSenderName?.setTextColor(resolvedNamesColor)
         val targetAlpha = (namesOpacity.coerceIn(10, 100) / 100f)
         peekSenderName?.alpha = targetAlpha
-
-        if (tapRevealClock) {
-            val is24 = DateFormat.is24HourFormat(this@AodNotificationActivity)
-            val timePattern = if (is24) "HH:mm" else "h:mm a"
-            peekClockTime?.text = SimpleDateFormat(timePattern, Locale.US).format(Date())
-
-            val now = System.currentTimeMillis()
-            if (shamsiEnabled) {
-                val j = JalaliDateHelper.fromMillis(now)
-                val weekday = JalaliDateHelper.getWeekdayName(now)
-                val monthName = JalaliDateHelper.getMonthName(j.month)
-                peekClockDate?.text = "$weekday، ${j.day} $monthName ${j.year}"
-            } else {
-                peekClockDate?.text = SimpleDateFormat("EEEE, d MMMM", Locale.getDefault()).format(Date(now))
-            }
-        }
 
         val peekLp = peekContainer?.layoutParams as? FrameLayout.LayoutParams
         if (peekLp != null) {
@@ -237,11 +370,12 @@ class AodNotificationActivity : AppCompatActivity() {
             peekContainer.layoutParams = peekLp
         }
 
-        // Hide all initially
+        // Hide all indicators initially
         edgeLighting.visibility = View.GONE
         cameraRing.visibility = View.GONE
         ledDot.visibility = View.GONE
         minimalContainer.visibility = View.GONE
+        dotAnimator?.cancel()
 
         val density = resources.displayMetrics.density
         val screenWidth = resources.displayMetrics.widthPixels.toFloat()
@@ -262,18 +396,28 @@ class AodNotificationActivity : AppCompatActivity() {
             val finalY = if (isCustomPos) customY.toFloat() else (detectedY + (userOffsetY * density))
             val finalRadius = if (userRingRadius > 0) (userRingRadius * density) else detectedR
 
+            // Only show alert/blinking lights if there is an unread / new message!
+            if (!hasNewMessage && aodStyle != Preferences.AOD_STYLE_MINIMAL) {
+                // Keep screen completely black for maximum OLED battery saving
+                return
+            }
+
             when (aodStyle) {
                 Preferences.AOD_STYLE_CAMERA_RING -> {
-                    cameraRing.visibility = View.VISIBLE
-                    cameraRing.setColor(resolvedColor)
-                    cameraRing.setTarget(finalX, finalY, finalRadius)
-                    cameraRing.startAnimation()
+                    if (hasNewMessage) {
+                        cameraRing.visibility = View.VISIBLE
+                        cameraRing.setColor(resolvedColor)
+                        cameraRing.setTarget(finalX, finalY, finalRadius)
+                        cameraRing.startAnimation()
+                    }
                 }
 
                 Preferences.AOD_STYLE_EDGE_LIGHTING -> {
-                    edgeLighting.visibility = View.VISIBLE
-                    edgeLighting.setColor(resolvedColor)
-                    edgeLighting.startAnimation()
+                    if (hasNewMessage) {
+                        edgeLighting.visibility = View.VISIBLE
+                        edgeLighting.setColor(resolvedColor)
+                        edgeLighting.startAnimation()
+                    }
                 }
 
                 Preferences.AOD_STYLE_MINIMAL -> {
@@ -314,7 +458,7 @@ class AodNotificationActivity : AppCompatActivity() {
                             dialText.text = timeString
                             val pct = getBatteryPercentage(this@AodNotificationActivity)
                             if (pct >= 0) {
-                                batteryBadge.text = "⚡ $pct% شارژ باتری"
+                                batteryBadge.text = "⚡ $pct% باتری"
                                 batteryBadge.visibility = View.VISIBLE
                             } else {
                                 batteryBadge.visibility = View.GONE
@@ -338,56 +482,60 @@ class AodNotificationActivity : AppCompatActivity() {
                         dateView.text = SimpleDateFormat("EEEE, d MMMM", Locale.getDefault()).format(Date(now))
                     }
 
-                    senderView.text = if (sender.isNotBlank()) sender else "پیام جدید"
-                    snippetView.text = if (snippet.isNotBlank()) snippet else "..."
-                    iconView.imageTintList = ColorStateList.valueOf(resolvedColor)
-
-                    cardView.setOnClickListener {
-                        openConversation()
+                    if (hasNewMessage && sender.isNotBlank()) {
+                        cardView.visibility = View.VISIBLE
+                        senderView.text = sender
+                        snippetView.text = if (snippet.isNotBlank()) snippet else "..."
+                        iconView.imageTintList = ColorStateList.valueOf(resolvedColor)
+                        cardView.setOnClickListener { openConversation() }
+                    } else {
+                        cardView.visibility = View.GONE
                     }
                 }
 
                 else -> { // LED Dot
-                    ledDot.visibility = View.VISIBLE
-                    val dotSizePx = (userDotSize * density).toInt()
+                    if (hasNewMessage) {
+                        ledDot.visibility = View.VISIBLE
+                        val dotSizePx = (userDotSize * density).toInt()
 
-                    val bg = GradientDrawable().apply {
-                        shape = GradientDrawable.OVAL
-                        setColor(resolvedColor)
-                    }
-                    ledDot.background = bg
+                        val bg = GradientDrawable().apply {
+                            shape = GradientDrawable.OVAL
+                            setColor(resolvedColor)
+                        }
+                        ledDot.background = bg
 
-                    val params = ledDot.layoutParams as FrameLayout.LayoutParams
-                    params.width = dotSizePx
-                    params.height = dotSizePx
-                    params.topMargin = (finalY - dotSizePx / 2f).toInt().coerceAtLeast(0)
+                        val params = ledDot.layoutParams as FrameLayout.LayoutParams
+                        params.width = dotSizePx
+                        params.height = dotSizePx
+                        params.topMargin = (finalY - dotSizePx / 2f).toInt().coerceAtLeast(0)
 
-                    if (isCustomPos) {
-                        params.gravity = Gravity.TOP or Gravity.START
-                        params.marginStart = (finalX - dotSizePx / 2f).toInt().coerceAtLeast(0)
-                        params.marginEnd = 0
-                    } else {
-                        when (aodPosition) {
-                            Preferences.AOD_POS_TOP_LEFT -> {
-                                params.gravity = Gravity.TOP or Gravity.START
-                                params.marginStart = (finalX - dotSizePx / 2f).toInt().coerceAtLeast(10)
-                                params.marginEnd = 0
-                            }
-                            Preferences.AOD_POS_TOP_RIGHT -> {
-                                params.gravity = Gravity.TOP or Gravity.END
-                                params.marginStart = 0
-                                params.marginEnd = ((screenWidth - finalX) - dotSizePx / 2f).toInt().coerceAtLeast(10)
-                            }
-                            else -> {
-                                params.gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
-                                params.marginStart = (userOffsetX * density).toInt()
-                                params.marginEnd = 0
+                        if (isCustomPos) {
+                            params.gravity = Gravity.TOP or Gravity.START
+                            params.marginStart = (finalX - dotSizePx / 2f).toInt().coerceAtLeast(0)
+                            params.marginEnd = 0
+                        } else {
+                            when (aodPosition) {
+                                Preferences.AOD_POS_TOP_LEFT -> {
+                                    params.gravity = Gravity.TOP or Gravity.START
+                                    params.marginStart = (finalX - dotSizePx / 2f).toInt().coerceAtLeast(10)
+                                    params.marginEnd = 0
+                                }
+                                Preferences.AOD_POS_TOP_RIGHT -> {
+                                    params.gravity = Gravity.TOP or Gravity.END
+                                    params.marginStart = 0
+                                    params.marginEnd = ((screenWidth - finalX) - dotSizePx / 2f).toInt().coerceAtLeast(10)
+                                }
+                                else -> {
+                                    params.gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
+                                    params.marginStart = (userOffsetX * density).toInt()
+                                    params.marginEnd = 0
+                                }
                             }
                         }
-                    }
-                    ledDot.layoutParams = params
+                        ledDot.layoutParams = params
 
-                    startDotAnimation(ledDot)
+                        startDotAnimation(ledDot)
+                    }
                 }
             }
         }
@@ -414,7 +562,11 @@ class AodNotificationActivity : AppCompatActivity() {
         gestureDetector = GestureDetector(this, object : GestureDetector.SimpleOnGestureListener() {
             override fun onDoubleTap(e: MotionEvent?): Boolean {
                 if (!isPreview) {
-                    openConversation()
+                    if (hasNewMessage && currentThreadId > 0) {
+                        openConversation()
+                    } else {
+                        finish()
+                    }
                 } else {
                     finish()
                 }
@@ -422,15 +574,8 @@ class AodNotificationActivity : AppCompatActivity() {
             }
 
             override fun onSingleTapConfirmed(e: MotionEvent?): Boolean {
-                if (tapRevealNames) {
-                    togglePeekNames()
-                    return true
-                }
-                if (isPreview) {
-                    finish()
-                    return true
-                }
-                return super.onSingleTapConfirmed(e)
+                togglePeekClockAndNames(resolvedColor, aodClockStyle, shamsiEnabled, tapRevealNames)
+                return true
             }
         })
 
@@ -439,9 +584,12 @@ class AodNotificationActivity : AppCompatActivity() {
             true
         }
 
-        // Schedule auto dismiss
+        // Schedule auto dismiss only if NOT in Always-On mode
         dismissRunnable?.let { handler.removeCallbacks(it) }
-        if (timeoutSeconds > 0) {
+        val alwaysOnPref = sp.getBoolean("aod_always_on", false)
+        if (!isPreview && (isAlwaysOn || alwaysOnPref)) {
+            // Keep running continuously on lock screen
+        } else if (timeoutSeconds > 0) {
             val r = Runnable {
                 if (!isFinishing && !isDestroyed) {
                     finish()
@@ -481,37 +629,107 @@ class AodNotificationActivity : AppCompatActivity() {
         }?.start()
     }
 
-    private fun togglePeekNames() {
-        val peekContainer = findViewById<LinearLayout>(R.id.aodPeekNamesContainer) ?: return
-        val peekClock = findViewById<LinearLayout>(R.id.aodPeekClockContainer)
-        val sp = getSharedPreferences("${packageName}_preferences", Context.MODE_PRIVATE)
-        val tapRevealClock = sp.getBoolean("aod_tap_reveal_clock", true)
+    private fun togglePeekClockAndNames(
+        accentColor: Int,
+        clockStyle: String,
+        shamsiEnabled: Boolean,
+        tapRevealNames: Boolean
+    ) {
+        val peekClock = findViewById<LinearLayout>(R.id.aodPeekClockContainer) ?: return
+        val peekNames = findViewById<LinearLayout>(R.id.aodPeekNamesContainer)
 
         handler.removeCallbacks(hidePeekRunnable)
-        if (peekContainer.visibility == View.VISIBLE && peekContainer.alpha > 0.05f) {
-            peekContainer.animate().alpha(0f).setDuration(250).withEndAction {
-                peekContainer.visibility = View.GONE
-            }.start()
-            peekClock?.animate()?.alpha(0f)?.setDuration(250)?.withEndAction {
+        if (peekClock.visibility == View.VISIBLE && peekClock.alpha > 0.05f) {
+            // Dismiss immediately
+            peekClock.animate().alpha(0f).setDuration(250).withEndAction {
                 peekClock.visibility = View.GONE
+            }.start()
+            peekNames?.animate()?.alpha(0f)?.setDuration(250)?.withEndAction {
+                peekNames.visibility = View.GONE
             }?.start()
         } else {
-            peekContainer.alpha = 0f
-            peekContainer.visibility = View.VISIBLE
-            peekContainer.animate().alpha(1f).setDuration(300).start()
+            // Reveal clock and date in user's chosen style!
+            val peekTime = findViewById<TextView>(R.id.aodPeekClockTime)
+            val peekStacked = findViewById<LinearLayout>(R.id.aodPeekClockStackedContainer)
+            val peekHours = findViewById<TextView>(R.id.aodPeekClockHours)
+            val peekMinutes = findViewById<TextView>(R.id.aodPeekClockMinutes)
+            val peekAnalog = findViewById<AodAnalogClockView>(R.id.aodPeekAnalogClock)
+            val peekDial = findViewById<LinearLayout>(R.id.aodPeekClockDialContainer)
+            val peekBattery = findViewById<TextView>(R.id.aodPeekBatteryBadge)
+            val peekDialText = findViewById<TextView>(R.id.aodPeekClockDialText)
+            val peekDate = findViewById<TextView>(R.id.aodPeekClockDate)
 
-            if (tapRevealClock && peekClock != null) {
-                val peekTime = findViewById<TextView>(R.id.aodPeekClockTime)
-                val is24 = DateFormat.is24HourFormat(this@AodNotificationActivity)
-                val timePattern = if (is24) "HH:mm" else "h:mm a"
-                peekTime?.text = SimpleDateFormat(timePattern, Locale.US).format(Date())
+            val is24 = DateFormat.is24HourFormat(this)
+            val timePattern = if (is24) "HH:mm" else "h:mm a"
+            val timeString = SimpleDateFormat(timePattern, Locale.US).format(Date())
 
-                peekClock.alpha = 0f
-                peekClock.visibility = View.VISIBLE
-                peekClock.animate().alpha(1f).setDuration(300).start()
+            peekTime?.visibility = View.GONE
+            peekStacked?.visibility = View.GONE
+            peekAnalog?.visibility = View.GONE
+            peekDial?.visibility = View.GONE
+
+            when (clockStyle) {
+                Preferences.AOD_CLOCK_STACKED -> {
+                    peekStacked?.visibility = View.VISIBLE
+                    val hoursPattern = if (is24) "HH" else "hh"
+                    peekHours?.text = SimpleDateFormat(hoursPattern, Locale.US).format(Date())
+                    peekMinutes?.text = SimpleDateFormat("mm", Locale.US).format(Date())
+                    peekMinutes?.setTextColor(accentColor)
+                }
+                Preferences.AOD_CLOCK_ANALOG -> {
+                    peekAnalog?.visibility = View.VISIBLE
+                    peekAnalog?.setAccentColor(accentColor)
+                    peekAnalog?.invalidate()
+                }
+                Preferences.AOD_CLOCK_NEON -> {
+                    peekTime?.visibility = View.VISIBLE
+                    peekTime?.text = timeString
+                    peekTime?.setShadowLayer(25f, 0f, 0f, accentColor)
+                    peekTime?.setTextColor(Color.WHITE)
+                }
+                Preferences.AOD_CLOCK_DIAL -> {
+                    peekDial?.visibility = View.VISIBLE
+                    peekDialText?.text = timeString
+                    val pct = getBatteryPercentage(this)
+                    if (pct >= 0) {
+                        peekBattery?.text = "⚡ $pct% باتری"
+                        peekBattery?.visibility = View.VISIBLE
+                    } else {
+                        peekBattery?.visibility = View.GONE
+                    }
+                }
+                else -> { // Classic
+                    peekTime?.visibility = View.VISIBLE
+                    peekTime?.text = timeString
+                    peekTime?.setShadowLayer(0f, 0f, 0f, 0)
+                    peekTime?.setTextColor(Color.WHITE)
+                }
             }
 
-            handler.postDelayed(hidePeekRunnable, 5000L)
+            // Shamsi or Gregorian Date
+            val now = System.currentTimeMillis()
+            if (shamsiEnabled) {
+                val j = JalaliDateHelper.fromMillis(now)
+                val weekday = JalaliDateHelper.getWeekdayName(now)
+                val monthName = JalaliDateHelper.getMonthName(j.month)
+                peekDate?.text = "$weekday، ${j.day} $monthName ${j.year}"
+            } else {
+                peekDate?.text = SimpleDateFormat("EEEE, d MMMM", Locale.getDefault()).format(Date(now))
+            }
+
+            peekClock.alpha = 0f
+            peekClock.visibility = View.VISIBLE
+            peekClock.animate().alpha(1f).setDuration(300).start()
+
+            // Peek sender names if unread message exists
+            if (hasNewMessage && tapRevealNames && peekNames != null) {
+                peekNames.alpha = 0f
+                peekNames.visibility = View.VISIBLE
+                peekNames.animate().alpha(1f).setDuration(300).start()
+            }
+
+            // Auto fade out back to OLED black after 6 seconds to preserve battery
+            handler.postDelayed(hidePeekRunnable, 6000L)
         }
     }
 
@@ -544,5 +762,19 @@ class AodNotificationActivity : AppCompatActivity() {
         dotAnimator?.cancel()
         dismissRunnable?.let { handler.removeCallbacks(it) }
         handler.removeCallbacks(hidePeekRunnable)
+
+        proximityListener?.let {
+            try {
+                sensorManager?.unregisterListener(it)
+            } catch (_: Exception) {}
+            proximityListener = null
+        }
+
+        unlockReceiver?.let {
+            try {
+                unregisterReceiver(it)
+            } catch (_: Exception) {}
+            unlockReceiver = null
+        }
     }
 }

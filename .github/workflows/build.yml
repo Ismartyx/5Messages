@@ -182,14 +182,14 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          VERSION_NAME="1.5.3"
+          VERSION_NAME="1.5.4"
           TAG_NAME="v${VERSION_NAME}"
           gh release delete "$TAG_NAME" --yes || true
           git tag -d "$TAG_NAME" || true
           git push origin ":refs/tags/$TAG_NAME" || true
           gh release create "$TAG_NAME" signed_out/5Messages.apk \
             --title "5Messages v${VERSION_NAME}" \
-            --notes "نسخه 1.5.3: اصلاح رنگ سفید ملایم برای نام فرستنده، اضافه شدن نمایش ساعت و تاریخ شمسی در بالای صفحه (وسط) همراه با نام فرستنده با یک ضربه روی صفحه خاموش، و اضافه شدن گزینه فعال‌سازی آن در پنجره تنظیمات" \
+            --notes "نسخه 1.5.4: صفحه همیشه روشن دائمی (Always On Display) هنگام قفل صفحه با نمایش چراغ چشمک‌زن فقط در صورت وجود پیام جدید، نمایش ساعت در انواع سبک‌ها (کلاسیک، عمودی، عقربه‌ای، نئونی، دایره‌ای باتری) با تک‌ضربه همراه با تاریخ شمسی، و حالت محافظ جیب با حسگر مجاورت برای به حداقل رساندن مصرف باتری" \
             --latest || gh release upload "$TAG_NAME" signed_out/5Messages.apk --clobber
 
       - name: Upload APK

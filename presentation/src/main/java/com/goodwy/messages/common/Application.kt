@@ -88,6 +88,11 @@ class Application : Application(), HasActivityInjector, HasBroadcastReceiverInje
         RxDogTag.builder()
                 .configureWith(AutoDisposeConfigurer::configure)
                 .install()
+
+        val sp = getSharedPreferences("_preferences", android.content.Context.MODE_PRIVATE)
+        if (sp.getBoolean("aod_enabled", false) && sp.getBoolean("aod_always_on", false)) {
+            com.goodwy.messages.feature.aod.AodService.start(this)
+        }
     }
 
     override fun activityInjector(): AndroidInjector<Activity> {

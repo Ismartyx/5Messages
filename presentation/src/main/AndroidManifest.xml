@@ -192,6 +192,10 @@
             android:enabled="true"
             android:exported="false" />
         <service
+            android:name=".feature.aod.AodService"
+            android:enabled="true"
+            android:exported="false" />
+        <service
             android:name=".feature.widget.WidgetService"
             android:permission="android.permission.BIND_REMOTEVIEWS" />
         <service
