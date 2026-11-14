@@ -84,7 +84,8 @@ class AodNotificationActivity : AppCompatActivity() {
 
         fun startAlwaysOn(context: Context) {
             val hasUnread = hasUnreadSms(context)
-            val latest = if (hasUnread) getLatestUnreadSms(context) else null
+            if (!hasUnread) return // Safeguard: never wake display if there are no unread messages!
+            val latest = getLatestUnreadSms(context)
             val threadId = latest?.first ?: -1L
             val sender = latest?.second ?: ""
             val snippet = latest?.third ?: ""
@@ -155,6 +156,7 @@ class AodNotificationActivity : AppCompatActivity() {
     private var sensorManager: SensorManager? = null
     private var proximitySensor: Sensor? = null
     private var proximityListener: SensorEventListener? = null
+    private var proximityWakeLock: PowerManager.WakeLock? = null
     private var isPocketed: Boolean = false
 
     // Broadcast receiver to dismiss AOD when user unlocks phone
@@ -235,6 +237,31 @@ class AodNotificationActivity : AppCompatActivity() {
         val pocketMode = sp.getBoolean("aod_pocket_mode", true)
         if (!pocketMode) return
 
+        // 1. Hardware Proximity Screen-Off WakeLock (Physically turns off screen in pocket)
+        val pm = getSystemService(Context.POWER_SERVICE) as? PowerManager
+        if (pm != null) {
+            val supported = try {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                    pm.isWakeLockLevelSupported(PowerManager.PROXIMITY_SCREEN_OFF_WAKE_LOCK)
+                } else {
+                    false
+                }
+            } catch (_: Exception) {
+                false
+            }
+            if (supported) {
+                try {
+                    @Suppress("DEPRECATION")
+                    proximityWakeLock = pm.newWakeLock(
+                        PowerManager.PROXIMITY_SCREEN_OFF_WAKE_LOCK,
+                        "5Messages:AodProximityLock"
+                    )
+                    proximityWakeLock?.acquire()
+                } catch (_: Exception) {}
+            }
+        }
+
+        // 2. Proximity Sensor Event Listener (Software backup to hide views and set brightness)
         sensorManager = getSystemService(Context.SENSOR_SERVICE) as? SensorManager
         proximitySensor = sensorManager?.getDefaultSensor(Sensor.TYPE_PROXIMITY)
 
@@ -243,7 +270,7 @@ class AodNotificationActivity : AppCompatActivity() {
                 override fun onSensorChanged(event: SensorEvent?) {
                     val distance = event?.values?.getOrNull(0) ?: return
                     val maxRange = proximitySensor?.maximumRange ?: 5f
-                    val near = distance < Math.min(maxRange, 4.5f)
+                    val near = distance < Math.min(maxRange, 5.0f) || distance == 0f
                     if (near != isPocketed) {
                         isPocketed = near
                         onPocketStateChanged(isPocketed)
@@ -255,7 +282,7 @@ class AodNotificationActivity : AppCompatActivity() {
                 sensorManager?.registerListener(
                     proximityListener,
                     proximitySensor,
-                    SensorManager.SENSOR_DELAY_NORMAL
+                    SensorManager.SENSOR_DELAY_UI
                 )
             } catch (_: Exception) {}
         }
@@ -665,16 +692,11 @@ class AodNotificationActivity : AppCompatActivity() {
             handler.postDelayed(timeUpdateRunnable, delay.coerceAtLeast(1000L))
         }
 
-        // Auto-dismiss management
+        // Auto-dismiss management: respect timeout so screen turns off and sleeps normally
         dismissRunnable?.let { handler.removeCallbacks(it) }
-        val alwaysOnPref = sp.getBoolean("aod_always_on", false)
-        if (!isPreview && (isAlwaysOn || alwaysOnPref)) {
-            // Keep running silently on lock screen, waiting for user single-tap (pure black OLED, 0% CPU)
-        } else {
-            val timeoutSec = if (isPreview) 15 else timeoutSeconds
-            if (timeoutSec > 0) {
-                scheduleDismissTimeout(timeoutSec)
-            }
+        val timeoutSec = if (isPreview) 15 else timeoutSeconds
+        if (timeoutSec > 0) {
+            scheduleDismissTimeout(timeoutSec)
         }
     }
 
@@ -907,6 +929,13 @@ class AodNotificationActivity : AppCompatActivity() {
         handler.removeCallbacks(hidePeekRunnable)
         handler.removeCallbacks(timeUpdateRunnable)
         handler.removeCallbacks(hidePeekNamesOnlyRunnable)
+
+        try {
+            if (proximityWakeLock?.isHeld == true) {
+                proximityWakeLock?.release()
+            }
+        } catch (_: Exception) {}
+        proximityWakeLock = null
 
         proximityListener?.let {
             try {
