@@ -33,25 +33,6 @@ class Preferences @Inject constructor(
         const val BOLD_NAMES_MEDIUM = 1
         const val BOLD_NAMES_BOLD = 2
 
-        const val AOD_STYLE_LED = "led_dot"
-        const val AOD_STYLE_CAMERA_RING = "camera_ring"
-        const val AOD_STYLE_EDGE_LIGHTING = "edge_lighting"
-        const val AOD_STYLE_MINIMAL = "minimal_aod"
-
-        const val AOD_POS_TOP_RIGHT = "top_right"
-        const val AOD_POS_TOP_CENTER = "top_center"
-        const val AOD_POS_TOP_LEFT = "top_left"
-
-        const val AOD_CLOCK_CLASSIC = "classic"
-        const val AOD_CLOCK_STACKED = "stacked"
-        const val AOD_CLOCK_ANALOG = "analog"
-        const val AOD_CLOCK_NEON = "neon"
-        const val AOD_CLOCK_DIAL = "circle_dial"
-
-        const val AOD_NAMES_POS_RIGHT = "right"
-        const val AOD_NAMES_POS_LEFT = "left"
-        const val AOD_NAMES_POS_CENTER = "center"
-
         const val NOTIFICATION_PREVIEWS_ALL = 0
         const val NOTIFICATION_PREVIEWS_NAME = 1
         const val NOTIFICATION_PREVIEWS_NONE = 2
@@ -232,28 +213,4 @@ class Preferences @Inject constructor(
             else -> rxPrefs.getString("ringtone_$threadId", default.get())
         }
     }
-
-    val aodEnabled = rxPrefs.getBoolean("aod_enabled", false)
-    val aodStyle = rxPrefs.getString("aod_style", AOD_STYLE_LED)
-    val aodPosition = rxPrefs.getString("aod_position", AOD_POS_TOP_RIGHT)
-    val aodColor = rxPrefs.getInteger("aod_color", -1)
-    val aodTimeout = rxPrefs.getInteger("aod_timeout", 30)
-    val aodOffsetY = rxPrefs.getInteger("aod_offset_y", 0)
-    val aodOffsetX = rxPrefs.getInteger("aod_offset_x", 0)
-    val aodDotSize = rxPrefs.getInteger("aod_dot_size", 6)
-    val aodRingRadius = rxPrefs.getInteger("aod_ring_radius", 0)
-    val aodClockStyle = rxPrefs.getString("aod_clock_style", AOD_CLOCK_CLASSIC)
-    val aodClockScale = rxPrefs.getInteger("aod_clock_scale", 100)
-    val aodCustomX = rxPrefs.getInteger("aod_custom_x", -1)
-    val aodCustomY = rxPrefs.getInteger("aod_custom_y", -1)
-    val aodTapRevealNames = rxPrefs.getBoolean("aod_tap_reveal_names", true)
-    val aodTapRevealClock = rxPrefs.getBoolean("aod_tap_reveal_clock", true)
-    val aodAlwaysOn = rxPrefs.getBoolean("aod_always_on", false)
-    val aodPocketMode = rxPrefs.getBoolean("aod_pocket_mode", true)
-    val aodBrightness = rxPrefs.getInteger("aod_brightness", 45)
-    val aodClockAlwaysVisible = rxPrefs.getBoolean("aod_clock_always_visible", false)
-    val aodNamesPosition = rxPrefs.getString("aod_names_position", AOD_NAMES_POS_RIGHT)
-    val aodNamesTextSize = rxPrefs.getInteger("aod_names_text_size", 14)
-    val aodNamesOpacity = rxPrefs.getInteger("aod_names_opacity", 40)
-    val aodNamesColor = rxPrefs.getInteger("aod_names_color", 0)
 }

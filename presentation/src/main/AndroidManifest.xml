@@ -106,23 +106,6 @@
         <activity android:name=".feature.scheduled.ScheduledActivity" />
         <activity android:name=".feature.backup.BackupActivity" />
         <activity android:name=".feature.contacts.ContactsActivity" />
-        <activity
-            android:name=".feature.aod.AodNotificationActivity"
-            android:excludeFromRecents="true"
-            android:launchMode="singleTop"
-            android:showWhenLocked="true"
-            android:showOnLockScreen="true"
-            android:turnScreenOn="true"
-            android:inheritShowWhenLocked="true"
-            android:taskAffinity=""
-            android:theme="@style/Theme.AodNotification"
-            android:screenOrientation="portrait"
-            android:configChanges="orientation|screenSize|screenLayout|keyboardHidden" />
-        <activity
-            android:name=".feature.aod.AodCalibrationActivity"
-            android:theme="@style/Theme.AodNotification"
-            android:screenOrientation="portrait"
-            android:configChanges="orientation|screenSize|screenLayout|keyboardHidden" />
 
         <receiver android:name=".receiver.BootReceiver">
             <intent-filter>
@@ -189,10 +172,6 @@
         <service android:name=".feature.backup.RestoreBackupService" />
         <service
             android:name=".feature.webserver.WebClientService"
-            android:enabled="true"
-            android:exported="false" />
-        <service
-            android:name=".feature.aod.AodService"
             android:enabled="true"
             android:exported="false" />
         <service
