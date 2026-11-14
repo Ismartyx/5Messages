@@ -180,6 +180,40 @@
 
     </LinearLayout>
 
+    <!-- Peeked Clock on Single Tap (Higher up, Center) -->
+    <LinearLayout
+        android:id="@+id/aodPeekClockContainer"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="top|center_horizontal"
+        android:layout_marginTop="75dp"
+        android:orientation="vertical"
+        android:gravity="center"
+        android:visibility="gone">
+
+        <TextView
+            android:id="@+id/aodPeekClockTime"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textColor="#FFFFFF"
+            android:textSize="36sp"
+            android:fontFamily="sans-serif-thin"
+            android:includeFontPadding="false"
+            android:alpha="0.65"
+            android:text="12:45" />
+
+        <TextView
+            android:id="@+id/aodPeekClockDate"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="3dp"
+            android:textColor="#94A3B8"
+            android:textSize="12sp"
+            android:includeFontPadding="false"
+            android:alpha="0.5"
+            android:text="تاریخ" />
+    </LinearLayout>
+
     <!-- Peeked Sender Names on Single Tap (Subtle & Faint on screen edge) -->
     <LinearLayout
         android:id="@+id/aodPeekNamesContainer"

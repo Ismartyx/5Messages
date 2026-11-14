@@ -180,17 +180,20 @@ class AodNotificationActivity : AppCompatActivity() {
         val cardView = findViewById<LinearLayout>(R.id.aodMessageCard)
         val peekContainer = findViewById<LinearLayout>(R.id.aodPeekNamesContainer)
         val peekSenderName = findViewById<TextView>(R.id.aodPeekSenderName)
+        val peekClockContainer = findViewById<LinearLayout>(R.id.aodPeekClockContainer)
+        val peekClockTime = findViewById<TextView>(R.id.aodPeekClockTime)
+        val peekClockDate = findViewById<TextView>(R.id.aodPeekClockDate)
 
         val tapRevealNames = sp.getBoolean("aod_tap_reveal_names", true)
+        val tapRevealClock = sp.getBoolean("aod_tap_reveal_clock", true)
         val namesPos = sp.getString("aod_names_position", Preferences.AOD_NAMES_POS_RIGHT) ?: Preferences.AOD_NAMES_POS_RIGHT
         val namesTextSize = sp.getInt("aod_names_text_size", 14)
         val namesOpacity = sp.getInt("aod_names_opacity", 40)
-        val namesColorPref = sp.getInt("aod_names_color", -1)
+        val namesColorPref = sp.getInt("aod_names_color", 0)
 
         val resolvedNamesColor = when {
-            namesColorPref != -1 -> namesColorPref
-            incomingColor != -1 -> incomingColor
-            else -> Color.WHITE
+            namesColorPref == 0 -> if (incomingColor != -1) incomingColor else Color.WHITE
+            else -> namesColorPref
         }
 
         peekSenderName?.text = if (sender.isNotBlank()) sender else "پیام جدید"
@@ -198,6 +201,22 @@ class AodNotificationActivity : AppCompatActivity() {
         peekSenderName?.setTextColor(resolvedNamesColor)
         val targetAlpha = (namesOpacity.coerceIn(10, 100) / 100f)
         peekSenderName?.alpha = targetAlpha
+
+        if (tapRevealClock) {
+            val is24 = DateFormat.is24HourFormat(this@AodNotificationActivity)
+            val timePattern = if (is24) "HH:mm" else "h:mm a"
+            peekClockTime?.text = SimpleDateFormat(timePattern, Locale.US).format(Date())
+
+            val now = System.currentTimeMillis()
+            if (shamsiEnabled) {
+                val j = JalaliDateHelper.fromMillis(now)
+                val weekday = JalaliDateHelper.getWeekdayName(now)
+                val monthName = JalaliDateHelper.getMonthName(j.month)
+                peekClockDate?.text = "$weekday، ${j.day} $monthName ${j.year}"
+            } else {
+                peekClockDate?.text = SimpleDateFormat("EEEE, d MMMM", Locale.getDefault()).format(Date(now))
+            }
+        }
 
         val peekLp = peekContainer?.layoutParams as? FrameLayout.LayoutParams
         if (peekLp != null) {
@@ -453,22 +472,45 @@ class AodNotificationActivity : AppCompatActivity() {
 
     private val hidePeekRunnable = Runnable {
         val peekContainer = findViewById<LinearLayout>(R.id.aodPeekNamesContainer)
-        peekContainer?.animate()?.alpha(0f)?.setDuration(400)?.withEndAction {
+        val peekClock = findViewById<LinearLayout>(R.id.aodPeekClockContainer)
+        peekContainer?.animate()?.alpha(0f)?.setDuration(350)?.withEndAction {
             peekContainer.visibility = View.GONE
+        }?.start()
+        peekClock?.animate()?.alpha(0f)?.setDuration(350)?.withEndAction {
+            peekClock.visibility = View.GONE
         }?.start()
     }
 
     private fun togglePeekNames() {
         val peekContainer = findViewById<LinearLayout>(R.id.aodPeekNamesContainer) ?: return
+        val peekClock = findViewById<LinearLayout>(R.id.aodPeekClockContainer)
+        val sp = getSharedPreferences("${packageName}_preferences", Context.MODE_PRIVATE)
+        val tapRevealClock = sp.getBoolean("aod_tap_reveal_clock", true)
+
         handler.removeCallbacks(hidePeekRunnable)
         if (peekContainer.visibility == View.VISIBLE && peekContainer.alpha > 0.05f) {
             peekContainer.animate().alpha(0f).setDuration(250).withEndAction {
                 peekContainer.visibility = View.GONE
             }.start()
+            peekClock?.animate()?.alpha(0f)?.setDuration(250)?.withEndAction {
+                peekClock.visibility = View.GONE
+            }?.start()
         } else {
             peekContainer.alpha = 0f
             peekContainer.visibility = View.VISIBLE
             peekContainer.animate().alpha(1f).setDuration(300).start()
+
+            if (tapRevealClock && peekClock != null) {
+                val peekTime = findViewById<TextView>(R.id.aodPeekClockTime)
+                val is24 = DateFormat.is24HourFormat(this@AodNotificationActivity)
+                val timePattern = if (is24) "HH:mm" else "h:mm a"
+                peekTime?.text = SimpleDateFormat(timePattern, Locale.US).format(Date())
+
+                peekClock.alpha = 0f
+                peekClock.visibility = View.VISIBLE
+                peekClock.animate().alpha(1f).setDuration(300).start()
+            }
+
             handler.postDelayed(hidePeekRunnable, 5000L)
         }
     }

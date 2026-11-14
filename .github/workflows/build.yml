@@ -182,14 +182,14 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          VERSION_NAME="1.5.2"
+          VERSION_NAME="1.5.3"
           TAG_NAME="v${VERSION_NAME}"
           gh release delete "$TAG_NAME" --yes || true
           git tag -d "$TAG_NAME" || true
           git push origin ":refs/tags/$TAG_NAME" || true
           gh release create "$TAG_NAME" signed_out/5Messages.apk \
             --title "5Messages v${VERSION_NAME}" \
-            --notes "نسخه 1.5.2: حذف متن دابل کلیک از پایین صفحه AOD، باز شدن مستقیم پیام با دوبار ضربه روی صفحه، اضافه شدن قابلیت نمایش نام فرستنده با یک ضربه روی صفحه (بدون نمایش متن پیام جهت حفظ حریم خصوصی)، با امکان انتخاب موقعیت (راست/چپ/وسط)، اندازه قلم، میزان کم‌رنگی و شفافیت، و رنگ نام فرستنده" \
+            --notes "نسخه 1.5.3: اصلاح رنگ سفید ملایم برای نام فرستنده، اضافه شدن نمایش ساعت و تاریخ شمسی در بالای صفحه (وسط) همراه با نام فرستنده با یک ضربه روی صفحه خاموش، و اضافه شدن گزینه فعال‌سازی آن در پنجره تنظیمات" \
             --latest || gh release upload "$TAG_NAME" signed_out/5Messages.apk --clobber
 
       - name: Upload APK

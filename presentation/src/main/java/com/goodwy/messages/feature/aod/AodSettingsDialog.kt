@@ -172,6 +172,7 @@ object AodSettingsDialog {
         var currentRingRadius = prefs.aodRingRadius.get()
         var currentClockStyle = prefs.aodClockStyle.get()
         var currentTapReveal = prefs.aodTapRevealNames.get()
+        var currentTapRevealClock = prefs.aodTapRevealClock.get()
         var currentNamesPos = prefs.aodNamesPosition.get()
         var currentNamesSize = prefs.aodNamesTextSize.get()
         var currentNamesOpacity = prefs.aodNamesOpacity.get()
@@ -385,6 +386,7 @@ object AodSettingsDialog {
                 prefs.aodRingRadius.set(currentRingRadius)
                 prefs.aodClockStyle.set(currentClockStyle)
                 prefs.aodTapRevealNames.set(currentTapReveal)
+                prefs.aodTapRevealClock.set(currentTapRevealClock)
                 prefs.aodNamesPosition.set(currentNamesPos)
                 prefs.aodNamesTextSize.set(currentNamesSize)
                 prefs.aodNamesOpacity.set(currentNamesOpacity)
@@ -431,6 +433,17 @@ object AodSettingsDialog {
             }
         }
         container.addView(tapCheck)
+
+        val clockPeekCheck = CheckBox(context).apply {
+            text = "نمایش ساعت در بالای صفحه (وسط) با یک ضربه"
+            textSize = 13.5f
+            isChecked = currentTapRevealClock
+            setPadding(dp(8), dp(4), dp(8), dp(4))
+            setOnCheckedChangeListener { _, isChecked ->
+                currentTapRevealClock = isChecked
+            }
+        }
+        container.addView(clockPeekCheck)
 
         val namesPosOptions = arrayOf(
             Pair(Preferences.AOD_NAMES_POS_RIGHT, "سمت راست صفحه (پیش‌فرض)"),
@@ -493,8 +506,8 @@ object AodSettingsDialog {
         container.addView(namesOpacityRow)
 
         val namesColorOptions = arrayOf(
-            Pair(-1, "🎨 هماهنگ با فرستنده پیام"),
-            Pair(Color.WHITE, "⚪ سفید ملایم (پیش‌فرض)"),
+            Pair(0, "🎨 هماهنگ با فرستنده پیام"),
+            Pair(Color.parseColor("#F1F5F9"), "⚪ سفید ملایم (پیش‌فرض)"),
             Pair(Color.parseColor("#0EA5E9"), "🔵 آبی نئونی"),
             Pair(Color.parseColor("#10B981"), "🟢 سبز زمردی"),
             Pair(Color.parseColor("#8B5CF6"), "🟣 بنفش"),
@@ -544,6 +557,7 @@ object AodSettingsDialog {
                 prefs.aodRingRadius.set(currentRingRadius)
                 prefs.aodClockStyle.set(currentClockStyle)
                 prefs.aodTapRevealNames.set(currentTapReveal)
+                prefs.aodTapRevealClock.set(currentTapRevealClock)
                 prefs.aodNamesPosition.set(currentNamesPos)
                 prefs.aodNamesTextSize.set(currentNamesSize)
                 prefs.aodNamesOpacity.set(currentNamesOpacity)
@@ -576,6 +590,7 @@ object AodSettingsDialog {
                 prefs.aodRingRadius.set(currentRingRadius)
                 prefs.aodClockStyle.set(currentClockStyle)
                 prefs.aodTapRevealNames.set(currentTapReveal)
+                prefs.aodTapRevealClock.set(currentTapRevealClock)
                 prefs.aodNamesPosition.set(currentNamesPos)
                 prefs.aodNamesTextSize.set(currentNamesSize)
                 prefs.aodNamesOpacity.set(currentNamesOpacity)
