@@ -182,14 +182,14 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          VERSION_NAME="1.5.7"
+          VERSION_NAME="1.5.8"
           TAG_NAME="v${VERSION_NAME}"
           gh release delete "$TAG_NAME" --yes || true
           git tag -d "$TAG_NAME" || true
           git push origin ":refs/tags/$TAG_NAME" || true
           gh release create "$TAG_NAME" signed_out/5Messages.apk \
             --title "5Messages v${VERSION_NAME}" \
-            --notes "نسخه 1.5.7: رفع مشکل روشن ماندن یکسره صفحه پس از قفل گوشی، خاموش ماندن کامل صفحه در صورت نبود پیام جدید (حفظ کامل باتری و Sleep عادی سیستم)، و اعمال صحیح مدت زمان تایم‌اوت" \
+            --notes "نسخه 1.5.8: حل قطعی مشکل عدم نمایش ساعت و تاریخ با تک‌لمس (اصلاح رویدادهای لمسی GestureDetector و dispatchTouchEvent)، آماده به کار ماندن صفحه مشکی AOD در صورت قفل شدن گوشی و محو شدن خودکار ساعت پس از ۸ ثانیه" \
             --latest || gh release upload "$TAG_NAME" signed_out/5Messages.apk --clobber
 
       - name: Upload APK

@@ -73,13 +73,10 @@ class AodService : Service() {
                         val alwaysOn = sp.getBoolean("aod_always_on", false)
                         val aodEnabled = sp.getBoolean("aod_enabled", false)
                         if (alwaysOn && aodEnabled) {
-                            // Only wake/trigger AOD if there is an unread SMS!
-                            // If no unread SMS exists, leave the screen completely OFF and sleeping!
-                            if (AodNotificationActivity.hasUnreadSms(context)) {
-                                handler.postDelayed({
-                                    AodNotificationActivity.startAlwaysOn(context)
-                                }, 300L)
-                            }
+                            // Small delay so system screen-off lock transitions finish smoothly
+                            handler.postDelayed({
+                                AodNotificationActivity.startAlwaysOn(context)
+                            }, 250L)
                         }
                     }
                     Intent.ACTION_USER_PRESENT -> {

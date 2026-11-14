@@ -84,8 +84,7 @@ class AodNotificationActivity : AppCompatActivity() {
 
         fun startAlwaysOn(context: Context) {
             val hasUnread = hasUnreadSms(context)
-            if (!hasUnread) return // Safety check: do not wake or show if no unread messages
-            val latest = getLatestUnreadSms(context)
+            val latest = if (hasUnread) getLatestUnreadSms(context) else null
             val threadId = latest?.first ?: -1L
             val sender = latest?.second ?: ""
             val snippet = latest?.third ?: ""
@@ -608,6 +607,10 @@ class AodNotificationActivity : AppCompatActivity() {
 
         // Tap and Double-tap detector
         gestureDetector = GestureDetector(this, object : GestureDetector.SimpleOnGestureListener() {
+            override fun onDown(e: MotionEvent?): Boolean {
+                return true // Crucial: must return true for GestureDetector to receive subsequent tap events!
+            }
+
             override fun onDoubleTap(e: MotionEvent?): Boolean {
                 if (!isPreview) {
                     if (hasNewMessage && currentThreadId > 0) {
@@ -622,12 +625,15 @@ class AodNotificationActivity : AppCompatActivity() {
             }
 
             override fun onSingleTapConfirmed(e: MotionEvent?): Boolean {
-                // Postpone dismissal by 15s so user has time to view clock and sender comfortably
-                val sp = getSharedPreferences("${packageName}_preferences", Context.MODE_PRIVATE)
-                val configuredTimeout = if (isPreview) 6 else sp.getInt("aod_timeout", 30)
-                if (configuredTimeout > 0) {
-                    scheduleDismissTimeout(Math.max(configuredTimeout, 15))
+                if (isPreview) {
+                    scheduleDismissTimeout(15)
                 }
+
+                val sp = getSharedPreferences("${packageName}_preferences", Context.MODE_PRIVATE)
+                val aodClockStyle = sp.getString("aod_clock_style", Preferences.AOD_CLOCK_CLASSIC) ?: Preferences.AOD_CLOCK_CLASSIC
+                val aodClockScale = sp.getInt("aod_clock_scale", 100)
+                val shamsiEnabled = sp.getBoolean("shamsi_calendar", true)
+                val tapRevealNames = sp.getBoolean("aod_tap_reveal_names", true)
 
                 if (aodClockAlwaysVisible && aodStyle != Preferences.AOD_STYLE_MINIMAL) {
                     renderPeekClock(resolvedColor, aodClockStyle, aodClockScale, shamsiEnabled)
@@ -659,8 +665,22 @@ class AodNotificationActivity : AppCompatActivity() {
             handler.postDelayed(timeUpdateRunnable, delay.coerceAtLeast(1000L))
         }
 
-        // Schedule auto dismiss so screen turns off and sleeps normally after timeout
-        scheduleDismissTimeout(timeoutSeconds)
+        // Auto-dismiss management
+        dismissRunnable?.let { handler.removeCallbacks(it) }
+        val alwaysOnPref = sp.getBoolean("aod_always_on", false)
+        if (!isPreview && (isAlwaysOn || alwaysOnPref)) {
+            // Keep running silently on lock screen, waiting for user single-tap (pure black OLED, 0% CPU)
+        } else {
+            val timeoutSec = if (isPreview) 15 else timeoutSeconds
+            if (timeoutSec > 0) {
+                scheduleDismissTimeout(timeoutSec)
+            }
+        }
+    }
+
+    override fun dispatchTouchEvent(ev: MotionEvent): Boolean {
+        gestureDetector?.onTouchEvent(ev)
+        return super.dispatchTouchEvent(ev)
     }
 
     private fun scheduleDismissTimeout(seconds: Int) {
@@ -851,8 +871,8 @@ class AodNotificationActivity : AppCompatActivity() {
                 peekNames.animate().alpha(1f).setDuration(300).start()
             }
 
-            // Auto fade out back to OLED black after 6 seconds to preserve battery
-            handler.postDelayed(hidePeekRunnable, 6000L)
+            // Auto fade out back to OLED black after 8 seconds to preserve battery
+            handler.postDelayed(hidePeekRunnable, 8000L)
         }
     }
 
