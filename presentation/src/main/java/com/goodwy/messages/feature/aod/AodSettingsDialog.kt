@@ -88,7 +88,7 @@ object AodSettingsDialog {
         container.addView(alwaysOnCheck)
 
         val alwaysOnDesc = TextView(context).apply {
-            text = "با قفل شدن یا خاموش شدن گوشی، صفحه سیاه AOD فعال می‌ماند. اگر پیام جدیدی باشد چراغ چشمک‌زن نشان داده می‌شود و اگر پیامی نباشد صفحه مشکی است و با یک‌بار لمس، ساعت و تاریخ شمسی ظاهر می‌شود."
+            text = "در صورت وجود پیام خوانده‌نشده، با خاموش یا قفل شدن صفحه چراغ اعلان روشن می‌شود. اگر پیامی نباشد، برای جلوگیری از مصرف بیهوده باتری صفحه کاملاً خاموش می‌ماند."
             textSize = 11.5f
             setTextColor(Color.parseColor("#94A3B8"))
             setPadding(dp(12), dp(2), dp(12), dp(8))

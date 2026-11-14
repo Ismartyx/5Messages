@@ -182,14 +182,14 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          VERSION_NAME="1.5.6"
+          VERSION_NAME="1.5.7"
           TAG_NAME="v${VERSION_NAME}"
           gh release delete "$TAG_NAME" --yes || true
           git tag -d "$TAG_NAME" || true
           git push origin ":refs/tags/$TAG_NAME" || true
           gh release create "$TAG_NAME" signed_out/5Messages.apk \
             --title "5Messages v${VERSION_NAME}" \
-            --notes "نسخه 1.5.6: امکان تنظیم میزان روشنایی صفحه AOD و ساعت (از ۱۵٪ تا ۱۰۰٪ با پیش‌فرض پرنور و خوانا ۴۵٪)، و قابلیت روشن ماندن یکسره و مداوم ساعت و تاریخ روی صفحه همراه با به‌روزرسانی دقیق زمان یا نمایش با تک‌ضربه" \
+            --notes "نسخه 1.5.7: رفع مشکل روشن ماندن یکسره صفحه پس از قفل گوشی، خاموش ماندن کامل صفحه در صورت نبود پیام جدید (حفظ کامل باتری و Sleep عادی سیستم)، و اعمال صحیح مدت زمان تایم‌اوت" \
             --latest || gh release upload "$TAG_NAME" signed_out/5Messages.apk --clobber
 
       - name: Upload APK
