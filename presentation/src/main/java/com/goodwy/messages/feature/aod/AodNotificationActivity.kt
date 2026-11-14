@@ -178,10 +178,44 @@ class AodNotificationActivity : AppCompatActivity() {
         val snippetView = findViewById<TextView>(R.id.aodSnippet)
         val iconView = findViewById<ImageView>(R.id.aodIcon)
         val cardView = findViewById<LinearLayout>(R.id.aodMessageCard)
-        val hintView = findViewById<TextView>(R.id.aodDismissHint)
+        val peekContainer = findViewById<LinearLayout>(R.id.aodPeekNamesContainer)
+        val peekSenderName = findViewById<TextView>(R.id.aodPeekSenderName)
 
-        if (isPreview) {
-            hintView.text = "پیش‌نمایش افکت (جهت خروج دوبار ضربه بزنید)"
+        val tapRevealNames = sp.getBoolean("aod_tap_reveal_names", true)
+        val namesPos = sp.getString("aod_names_position", Preferences.AOD_NAMES_POS_RIGHT) ?: Preferences.AOD_NAMES_POS_RIGHT
+        val namesTextSize = sp.getInt("aod_names_text_size", 14)
+        val namesOpacity = sp.getInt("aod_names_opacity", 40)
+        val namesColorPref = sp.getInt("aod_names_color", -1)
+
+        val resolvedNamesColor = when {
+            namesColorPref != -1 -> namesColorPref
+            incomingColor != -1 -> incomingColor
+            else -> Color.WHITE
+        }
+
+        peekSenderName?.text = if (sender.isNotBlank()) sender else "پیام جدید"
+        peekSenderName?.textSize = namesTextSize.toFloat()
+        peekSenderName?.setTextColor(resolvedNamesColor)
+        val targetAlpha = (namesOpacity.coerceIn(10, 100) / 100f)
+        peekSenderName?.alpha = targetAlpha
+
+        val peekLp = peekContainer?.layoutParams as? FrameLayout.LayoutParams
+        if (peekLp != null) {
+            when (namesPos) {
+                Preferences.AOD_NAMES_POS_LEFT -> {
+                    peekLp.gravity = Gravity.CENTER_VERTICAL or Gravity.START
+                    peekSenderName?.gravity = Gravity.START
+                }
+                Preferences.AOD_NAMES_POS_CENTER -> {
+                    peekLp.gravity = Gravity.CENTER
+                    peekSenderName?.gravity = Gravity.CENTER
+                }
+                else -> {
+                    peekLp.gravity = Gravity.CENTER_VERTICAL or Gravity.END
+                    peekSenderName?.gravity = Gravity.END
+                }
+            }
+            peekContainer.layoutParams = peekLp
         }
 
         // Hide all initially
@@ -357,14 +391,22 @@ class AodNotificationActivity : AppCompatActivity() {
             applyCameraPlacement(screenWidth / 2f, defaultCenterY, defaultRadius)
         }
 
-        // Double-tap detector to dismiss
+        // Tap and Double-tap detector
         gestureDetector = GestureDetector(this, object : GestureDetector.SimpleOnGestureListener() {
             override fun onDoubleTap(e: MotionEvent?): Boolean {
-                finish()
+                if (!isPreview) {
+                    openConversation()
+                } else {
+                    finish()
+                }
                 return true
             }
 
             override fun onSingleTapConfirmed(e: MotionEvent?): Boolean {
+                if (tapRevealNames) {
+                    togglePeekNames()
+                    return true
+                }
                 if (isPreview) {
                     finish()
                     return true
@@ -409,6 +451,28 @@ class AodNotificationActivity : AppCompatActivity() {
         }
     }
 
+    private val hidePeekRunnable = Runnable {
+        val peekContainer = findViewById<LinearLayout>(R.id.aodPeekNamesContainer)
+        peekContainer?.animate()?.alpha(0f)?.setDuration(400)?.withEndAction {
+            peekContainer.visibility = View.GONE
+        }?.start()
+    }
+
+    private fun togglePeekNames() {
+        val peekContainer = findViewById<LinearLayout>(R.id.aodPeekNamesContainer) ?: return
+        handler.removeCallbacks(hidePeekRunnable)
+        if (peekContainer.visibility == View.VISIBLE && peekContainer.alpha > 0.05f) {
+            peekContainer.animate().alpha(0f).setDuration(250).withEndAction {
+                peekContainer.visibility = View.GONE
+            }.start()
+        } else {
+            peekContainer.alpha = 0f
+            peekContainer.visibility = View.VISIBLE
+            peekContainer.animate().alpha(1f).setDuration(300).start()
+            handler.postDelayed(hidePeekRunnable, 5000L)
+        }
+    }
+
     private fun openConversation() {
         if (!isPreview && currentThreadId > 0) {
             try {
@@ -437,5 +501,6 @@ class AodNotificationActivity : AppCompatActivity() {
         super.onDestroy()
         dotAnimator?.cancel()
         dismissRunnable?.let { handler.removeCallbacks(it) }
+        handler.removeCallbacks(hidePeekRunnable)
     }
 }

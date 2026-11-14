@@ -171,6 +171,11 @@ object AodSettingsDialog {
         var currentDotSize = prefs.aodDotSize.get()
         var currentRingRadius = prefs.aodRingRadius.get()
         var currentClockStyle = prefs.aodClockStyle.get()
+        var currentTapReveal = prefs.aodTapRevealNames.get()
+        var currentNamesPos = prefs.aodNamesPosition.get()
+        var currentNamesSize = prefs.aodNamesTextSize.get()
+        var currentNamesOpacity = prefs.aodNamesOpacity.get()
+        var currentNamesColor = prefs.aodNamesColor.get()
 
         // 2. Style Selector
         val styleOptions = arrayOf(
@@ -379,6 +384,11 @@ object AodSettingsDialog {
                 prefs.aodDotSize.set(currentDotSize)
                 prefs.aodRingRadius.set(currentRingRadius)
                 prefs.aodClockStyle.set(currentClockStyle)
+                prefs.aodTapRevealNames.set(currentTapReveal)
+                prefs.aodNamesPosition.set(currentNamesPos)
+                prefs.aodNamesTextSize.set(currentNamesSize)
+                prefs.aodNamesOpacity.set(currentNamesOpacity)
+                prefs.aodNamesColor.set(currentNamesColor)
                 prefs.aodClockStyle.set(currentClockStyle)
                 AodCalibrationActivity.start(context)
             }
@@ -407,6 +417,102 @@ object AodSettingsDialog {
                 .show()
         }
         container.addView(clockRow)
+
+        // 5. Tap to Peek Sender Names Settings
+        container.addView(createSectionTitle("نمایش نام فرستنده با یک ضربه (حریم خصوصی)"))
+
+        val tapCheck = CheckBox(context).apply {
+            text = "نمایش نام فرستندگان با یک ضربه روی صفحه (بدون متن پیام)"
+            textSize = 13.5f
+            isChecked = currentTapReveal
+            setPadding(dp(8), dp(4), dp(8), dp(4))
+            setOnCheckedChangeListener { _, isChecked ->
+                currentTapReveal = isChecked
+            }
+        }
+        container.addView(tapCheck)
+
+        val namesPosOptions = arrayOf(
+            Pair(Preferences.AOD_NAMES_POS_RIGHT, "سمت راست صفحه (پیش‌فرض)"),
+            Pair(Preferences.AOD_NAMES_POS_LEFT, "سمت چپ صفحه"),
+            Pair(Preferences.AOD_NAMES_POS_CENTER, "وسط صفحه")
+        )
+        val namesPosRow = createOptionRow(
+            "موقعیت نمایش نام",
+            namesPosOptions.firstOrNull { it.first == currentNamesPos }?.second ?: namesPosOptions[0].second
+        ) { valTv ->
+            AlertDialog.Builder(context)
+                .setTitle("انتخاب موقعیت نام روی صفحه")
+                .setItems(namesPosOptions.map { it.second }.toTypedArray()) { _, which ->
+                    currentNamesPos = namesPosOptions[which].first
+                    valTv.text = namesPosOptions[which].second
+                }
+                .show()
+        }
+        container.addView(namesPosRow)
+
+        val namesSizeOptions = arrayOf(
+            Pair(12, "۱۲sp (بسیار ریز و ظریف)"),
+            Pair(14, "۱۴sp (استاندارد)"),
+            Pair(16, "۱۶sp (متوسط و خوانا)"),
+            Pair(18, "۱۸sp (درشت)")
+        )
+        val namesSizeRow = createOptionRow(
+            "اندازه قلم نام",
+            namesSizeOptions.firstOrNull { it.first == currentNamesSize }?.second ?: "${currentNamesSize}sp"
+        ) { valTv ->
+            AlertDialog.Builder(context)
+                .setTitle("انتخاب اندازه قلم نام")
+                .setItems(namesSizeOptions.map { it.second }.toTypedArray()) { _, which ->
+                    currentNamesSize = namesSizeOptions[which].first
+                    valTv.text = namesSizeOptions[which].second
+                }
+                .show()
+        }
+        container.addView(namesSizeRow)
+
+        val namesOpacityOptions = arrayOf(
+            Pair(25, "۲۵٪ (بسیار محو و کم‌رنگ - محرمانه)"),
+            Pair(40, "۴۰٪ (کم‌رنگ ملایم - پیش‌فرض)"),
+            Pair(60, "۶۰٪ (نیمه‌روشن)"),
+            Pair(80, "۸۰٪ (روشن)"),
+            Pair(100, "۱۰۰٪ (کاملاً درخشان و واضح)")
+        )
+        val namesOpacityRow = createOptionRow(
+            "شدت روشنایی و کم‌رنگی",
+            namesOpacityOptions.firstOrNull { it.first == currentNamesOpacity }?.second ?: "${currentNamesOpacity}٪"
+        ) { valTv ->
+            AlertDialog.Builder(context)
+                .setTitle("انتخاب شدت شفافیت نام")
+                .setItems(namesOpacityOptions.map { it.second }.toTypedArray()) { _, which ->
+                    currentNamesOpacity = namesOpacityOptions[which].first
+                    valTv.text = namesOpacityOptions[which].second
+                }
+                .show()
+        }
+        container.addView(namesOpacityRow)
+
+        val namesColorOptions = arrayOf(
+            Pair(-1, "🎨 هماهنگ با فرستنده پیام"),
+            Pair(Color.WHITE, "⚪ سفید ملایم (پیش‌فرض)"),
+            Pair(Color.parseColor("#0EA5E9"), "🔵 آبی نئونی"),
+            Pair(Color.parseColor("#10B981"), "🟢 سبز زمردی"),
+            Pair(Color.parseColor("#8B5CF6"), "🟣 بنفش"),
+            Pair(Color.parseColor("#F59E0B"), "🟡 کهربایی / طلایی")
+        )
+        val namesColorRow = createOptionRow(
+            "رنگ نام فرستنده",
+            namesColorOptions.firstOrNull { it.first == currentNamesColor }?.second ?: namesColorOptions[0].second
+        ) { valTv ->
+            AlertDialog.Builder(context)
+                .setTitle("انتخاب رنگ نام فرستنده")
+                .setItems(namesColorOptions.map { it.second }.toTypedArray()) { _, which ->
+                    currentNamesColor = namesColorOptions[which].first
+                    valTv.text = namesColorOptions[which].second
+                }
+                .show()
+        }
+        container.addView(namesColorRow)
 
         // 6. Test Preview Button
         val previewBtn = Button(context).apply {
@@ -437,6 +543,11 @@ object AodSettingsDialog {
                 prefs.aodDotSize.set(currentDotSize)
                 prefs.aodRingRadius.set(currentRingRadius)
                 prefs.aodClockStyle.set(currentClockStyle)
+                prefs.aodTapRevealNames.set(currentTapReveal)
+                prefs.aodNamesPosition.set(currentNamesPos)
+                prefs.aodNamesTextSize.set(currentNamesSize)
+                prefs.aodNamesOpacity.set(currentNamesOpacity)
+                prefs.aodNamesColor.set(currentNamesColor)
 
                 AodNotificationActivity.start(
                     context = context,
@@ -464,6 +575,11 @@ object AodSettingsDialog {
                 prefs.aodDotSize.set(currentDotSize)
                 prefs.aodRingRadius.set(currentRingRadius)
                 prefs.aodClockStyle.set(currentClockStyle)
+                prefs.aodTapRevealNames.set(currentTapReveal)
+                prefs.aodNamesPosition.set(currentNamesPos)
+                prefs.aodNamesTextSize.set(currentNamesSize)
+                prefs.aodNamesOpacity.set(currentNamesOpacity)
+                prefs.aodNamesColor.set(currentNamesColor)
                 onSaved?.invoke()
             }
             .setNegativeButton("انصراف", null)

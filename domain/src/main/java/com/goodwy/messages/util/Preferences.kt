@@ -48,6 +48,10 @@ class Preferences @Inject constructor(
         const val AOD_CLOCK_NEON = "neon"
         const val AOD_CLOCK_DIAL = "circle_dial"
 
+        const val AOD_NAMES_POS_RIGHT = "right"
+        const val AOD_NAMES_POS_LEFT = "left"
+        const val AOD_NAMES_POS_CENTER = "center"
+
         const val NOTIFICATION_PREVIEWS_ALL = 0
         const val NOTIFICATION_PREVIEWS_NAME = 1
         const val NOTIFICATION_PREVIEWS_NONE = 2
@@ -241,4 +245,9 @@ class Preferences @Inject constructor(
     val aodClockStyle = rxPrefs.getString("aod_clock_style", AOD_CLOCK_CLASSIC)
     val aodCustomX = rxPrefs.getInteger("aod_custom_x", -1)
     val aodCustomY = rxPrefs.getInteger("aod_custom_y", -1)
+    val aodTapRevealNames = rxPrefs.getBoolean("aod_tap_reveal_names", true)
+    val aodNamesPosition = rxPrefs.getString("aod_names_position", AOD_NAMES_POS_RIGHT)
+    val aodNamesTextSize = rxPrefs.getInteger("aod_names_text_size", 14)
+    val aodNamesOpacity = rxPrefs.getInteger("aod_names_opacity", 40)
+    val aodNamesColor = rxPrefs.getInteger("aod_names_color", -1)
 }

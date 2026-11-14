@@ -180,15 +180,26 @@
 
     </LinearLayout>
 
-    <!-- Dismiss Hint -->
-    <TextView
-        android:id="@+id/aodDismissHint"
+    <!-- Peeked Sender Names on Single Tap (Subtle & Faint on screen edge) -->
+    <LinearLayout
+        android:id="@+id/aodPeekNamesContainer"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_gravity="bottom|center_horizontal"
-        android:layout_marginBottom="32dp"
-        android:textColor="#71717A"
-        android:textSize="12sp"
-        android:text="@string/aod_dismiss_hint" />
+        android:layout_gravity="center_vertical|end"
+        android:layout_marginStart="24dp"
+        android:layout_marginEnd="24dp"
+        android:orientation="vertical"
+        android:visibility="gone">
+
+        <TextView
+            android:id="@+id/aodPeekSenderName"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textColor="#FFFFFF"
+            android:textSize="14sp"
+            android:alpha="0.4"
+            android:includeFontPadding="false"
+            android:text="فرستنده" />
+    </LinearLayout>
 
 </FrameLayout>
