@@ -63,6 +63,7 @@ object AodSettingsDialog {
         var currentDotSize = prefs.aodDotSize.get()
         var currentRingRadius = prefs.aodRingRadius.get()
         var currentClockStyle = prefs.aodClockStyle.get()
+        var currentClockScale = prefs.aodClockScale.get()
         var currentTapReveal = prefs.aodTapRevealNames.get()
         var currentTapRevealClock = prefs.aodTapRevealClock.get()
         var currentNamesPos = prefs.aodNamesPosition.get()
@@ -337,6 +338,31 @@ object AodSettingsDialog {
         }
         container.addView(clockRow)
 
+        // 6.1 Clock Size / Dimensions Selector
+        val clockScaleOptions = arrayOf(
+            Pair(60, "۶۰٪ (بسیار ریز و مینیاتوری)"),
+            Pair(75, "۷۵٪ (کوچک و ظریف)"),
+            Pair(85, "۸۵٪ (کمی کوچک‌تر از معمول)"),
+            Pair(100, "۱۰۰٪ (اندازه استاندارد - پیش‌فرض)"),
+            Pair(115, "۱۱۵٪ (کمی درشت‌تر و خواناتر)"),
+            Pair(130, "۱۳۰٪ (بزرگ و نمایان)"),
+            Pair(150, "۱۵۰٪ (خیلی بزرگ)"),
+            Pair(175, "۱۷۵٪ (فوق‌العاده درشت)")
+        )
+        val clockScaleRow = createOptionRow(
+            "اندازه و ابعاد ساعت",
+            clockScaleOptions.firstOrNull { it.first == currentClockScale }?.second ?: "${currentClockScale}٪"
+        ) { valTv ->
+            AlertDialog.Builder(context)
+                .setTitle("انتخاب اندازه و ابعاد ساعت")
+                .setItems(clockScaleOptions.map { it.second }.toTypedArray()) { _, which ->
+                    currentClockScale = clockScaleOptions[which].first
+                    valTv.text = clockScaleOptions[which].second
+                }
+                .show()
+        }
+        container.addView(clockScaleRow)
+
         // 7. Fine-tuning Size and Position
         container.addView(createSectionTitle("تنظیم اندازه و موقعیت دقیق (هماهنگی با دوربین)"))
 
@@ -454,6 +480,7 @@ object AodSettingsDialog {
                 prefs.aodDotSize.set(currentDotSize)
                 prefs.aodRingRadius.set(currentRingRadius)
                 prefs.aodClockStyle.set(currentClockStyle)
+                prefs.aodClockScale.set(currentClockScale)
                 prefs.aodTapRevealNames.set(currentTapReveal)
                 prefs.aodTapRevealClock.set(currentTapRevealClock)
                 prefs.aodNamesPosition.set(currentNamesPos)
@@ -602,6 +629,7 @@ object AodSettingsDialog {
                 prefs.aodDotSize.set(currentDotSize)
                 prefs.aodRingRadius.set(currentRingRadius)
                 prefs.aodClockStyle.set(currentClockStyle)
+                prefs.aodClockScale.set(currentClockScale)
                 prefs.aodTapRevealNames.set(currentTapReveal)
                 prefs.aodTapRevealClock.set(currentTapRevealClock)
                 prefs.aodNamesPosition.set(currentNamesPos)
@@ -638,6 +666,7 @@ object AodSettingsDialog {
                 prefs.aodDotSize.set(currentDotSize)
                 prefs.aodRingRadius.set(currentRingRadius)
                 prefs.aodClockStyle.set(currentClockStyle)
+                prefs.aodClockScale.set(currentClockScale)
                 prefs.aodTapRevealNames.set(currentTapReveal)
                 prefs.aodTapRevealClock.set(currentTapRevealClock)
                 prefs.aodNamesPosition.set(currentNamesPos)

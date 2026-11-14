@@ -293,6 +293,7 @@ class AodNotificationActivity : AppCompatActivity() {
         val aodStyle = sp.getString("aod_style", Preferences.AOD_STYLE_LED) ?: Preferences.AOD_STYLE_LED
         val aodPosition = sp.getString("aod_position", Preferences.AOD_POS_TOP_RIGHT) ?: Preferences.AOD_POS_TOP_RIGHT
         val aodClockStyle = sp.getString("aod_clock_style", Preferences.AOD_CLOCK_CLASSIC) ?: Preferences.AOD_CLOCK_CLASSIC
+        val aodClockScale = sp.getInt("aod_clock_scale", 100)
         val aodColorPref = sp.getInt("aod_color", -1)
         val timeoutSeconds = if (isPreview) 6 else sp.getInt("aod_timeout", 30)
         val shamsiEnabled = sp.getBoolean("shamsi_calendar", true)
@@ -422,6 +423,7 @@ class AodNotificationActivity : AppCompatActivity() {
 
                 Preferences.AOD_STYLE_MINIMAL -> {
                     minimalContainer.visibility = View.VISIBLE
+                    val scale = (aodClockScale.coerceIn(50, 250) / 100f)
 
                     val is24 = DateFormat.is24HourFormat(this@AodNotificationActivity)
                     val timePattern = if (is24) "HH:mm" else "h:mm a"
@@ -440,25 +442,36 @@ class AodNotificationActivity : AppCompatActivity() {
                         Preferences.AOD_CLOCK_STACKED -> {
                             stackedContainer.visibility = View.VISIBLE
                             hoursView.text = hoursString
+                            hoursView.textSize = 60f * scale
                             minutesView.text = minutesString
+                            minutesView.textSize = 60f * scale
                             minutesView.setTextColor(resolvedColor)
                         }
                         Preferences.AOD_CLOCK_ANALOG -> {
                             analogClock.visibility = View.VISIBLE
+                            val analogParams = analogClock.layoutParams
+                            if (analogParams != null) {
+                                analogParams.width = (150f * density * scale).toInt()
+                                analogParams.height = (150f * density * scale).toInt()
+                                analogClock.layoutParams = analogParams
+                            }
                             analogClock.setAccentColor(resolvedColor)
                         }
                         Preferences.AOD_CLOCK_NEON -> {
                             clockView.visibility = View.VISIBLE
                             clockView.text = timeString
+                            clockView.textSize = 56f * scale
                             clockView.setShadowLayer(25f, 0f, 0f, resolvedColor)
                             clockView.setTextColor(Color.WHITE)
                         }
                         Preferences.AOD_CLOCK_DIAL -> {
                             dialContainer.visibility = View.VISIBLE
                             dialText.text = timeString
+                            dialText.textSize = 44f * scale
                             val pct = getBatteryPercentage(this@AodNotificationActivity)
                             if (pct >= 0) {
                                 batteryBadge.text = "⚡ $pct% باتری"
+                                batteryBadge.textSize = (12f * Math.sqrt(scale.toDouble())).toFloat()
                                 batteryBadge.visibility = View.VISIBLE
                             } else {
                                 batteryBadge.visibility = View.GONE
@@ -467,6 +480,7 @@ class AodNotificationActivity : AppCompatActivity() {
                         else -> { // Classic
                             clockView.visibility = View.VISIBLE
                             clockView.text = timeString
+                            clockView.textSize = 56f * scale
                             clockView.setShadowLayer(0f, 0f, 0f, 0)
                             clockView.setTextColor(Color.WHITE)
                         }
@@ -481,6 +495,7 @@ class AodNotificationActivity : AppCompatActivity() {
                     } else {
                         dateView.text = SimpleDateFormat("EEEE, d MMMM", Locale.getDefault()).format(Date(now))
                     }
+                    dateView.textSize = (14f * Math.sqrt(scale.toDouble())).toFloat()
 
                     if (hasNewMessage && sender.isNotBlank()) {
                         cardView.visibility = View.VISIBLE
@@ -574,7 +589,7 @@ class AodNotificationActivity : AppCompatActivity() {
             }
 
             override fun onSingleTapConfirmed(e: MotionEvent?): Boolean {
-                togglePeekClockAndNames(resolvedColor, aodClockStyle, shamsiEnabled, tapRevealNames)
+                togglePeekClockAndNames(resolvedColor, aodClockStyle, aodClockScale, shamsiEnabled, tapRevealNames)
                 return true
             }
         })
@@ -632,6 +647,7 @@ class AodNotificationActivity : AppCompatActivity() {
     private fun togglePeekClockAndNames(
         accentColor: Int,
         clockStyle: String,
+        clockScale: Int,
         shamsiEnabled: Boolean,
         tapRevealNames: Boolean
     ) {
@@ -648,7 +664,10 @@ class AodNotificationActivity : AppCompatActivity() {
                 peekNames.visibility = View.GONE
             }?.start()
         } else {
-            // Reveal clock and date in user's chosen style!
+            // Reveal clock and date in user's chosen style and custom dimensions!
+            val scale = (clockScale.coerceIn(50, 250) / 100f)
+            val density = resources.displayMetrics.density
+
             val peekTime = findViewById<TextView>(R.id.aodPeekClockTime)
             val peekStacked = findViewById<LinearLayout>(R.id.aodPeekClockStackedContainer)
             val peekHours = findViewById<TextView>(R.id.aodPeekClockHours)
@@ -673,26 +692,37 @@ class AodNotificationActivity : AppCompatActivity() {
                     peekStacked?.visibility = View.VISIBLE
                     val hoursPattern = if (is24) "HH" else "hh"
                     peekHours?.text = SimpleDateFormat(hoursPattern, Locale.US).format(Date())
+                    peekHours?.textSize = 48f * scale
                     peekMinutes?.text = SimpleDateFormat("mm", Locale.US).format(Date())
+                    peekMinutes?.textSize = 48f * scale
                     peekMinutes?.setTextColor(accentColor)
                 }
                 Preferences.AOD_CLOCK_ANALOG -> {
                     peekAnalog?.visibility = View.VISIBLE
+                    val analogParams = peekAnalog?.layoutParams
+                    if (analogParams != null) {
+                        analogParams.width = (140f * density * scale).toInt()
+                        analogParams.height = (140f * density * scale).toInt()
+                        peekAnalog.layoutParams = analogParams
+                    }
                     peekAnalog?.setAccentColor(accentColor)
                     peekAnalog?.invalidate()
                 }
                 Preferences.AOD_CLOCK_NEON -> {
                     peekTime?.visibility = View.VISIBLE
                     peekTime?.text = timeString
+                    peekTime?.textSize = 44f * scale
                     peekTime?.setShadowLayer(25f, 0f, 0f, accentColor)
                     peekTime?.setTextColor(Color.WHITE)
                 }
                 Preferences.AOD_CLOCK_DIAL -> {
                     peekDial?.visibility = View.VISIBLE
                     peekDialText?.text = timeString
+                    peekDialText?.textSize = 36f * scale
                     val pct = getBatteryPercentage(this)
                     if (pct >= 0) {
                         peekBattery?.text = "⚡ $pct% باتری"
+                        peekBattery?.textSize = (11f * Math.sqrt(scale.toDouble())).toFloat()
                         peekBattery?.visibility = View.VISIBLE
                     } else {
                         peekBattery?.visibility = View.GONE
@@ -701,6 +731,7 @@ class AodNotificationActivity : AppCompatActivity() {
                 else -> { // Classic
                     peekTime?.visibility = View.VISIBLE
                     peekTime?.text = timeString
+                    peekTime?.textSize = 44f * scale
                     peekTime?.setShadowLayer(0f, 0f, 0f, 0)
                     peekTime?.setTextColor(Color.WHITE)
                 }
@@ -716,6 +747,7 @@ class AodNotificationActivity : AppCompatActivity() {
             } else {
                 peekDate?.text = SimpleDateFormat("EEEE, d MMMM", Locale.getDefault()).format(Date(now))
             }
+            peekDate?.textSize = (13f * Math.sqrt(scale.toDouble())).toFloat()
 
             peekClock.alpha = 0f
             peekClock.visibility = View.VISIBLE

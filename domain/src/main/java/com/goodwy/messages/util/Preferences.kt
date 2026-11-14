@@ -243,6 +243,7 @@ class Preferences @Inject constructor(
     val aodDotSize = rxPrefs.getInteger("aod_dot_size", 6)
     val aodRingRadius = rxPrefs.getInteger("aod_ring_radius", 0)
     val aodClockStyle = rxPrefs.getString("aod_clock_style", AOD_CLOCK_CLASSIC)
+    val aodClockScale = rxPrefs.getInteger("aod_clock_scale", 100)
     val aodCustomX = rxPrefs.getInteger("aod_custom_x", -1)
     val aodCustomY = rxPrefs.getInteger("aod_custom_y", -1)
     val aodTapRevealNames = rxPrefs.getBoolean("aod_tap_reveal_names", true)
