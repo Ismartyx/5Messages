@@ -160,6 +160,23 @@ class AodNotificationActivity : AppCompatActivity() {
     // Broadcast receiver to dismiss AOD when user unlocks phone
     private var unlockReceiver: BroadcastReceiver? = null
 
+    private var cachedColor: Int = -1
+
+    private val timeUpdateRunnable = object : Runnable {
+        override fun run() {
+            val sp = getSharedPreferences("${packageName}_preferences", Context.MODE_PRIVATE)
+            val style = sp.getString("aod_clock_style", Preferences.AOD_CLOCK_CLASSIC) ?: Preferences.AOD_CLOCK_CLASSIC
+            val scale = sp.getInt("aod_clock_scale", 100)
+            val shamsi = sp.getBoolean("shamsi_calendar", true)
+            val color = if (cachedColor != -1) cachedColor else Color.parseColor("#0EA5E9")
+            renderPeekClock(color, style, scale, shamsi)
+
+            val now = System.currentTimeMillis()
+            val delay = 60000L - (now % 60000L)
+            handler.postDelayed(this, delay.coerceAtLeast(1000L))
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         setupWindowFlags()
         super.onCreate(savedInstanceState)
@@ -194,9 +211,12 @@ class AodNotificationActivity : AppCompatActivity() {
         }
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
 
-        // Dim brightness to 3% to preserve maximum battery on AMOLED/OLED screens
+        // Configurable screen brightness for AOD (defaults to 45% for clear visibility)
+        val sp = getSharedPreferences("${packageName}_preferences", Context.MODE_PRIVATE)
+        val aodBrightness = sp.getInt("aod_brightness", 45)
+        val targetBrightness = (aodBrightness.coerceIn(5, 100) / 100f)
         val lp = window.attributes
-        lp.screenBrightness = 0.03f
+        lp.screenBrightness = targetBrightness
         window.attributes = lp
 
         // Immersive sticky fullscreen
@@ -249,11 +269,21 @@ class AodNotificationActivity : AppCompatActivity() {
             lp.screenBrightness = 0.0f
             window.attributes = lp
             root?.visibility = View.INVISIBLE
+            handler.removeCallbacks(timeUpdateRunnable)
         } else {
-            // Restore dim display
-            lp.screenBrightness = 0.03f
+            // Restore configured display brightness
+            val sp = getSharedPreferences("${packageName}_preferences", Context.MODE_PRIVATE)
+            val aodBrightness = sp.getInt("aod_brightness", 45)
+            val targetBrightness = (aodBrightness.coerceIn(5, 100) / 100f)
+            lp.screenBrightness = targetBrightness
             window.attributes = lp
             root?.visibility = View.VISIBLE
+
+            val alwaysVis = sp.getBoolean("aod_clock_always_visible", true)
+            if (alwaysVis) {
+                handler.removeCallbacks(timeUpdateRunnable)
+                handler.post(timeUpdateRunnable)
+            }
         }
     }
 
@@ -294,6 +324,7 @@ class AodNotificationActivity : AppCompatActivity() {
         val aodPosition = sp.getString("aod_position", Preferences.AOD_POS_TOP_RIGHT) ?: Preferences.AOD_POS_TOP_RIGHT
         val aodClockStyle = sp.getString("aod_clock_style", Preferences.AOD_CLOCK_CLASSIC) ?: Preferences.AOD_CLOCK_CLASSIC
         val aodClockScale = sp.getInt("aod_clock_scale", 100)
+        val aodClockAlwaysVisible = sp.getBoolean("aod_clock_always_visible", true)
         val aodColorPref = sp.getInt("aod_color", -1)
         val timeoutSeconds = if (isPreview) 6 else sp.getInt("aod_timeout", 30)
         val shamsiEnabled = sp.getBoolean("shamsi_calendar", true)
@@ -310,6 +341,7 @@ class AodNotificationActivity : AppCompatActivity() {
             incomingColor != -1 -> incomingColor
             else -> Color.parseColor("#0EA5E9")
         }
+        cachedColor = resolvedColor
 
         // Determine if an unread / new message exists
         hasNewMessage = isPreview || sender.isNotBlank() || currentThreadId > 0 || hasUnreadSms(this)
@@ -589,6 +621,13 @@ class AodNotificationActivity : AppCompatActivity() {
             }
 
             override fun onSingleTapConfirmed(e: MotionEvent?): Boolean {
+                if (aodClockAlwaysVisible && aodStyle != Preferences.AOD_STYLE_MINIMAL) {
+                    renderPeekClock(resolvedColor, aodClockStyle, aodClockScale, shamsiEnabled)
+                    if (hasNewMessage && tapRevealNames) {
+                        togglePeekNamesOnly()
+                    }
+                    return true
+                }
                 togglePeekClockAndNames(resolvedColor, aodClockStyle, aodClockScale, shamsiEnabled, tapRevealNames)
                 return true
             }
@@ -597,6 +636,19 @@ class AodNotificationActivity : AppCompatActivity() {
         aodRoot.setOnTouchListener { _, event ->
             gestureDetector?.onTouchEvent(event) ?: false
             true
+        }
+
+        // Show continuous clock immediately if enabled
+        if (aodClockAlwaysVisible && aodStyle != Preferences.AOD_STYLE_MINIMAL) {
+            val peekClock = findViewById<LinearLayout>(R.id.aodPeekClockContainer)
+            peekClock?.alpha = 1f
+            peekClock?.visibility = View.VISIBLE
+            renderPeekClock(resolvedColor, aodClockStyle, aodClockScale, shamsiEnabled)
+
+            handler.removeCallbacks(timeUpdateRunnable)
+            val now = System.currentTimeMillis()
+            val delay = 60000L - (now % 60000L)
+            handler.postDelayed(timeUpdateRunnable, delay.coerceAtLeast(1000L))
         }
 
         // Schedule auto dismiss only if NOT in Always-On mode
@@ -644,6 +696,119 @@ class AodNotificationActivity : AppCompatActivity() {
         }?.start()
     }
 
+    private fun renderPeekClock(
+        accentColor: Int,
+        clockStyle: String,
+        clockScale: Int,
+        shamsiEnabled: Boolean
+    ) {
+        val scale = (clockScale.coerceIn(50, 250) / 100f)
+        val density = resources.displayMetrics.density
+
+        val peekTime = findViewById<TextView>(R.id.aodPeekClockTime)
+        val peekStacked = findViewById<LinearLayout>(R.id.aodPeekClockStackedContainer)
+        val peekHours = findViewById<TextView>(R.id.aodPeekClockHours)
+        val peekMinutes = findViewById<TextView>(R.id.aodPeekClockMinutes)
+        val peekAnalog = findViewById<AodAnalogClockView>(R.id.aodPeekAnalogClock)
+        val peekDial = findViewById<LinearLayout>(R.id.aodPeekClockDialContainer)
+        val peekBattery = findViewById<TextView>(R.id.aodPeekBatteryBadge)
+        val peekDialText = findViewById<TextView>(R.id.aodPeekClockDialText)
+        val peekDate = findViewById<TextView>(R.id.aodPeekClockDate)
+
+        val is24 = DateFormat.is24HourFormat(this)
+        val timePattern = if (is24) "HH:mm" else "h:mm a"
+        val timeString = SimpleDateFormat(timePattern, Locale.US).format(Date())
+
+        peekTime?.visibility = View.GONE
+        peekStacked?.visibility = View.GONE
+        peekAnalog?.visibility = View.GONE
+        peekDial?.visibility = View.GONE
+
+        when (clockStyle) {
+            Preferences.AOD_CLOCK_STACKED -> {
+                peekStacked?.visibility = View.VISIBLE
+                val hoursPattern = if (is24) "HH" else "hh"
+                peekHours?.text = SimpleDateFormat(hoursPattern, Locale.US).format(Date())
+                peekHours?.textSize = 48f * scale
+                peekMinutes?.text = SimpleDateFormat("mm", Locale.US).format(Date())
+                peekMinutes?.textSize = 48f * scale
+                peekMinutes?.setTextColor(accentColor)
+            }
+            Preferences.AOD_CLOCK_ANALOG -> {
+                peekAnalog?.visibility = View.VISIBLE
+                val analogParams = peekAnalog?.layoutParams
+                if (analogParams != null) {
+                    analogParams.width = (140f * density * scale).toInt()
+                    analogParams.height = (140f * density * scale).toInt()
+                    peekAnalog.layoutParams = analogParams
+                }
+                peekAnalog?.setAccentColor(accentColor)
+                peekAnalog?.invalidate()
+            }
+            Preferences.AOD_CLOCK_NEON -> {
+                peekTime?.visibility = View.VISIBLE
+                peekTime?.text = timeString
+                peekTime?.textSize = 44f * scale
+                peekTime?.setShadowLayer(25f, 0f, 0f, accentColor)
+                peekTime?.setTextColor(Color.WHITE)
+            }
+            Preferences.AOD_CLOCK_DIAL -> {
+                peekDial?.visibility = View.VISIBLE
+                peekDialText?.text = timeString
+                peekDialText?.textSize = 36f * scale
+                val pct = getBatteryPercentage(this)
+                if (pct >= 0) {
+                    peekBattery?.text = "⚡ $pct% باتری"
+                    peekBattery?.textSize = (11f * Math.sqrt(scale.toDouble())).toFloat()
+                    peekBattery?.visibility = View.VISIBLE
+                } else {
+                    peekBattery?.visibility = View.GONE
+                }
+            }
+            else -> { // Classic
+                peekTime?.visibility = View.VISIBLE
+                peekTime?.text = timeString
+                peekTime?.textSize = 44f * scale
+                peekTime?.setShadowLayer(0f, 0f, 0f, 0)
+                peekTime?.setTextColor(Color.WHITE)
+            }
+        }
+
+        // Shamsi or Gregorian Date
+        val now = System.currentTimeMillis()
+        if (shamsiEnabled) {
+            val j = JalaliDateHelper.fromMillis(now)
+            val weekday = JalaliDateHelper.getWeekdayName(now)
+            val monthName = JalaliDateHelper.getMonthName(j.month)
+            peekDate?.text = "$weekday، ${j.day} $monthName ${j.year}"
+        } else {
+            peekDate?.text = SimpleDateFormat("EEEE, d MMMM", Locale.getDefault()).format(Date(now))
+        }
+        peekDate?.textSize = (13f * Math.sqrt(scale.toDouble())).toFloat()
+    }
+
+    private val hidePeekNamesOnlyRunnable = Runnable {
+        val peekNames = findViewById<LinearLayout>(R.id.aodPeekNamesContainer)
+        peekNames?.animate()?.alpha(0f)?.setDuration(350)?.withEndAction {
+            peekNames.visibility = View.GONE
+        }?.start()
+    }
+
+    private fun togglePeekNamesOnly() {
+        val peekNames = findViewById<LinearLayout>(R.id.aodPeekNamesContainer) ?: return
+        handler.removeCallbacks(hidePeekNamesOnlyRunnable)
+        if (peekNames.visibility == View.VISIBLE && peekNames.alpha > 0.05f) {
+            peekNames.animate().alpha(0f).setDuration(250).withEndAction {
+                peekNames.visibility = View.GONE
+            }.start()
+        } else {
+            peekNames.alpha = 0f
+            peekNames.visibility = View.VISIBLE
+            peekNames.animate().alpha(1f).setDuration(300).start()
+            handler.postDelayed(hidePeekNamesOnlyRunnable, 6000L)
+        }
+    }
+
     private fun togglePeekClockAndNames(
         accentColor: Int,
         clockStyle: String,
@@ -664,90 +829,7 @@ class AodNotificationActivity : AppCompatActivity() {
                 peekNames.visibility = View.GONE
             }?.start()
         } else {
-            // Reveal clock and date in user's chosen style and custom dimensions!
-            val scale = (clockScale.coerceIn(50, 250) / 100f)
-            val density = resources.displayMetrics.density
-
-            val peekTime = findViewById<TextView>(R.id.aodPeekClockTime)
-            val peekStacked = findViewById<LinearLayout>(R.id.aodPeekClockStackedContainer)
-            val peekHours = findViewById<TextView>(R.id.aodPeekClockHours)
-            val peekMinutes = findViewById<TextView>(R.id.aodPeekClockMinutes)
-            val peekAnalog = findViewById<AodAnalogClockView>(R.id.aodPeekAnalogClock)
-            val peekDial = findViewById<LinearLayout>(R.id.aodPeekClockDialContainer)
-            val peekBattery = findViewById<TextView>(R.id.aodPeekBatteryBadge)
-            val peekDialText = findViewById<TextView>(R.id.aodPeekClockDialText)
-            val peekDate = findViewById<TextView>(R.id.aodPeekClockDate)
-
-            val is24 = DateFormat.is24HourFormat(this)
-            val timePattern = if (is24) "HH:mm" else "h:mm a"
-            val timeString = SimpleDateFormat(timePattern, Locale.US).format(Date())
-
-            peekTime?.visibility = View.GONE
-            peekStacked?.visibility = View.GONE
-            peekAnalog?.visibility = View.GONE
-            peekDial?.visibility = View.GONE
-
-            when (clockStyle) {
-                Preferences.AOD_CLOCK_STACKED -> {
-                    peekStacked?.visibility = View.VISIBLE
-                    val hoursPattern = if (is24) "HH" else "hh"
-                    peekHours?.text = SimpleDateFormat(hoursPattern, Locale.US).format(Date())
-                    peekHours?.textSize = 48f * scale
-                    peekMinutes?.text = SimpleDateFormat("mm", Locale.US).format(Date())
-                    peekMinutes?.textSize = 48f * scale
-                    peekMinutes?.setTextColor(accentColor)
-                }
-                Preferences.AOD_CLOCK_ANALOG -> {
-                    peekAnalog?.visibility = View.VISIBLE
-                    val analogParams = peekAnalog?.layoutParams
-                    if (analogParams != null) {
-                        analogParams.width = (140f * density * scale).toInt()
-                        analogParams.height = (140f * density * scale).toInt()
-                        peekAnalog.layoutParams = analogParams
-                    }
-                    peekAnalog?.setAccentColor(accentColor)
-                    peekAnalog?.invalidate()
-                }
-                Preferences.AOD_CLOCK_NEON -> {
-                    peekTime?.visibility = View.VISIBLE
-                    peekTime?.text = timeString
-                    peekTime?.textSize = 44f * scale
-                    peekTime?.setShadowLayer(25f, 0f, 0f, accentColor)
-                    peekTime?.setTextColor(Color.WHITE)
-                }
-                Preferences.AOD_CLOCK_DIAL -> {
-                    peekDial?.visibility = View.VISIBLE
-                    peekDialText?.text = timeString
-                    peekDialText?.textSize = 36f * scale
-                    val pct = getBatteryPercentage(this)
-                    if (pct >= 0) {
-                        peekBattery?.text = "⚡ $pct% باتری"
-                        peekBattery?.textSize = (11f * Math.sqrt(scale.toDouble())).toFloat()
-                        peekBattery?.visibility = View.VISIBLE
-                    } else {
-                        peekBattery?.visibility = View.GONE
-                    }
-                }
-                else -> { // Classic
-                    peekTime?.visibility = View.VISIBLE
-                    peekTime?.text = timeString
-                    peekTime?.textSize = 44f * scale
-                    peekTime?.setShadowLayer(0f, 0f, 0f, 0)
-                    peekTime?.setTextColor(Color.WHITE)
-                }
-            }
-
-            // Shamsi or Gregorian Date
-            val now = System.currentTimeMillis()
-            if (shamsiEnabled) {
-                val j = JalaliDateHelper.fromMillis(now)
-                val weekday = JalaliDateHelper.getWeekdayName(now)
-                val monthName = JalaliDateHelper.getMonthName(j.month)
-                peekDate?.text = "$weekday، ${j.day} $monthName ${j.year}"
-            } else {
-                peekDate?.text = SimpleDateFormat("EEEE, d MMMM", Locale.getDefault()).format(Date(now))
-            }
-            peekDate?.textSize = (13f * Math.sqrt(scale.toDouble())).toFloat()
+            renderPeekClock(accentColor, clockStyle, clockScale, shamsiEnabled)
 
             peekClock.alpha = 0f
             peekClock.visibility = View.VISIBLE
@@ -794,6 +876,8 @@ class AodNotificationActivity : AppCompatActivity() {
         dotAnimator?.cancel()
         dismissRunnable?.let { handler.removeCallbacks(it) }
         handler.removeCallbacks(hidePeekRunnable)
+        handler.removeCallbacks(timeUpdateRunnable)
+        handler.removeCallbacks(hidePeekNamesOnlyRunnable)
 
         proximityListener?.let {
             try {

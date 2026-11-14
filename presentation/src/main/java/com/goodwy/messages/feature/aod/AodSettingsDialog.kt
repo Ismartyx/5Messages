@@ -54,6 +54,8 @@ object AodSettingsDialog {
         // Current state variables
         var currentAlwaysOn = prefs.aodAlwaysOn.get()
         var currentPocketMode = prefs.aodPocketMode.get()
+        var currentBrightness = prefs.aodBrightness.get()
+        var currentClockAlwaysVisible = prefs.aodClockAlwaysVisible.get()
         var currentStyle = prefs.aodStyle.get()
         var currentPos = prefs.aodPosition.get()
         var currentColor = prefs.aodColor.get()
@@ -92,6 +94,28 @@ object AodSettingsDialog {
             setPadding(dp(12), dp(2), dp(12), dp(8))
         }
         container.addView(alwaysOnDesc)
+
+        // 1.2 Continuous Clock Mode (Always visible vs Tap-to-wake)
+        val clockAlwaysVisibleCheck = CheckBox(context).apply {
+            text = "⏰ روشن ماندن یکسره ساعت و تاریخ روی صفحه (Always On)"
+            textSize = 13.5f
+            setTypeface(null, Typeface.BOLD)
+            isChecked = currentClockAlwaysVisible
+            setTextColor(Color.parseColor("#F59E0B"))
+            setPadding(dp(8), dp(4), dp(8), dp(4))
+            setOnCheckedChangeListener { _, isChecked ->
+                currentClockAlwaysVisible = isChecked
+            }
+        }
+        container.addView(clockAlwaysVisibleCheck)
+
+        val clockAlwaysVisibleDesc = TextView(context).apply {
+            text = "ساعت و تاریخ شمسی به صورت یکسره و مداوم روی صفحه قفل روشن می‌مانند. در صورت خاموش بودن، ساعت فقط با یک ضربه روی صفحه پدیدار می‌شود."
+            textSize = 11f
+            setTextColor(Color.parseColor("#94A3B8"))
+            setPadding(dp(12), dp(2), dp(12), dp(8))
+        }
+        container.addView(clockAlwaysVisibleDesc)
 
         // 1.2 Pocket Mode (Battery Saver)
         val pocketCheck = CheckBox(context).apply {
@@ -363,6 +387,29 @@ object AodSettingsDialog {
         }
         container.addView(clockScaleRow)
 
+        // 6.2 Brightness Selector
+        val brightnessOptions = arrayOf(
+            Pair(15, "۱۵٪ (خیلی کم‌نور / مخصوص اتاق کاملاً تاریک)"),
+            Pair(30, "۳۰٪ (ملایم)"),
+            Pair(45, "۴۵٪ (متوسط و خوانا - پیش‌فرض)"),
+            Pair(60, "۶۰٪ (روشن و واضح)"),
+            Pair(80, "۸۰٪ (بسیار روشن)"),
+            Pair(100, "۱۰۰٪ (حداکثر روشنایی صفحه)")
+        )
+        val brightnessRow = createOptionRow(
+            "میزان روشنایی صفحه و ساعت",
+            brightnessOptions.firstOrNull { it.first == currentBrightness }?.second ?: "${currentBrightness}٪"
+        ) { valTv ->
+            AlertDialog.Builder(context)
+                .setTitle("تنظیم میزان روشنایی صفحه و ساعت")
+                .setItems(brightnessOptions.map { it.second }.toTypedArray()) { _, which ->
+                    currentBrightness = brightnessOptions[which].first
+                    valTv.text = brightnessOptions[which].second
+                }
+                .show()
+        }
+        container.addView(brightnessRow)
+
         // 7. Fine-tuning Size and Position
         container.addView(createSectionTitle("تنظیم اندازه و موقعیت دقیق (هماهنگی با دوربین)"))
 
@@ -475,6 +522,8 @@ object AodSettingsDialog {
                 prefs.aodEnabled.set(true)
                 prefs.aodAlwaysOn.set(currentAlwaysOn)
                 prefs.aodPocketMode.set(currentPocketMode)
+                prefs.aodBrightness.set(currentBrightness)
+                prefs.aodClockAlwaysVisible.set(currentClockAlwaysVisible)
                 prefs.aodStyle.set(currentStyle)
                 prefs.aodColor.set(currentColor)
                 prefs.aodDotSize.set(currentDotSize)
@@ -620,6 +669,8 @@ object AodSettingsDialog {
                 prefs.aodEnabled.set(true)
                 prefs.aodAlwaysOn.set(currentAlwaysOn)
                 prefs.aodPocketMode.set(currentPocketMode)
+                prefs.aodBrightness.set(currentBrightness)
+                prefs.aodClockAlwaysVisible.set(currentClockAlwaysVisible)
                 prefs.aodStyle.set(currentStyle)
                 prefs.aodPosition.set(currentPos)
                 prefs.aodColor.set(currentColor)
@@ -657,6 +708,8 @@ object AodSettingsDialog {
                 prefs.aodEnabled.set(isEnabled)
                 prefs.aodAlwaysOn.set(currentAlwaysOn)
                 prefs.aodPocketMode.set(currentPocketMode)
+                prefs.aodBrightness.set(currentBrightness)
+                prefs.aodClockAlwaysVisible.set(currentClockAlwaysVisible)
                 prefs.aodStyle.set(currentStyle)
                 prefs.aodPosition.set(currentPos)
                 prefs.aodColor.set(currentColor)

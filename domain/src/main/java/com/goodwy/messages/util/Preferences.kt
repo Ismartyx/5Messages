@@ -250,6 +250,8 @@ class Preferences @Inject constructor(
     val aodTapRevealClock = rxPrefs.getBoolean("aod_tap_reveal_clock", true)
     val aodAlwaysOn = rxPrefs.getBoolean("aod_always_on", false)
     val aodPocketMode = rxPrefs.getBoolean("aod_pocket_mode", true)
+    val aodBrightness = rxPrefs.getInteger("aod_brightness", 45)
+    val aodClockAlwaysVisible = rxPrefs.getBoolean("aod_clock_always_visible", true)
     val aodNamesPosition = rxPrefs.getString("aod_names_position", AOD_NAMES_POS_RIGHT)
     val aodNamesTextSize = rxPrefs.getInteger("aod_names_text_size", 14)
     val aodNamesOpacity = rxPrefs.getInteger("aod_names_opacity", 40)

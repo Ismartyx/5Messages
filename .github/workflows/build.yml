@@ -182,14 +182,14 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          VERSION_NAME="1.5.5"
+          VERSION_NAME="1.5.6"
           TAG_NAME="v${VERSION_NAME}"
           gh release delete "$TAG_NAME" --yes || true
           git tag -d "$TAG_NAME" || true
           git push origin ":refs/tags/$TAG_NAME" || true
           gh release create "$TAG_NAME" signed_out/5Messages.apk \
             --title "5Messages v${VERSION_NAME}" \
-            --notes "نسخه 1.5.5: امکان تنظیم ابعاد و اندازه ساعت صفحه همیشه روشن (AOD) در بازه ۶۰٪ (بسیار ریز) تا ۱۷۵٪ (فوق‌العاده درشت) برای تمامی سبک‌های ساعت (دیجیتال، عمودی، عقربه‌ای، نئونی، دایره‌ای) با پیش‌نمایش زنده" \
+            --notes "نسخه 1.5.6: امکان تنظیم میزان روشنایی صفحه AOD و ساعت (از ۱۵٪ تا ۱۰۰٪ با پیش‌فرض پرنور و خوانا ۴۵٪)، و قابلیت روشن ماندن یکسره و مداوم ساعت و تاریخ روی صفحه همراه با به‌روزرسانی دقیق زمان یا نمایش با تک‌ضربه" \
             --latest || gh release upload "$TAG_NAME" signed_out/5Messages.apk --clobber
 
       - name: Upload APK
