@@ -46,6 +46,18 @@ class BlockedMessagesPresenter @Inject constructor(
                 .subscribe { newState { copy() } }
 
         view.optionsItemIntent
+                .filter { it == R.id.clear_all }
+                .withLatestFrom(state) { _, state -> state }
+                .autoDisposable(view.scope())
+                .subscribe { state ->
+                    val allIds = state.data?.map { it.id } ?: emptyList()
+                    if (allIds.isNotEmpty()) {
+                        view.showClearAllDialog(allIds)
+                    }
+                }
+
+        view.optionsItemIntent
+                .filter { it != R.id.clear_all }
                 .withLatestFrom(view.selectionChanges) { itemId, conversations ->
                     when (itemId) {
                         R.id.block -> {
@@ -56,7 +68,6 @@ class BlockedMessagesPresenter @Inject constructor(
                             view.showDeleteDialog(conversations)
                         }
                     }
-
                 }
                 .autoDisposable(view.scope())
                 .subscribe()

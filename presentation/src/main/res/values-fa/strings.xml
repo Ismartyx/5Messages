@@ -287,6 +287,8 @@
     <string name="blocked_numbers_dialog_block">مسدود کردن</string>
     <string name="blocked_messages_title">پیام‌های مسدود شده</string>
     <string name="blocked_messages_empty">پیامهای مسدود شده شما در اینجا ظاهر می شوند</string>
+    <string name="clear_all_blocked_messages">پاک کردن همه</string>
+    <string name="clear_all_blocked_dialog_message">آیا از حذف تمام پیام‌های مسدود شده اطمینان دارید؟</string>
     <string name="blocking_block_title">مسدود کردن</string>
     <string name="blocking_unblock_title">رفع مسدوديت</string>
     <plurals name="blocking_block_external">

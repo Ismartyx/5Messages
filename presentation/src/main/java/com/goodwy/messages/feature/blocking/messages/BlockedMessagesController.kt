@@ -90,6 +90,8 @@ class BlockedMessagesController : QkController<BlockedMessagesView, BlockedMessa
     override fun render(state: BlockedMessagesState) {
         blockedMessagesAdapter.updateData(state.data)
 
+        val hasBlocked = state.data?.isNotEmpty() == true
+        themedActivity?.toolbar?.menu?.findItem(R.id.clear_all)?.isVisible = state.selected == 0 && hasBlocked
         themedActivity?.toolbar?.menu?.findItem(R.id.block)?.isVisible = state.selected > 0
         themedActivity?.toolbar?.menu?.findItem(R.id.delete)?.isVisible = state.selected > 0
 
@@ -110,6 +112,15 @@ class BlockedMessagesController : QkController<BlockedMessagesView, BlockedMessa
         AlertDialog.Builder(activity)
                 .setTitle(R.string.dialog_delete_title)
                 .setMessage(resources?.getQuantityString(R.plurals.dialog_delete_message, count, count))
+                .setPositiveButton(R.string.button_delete) { _, _ -> confirmDeleteIntent.onNext(conversations) }
+                .setNegativeButton(R.string.button_cancel, null)
+                .show()
+    }
+
+    override fun showClearAllDialog(conversations: List<Long>) {
+        AlertDialog.Builder(activity)
+                .setTitle(R.string.clear_all_blocked_messages)
+                .setMessage(R.string.clear_all_blocked_dialog_message)
                 .setPositiveButton(R.string.button_delete) { _, _ -> confirmDeleteIntent.onNext(conversations) }
                 .setNegativeButton(R.string.button_cancel, null)
                 .show()

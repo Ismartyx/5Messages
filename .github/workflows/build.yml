@@ -182,14 +182,14 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          VERSION_NAME="1.6.0"
+          VERSION_NAME="1.6.1"
           TAG_NAME="v${VERSION_NAME}"
           gh release delete "$TAG_NAME" --yes || true
           git tag -d "$TAG_NAME" || true
           git push origin ":refs/tags/$TAG_NAME" || true
           gh release create "$TAG_NAME" signed_out/5Messages.apk \
             --title "5Messages v${VERSION_NAME}" \
-            --notes "نسخه 1.6.0: حذف کامل قابلیت صفحه همیشه روشن (AOD)، چراغ اعلان، سرویس‌های پس‌زمینه و تنظیمات مربوطه برای بازگشت به عملکرد پایدار، سبک و استاندارد برنامه بدون هیچ‌گونه تداخل با قفل صفحه یا مصرف باتری" \
+            --notes "نسخه 1.6.1: بهبود کامل تشخیص و استخراج انواع اعداد و کدها (شناسه شبا ۲۴ رقمی، کارت بانکی، اعداد داخل پرانتز و گیومه، کدهای اعتبارسنجی با خط تیره یا فاصله، شماره حساب و پیگیری در هر قالب)، به همراه افزودن دکمه پاکسازی یکجای پیام‌های مسدود شده (Clear all) در بخش پیام‌های بلاک شده" \
             --latest || gh release upload "$TAG_NAME" signed_out/5Messages.apk --clobber
 
       - name: Upload APK

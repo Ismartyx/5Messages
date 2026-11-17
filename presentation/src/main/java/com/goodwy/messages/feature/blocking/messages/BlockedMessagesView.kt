@@ -33,6 +33,7 @@ interface BlockedMessagesView : QkViewContract<BlockedMessagesState> {
     fun clearSelection()
     fun showBlockingDialog(conversations: List<Long>, block: Boolean)
     fun showDeleteDialog(conversations: List<Long>)
+    fun showClearAllDialog(conversations: List<Long>)
     fun goBack()
 
 }

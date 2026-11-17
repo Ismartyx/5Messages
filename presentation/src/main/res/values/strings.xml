@@ -302,6 +302,8 @@
 
     <string name="blocked_messages_title">Blocked messages</string>
     <string name="blocked_messages_empty">Your blocked messages will appear here</string>
+    <string name="clear_all_blocked_messages">Clear all</string>
+    <string name="clear_all_blocked_dialog_message">Are you sure you want to delete all blocked messages?</string>
 
     <string name="blocking_block_title">Block</string>
     <string name="blocking_unblock_title">Unblock</string>
