@@ -20,6 +20,7 @@ package com.goodwy.messages.repository
 
 import android.content.ContentUris
 import android.content.Context
+import android.net.Uri
 import android.provider.Telephony
 import com.goodwy.messages.compat.TelephonyCompat
 import com.goodwy.messages.extensions.anyOf
@@ -41,6 +42,7 @@ import io.reactivex.android.schedulers.AndroidSchedulers
 import io.reactivex.schedulers.Schedulers
 import io.realm.Case
 import io.realm.Realm
+import io.realm.RealmList
 import io.realm.RealmResults
 import io.realm.Sort
 import java.util.concurrent.TimeUnit
@@ -264,7 +266,18 @@ class ConversationRepositoryImpl @Inject constructor(
     }
 
     override fun getOrCreateConversation(threadId: Long): Conversation? {
-        return getConversation(threadId) ?: getConversationFromCp(threadId)
+        val existing = getConversation(threadId) ?: getConversationFromCp(threadId)
+        if (existing != null) return existing
+
+        val realm = Realm.getDefaultInstance()
+        val address = realm.use { r ->
+            r.where(Message::class.java).equalTo("threadId", threadId).findFirst()?.address
+        }
+        if (!address.isNullOrEmpty()) {
+            return createConversationForAddresses(threadId, listOf(address))
+        }
+
+        return null
     }
 
     override fun getOrCreateConversation(address: String): Conversation? {
@@ -276,13 +289,18 @@ class ConversationRepositoryImpl @Inject constructor(
             return null
         }
 
-        return (getThreadId(addresses) ?: tryOrNull { TelephonyCompat.getOrCreateThreadId(context, addresses.toSet()) })
-                ?.takeIf { threadId -> threadId != 0L }
-                ?.let { threadId ->
-                    getConversation(threadId)
-                            ?.let(Realm.getDefaultInstance()::copyFromRealm)
-                            ?: getConversationFromCp(threadId)
-                }
+        val threadId = (getThreadId(addresses) ?: tryOrNull { TelephonyCompat.getOrCreateThreadId(context, addresses.toSet()) })
+                ?.takeIf { threadId -> threadId != 0L } ?: return null
+
+        val existing = getConversation(threadId)
+                ?.let(Realm.getDefaultInstance()::copyFromRealm)
+                ?: getConversationFromCp(threadId)
+
+        if (existing != null) {
+            return existing
+        }
+
+        return createConversationForAddresses(threadId, addresses)
     }
 
     override fun saveDraft(threadId: Long, draft: String) {
@@ -304,10 +322,19 @@ class ConversationRepositoryImpl @Inject constructor(
             realm.refresh()
 
             threadIds.forEach { threadId ->
-                val conversation = realm
+                var conversation = realm
                         .where(Conversation::class.java)
                         .equalTo("id", threadId)
-                        .findFirst() ?: return
+                        .findFirst()
+
+                if (conversation == null) {
+                    getOrCreateConversation(threadId)
+                    realm.refresh()
+                    conversation = realm
+                            .where(Conversation::class.java)
+                            .equalTo("id", threadId)
+                            .findFirst() ?: return@forEach
+                }
 
                 val message = realm
                         .where(Message::class.java)
@@ -468,6 +495,69 @@ class ConversationRepositoryImpl @Inject constructor(
 
                     managedConversation ?: conversation
                 }
+    }
+
+    private fun createConversationForAddresses(threadId: Long, addresses: List<String>): Conversation {
+        val realm = Realm.getDefaultInstance()
+        var managedConversation: Conversation? = null
+        realm.executeTransaction { r ->
+            var conversation = r.where(Conversation::class.java).equalTo("id", threadId).findFirst()
+            if (conversation == null) {
+                conversation = r.createObject(Conversation::class.java, threadId)
+            }
+            val contacts = r.where(Contact::class.java).findAll()
+            val recipientsList = RealmList<Recipient>()
+            addresses.forEach { address ->
+                var recipient = r.where(Recipient::class.java)
+                        .findAll()
+                        .firstOrNull { phoneNumberUtils.compare(it.address, address) }
+                if (recipient == null) {
+                    var recipientId: Long = 0L
+                    tryOrNull {
+                        val cursor = context.contentResolver.query(
+                                Uri.parse("content://mms-sms/canonical-addresses"),
+                                arrayOf("_id", "address"),
+                                "address = ?",
+                                arrayOf(address),
+                                null
+                        )
+                        cursor?.use {
+                            if (it.moveToFirst()) {
+                                recipientId = it.getLong(0)
+                            }
+                        }
+                    }
+                    if (recipientId == 0L) {
+                        val maxId = r.where(Recipient::class.java).max("id")?.toLong() ?: 0L
+                        recipientId = maxId + 1L
+                    }
+                    recipient = r.where(Recipient::class.java).equalTo("id", recipientId).findFirst()
+                    if (recipient == null) {
+                        recipient = r.createObject(Recipient::class.java, recipientId).apply {
+                            this.address = address
+                            this.lastUpdate = System.currentTimeMillis()
+                        }
+                    }
+                }
+                recipient.contact = contacts.firstOrNull { contact ->
+                    contact.numbers.any { phoneNumberUtils.compare(address, it.address) }
+                }
+                if (!recipientsList.contains(recipient)) {
+                    recipientsList.add(recipient)
+                }
+            }
+            conversation.recipients.clear()
+            conversation.recipients.addAll(recipientsList)
+
+            val lastMessage = r.where(Message::class.java).equalTo("threadId", threadId)
+                    .sort("date", Sort.DESCENDING).findFirst()
+            conversation.lastMessage = lastMessage
+
+            managedConversation = conversation
+        }
+        val result = managedConversation?.let(realm::copyFromRealm) ?: Conversation(threadId)
+        realm.close()
+        return result
     }
 
 }

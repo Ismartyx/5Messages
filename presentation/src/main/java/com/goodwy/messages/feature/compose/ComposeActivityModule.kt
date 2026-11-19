@@ -46,13 +46,23 @@ class ComposeActivityModule {
     @Provides
     @Named("addresses")
     fun provideAddresses(activity: ComposeActivity): List<String> {
-        return activity.intent
+        val fromData = activity.intent
                 ?.decodedDataString()
                 ?.substringAfter(':') // Remove scheme
                 ?.substringBefore("?") // Remove query
                 ?.split(",", ";")
+                ?.map { number -> number.trim() }
                 ?.filter { number -> number.isNotEmpty() }
                 ?: listOf()
+
+        if (fromData.isNotEmpty()) return fromData
+
+        val fromExtras = activity.intent?.getStringExtra("address")
+                ?: activity.intent?.getStringExtra(Intent.EXTRA_PHONE_NUMBER)
+                ?: activity.intent?.getStringArrayExtra("addresses")?.joinToString(";")
+                ?: ""
+
+        return fromExtras.split(",", ";").map { it.trim() }.filter { it.isNotEmpty() }
     }
 
     @Provides

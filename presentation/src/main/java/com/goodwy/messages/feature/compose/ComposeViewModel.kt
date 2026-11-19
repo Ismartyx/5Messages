@@ -667,7 +667,15 @@ class ComposeViewModel @Inject constructor(
                     val targetThreadId = when {
                         conversation.id != 0L -> conversation.id
                         state.threadId != 0L -> state.threadId
-                        else -> threadId
+                        threadId != 0L -> threadId
+                        addresses.isNotEmpty() -> conversationRepo.getOrCreateConversation(addresses)?.id ?: 0L
+                        else -> 0L
+                    }
+
+                    if (state.threadId == 0L && targetThreadId > 0L) {
+                        val newMessages = messageRepo.getMessages(targetThreadId)
+                        val conv = conversationRepo.getConversation(targetThreadId) ?: Conversation(targetThreadId)
+                        newState { copy(threadId = targetThreadId, messages = Pair(conv, newMessages)) }
                     }
 
                     when {

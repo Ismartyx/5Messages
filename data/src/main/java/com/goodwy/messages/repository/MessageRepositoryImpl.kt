@@ -29,9 +29,11 @@ import com.goodwy.messages.extensions.anyOf
 import com.goodwy.messages.manager.ActiveConversationManager
 import com.goodwy.messages.manager.KeyManager
 import com.goodwy.messages.model.Attachment
+import com.goodwy.messages.model.Contact
 import com.goodwy.messages.model.Conversation
 import com.goodwy.messages.model.Message
 import com.goodwy.messages.model.MmsPart
+import com.goodwy.messages.model.Recipient
 import com.goodwy.messages.receiver.SendSmsReceiver
 import com.goodwy.messages.receiver.SmsDeliveredReceiver
 import com.goodwy.messages.receiver.SmsSentReceiver
@@ -502,8 +504,28 @@ class MessageRepositoryImpl @Inject constructor(
         var managedMessage: Message? = null
         realm.executeTransaction {
             managedMessage = realm.copyToRealmOrUpdate(message)
-            val conversation = realm.where(Conversation::class.java).equalTo("id", message.threadId).findFirst()
-            conversation?.lastMessage = managedMessage
+            var conversation = realm.where(Conversation::class.java).equalTo("id", message.threadId).findFirst()
+            if (conversation == null) {
+                conversation = realm.createObject(Conversation::class.java, message.threadId)
+                val contacts = realm.where(Contact::class.java).findAll()
+                var recipient = realm.where(Recipient::class.java)
+                        .findAll()
+                        .firstOrNull { phoneNumberUtils.compare(it.address, address) }
+                if (recipient == null) {
+                    val nextId = (realm.where(Recipient::class.java).max("id")?.toLong() ?: 0L) + 1L
+                    recipient = realm.createObject(Recipient::class.java, nextId).apply {
+                        this.address = address
+                        this.lastUpdate = System.currentTimeMillis()
+                    }
+                }
+                recipient.contact = contacts.firstOrNull { contact ->
+                    contact.numbers.any { phoneNumberUtils.compare(address, it.address) }
+                }
+                if (!conversation.recipients.contains(recipient)) {
+                    conversation.recipients.add(recipient)
+                }
+            }
+            conversation.lastMessage = managedMessage
         }
 
         // Immediately trigger main looper Realm refresh so the UI updates with 0 delay
@@ -572,8 +594,28 @@ class MessageRepositoryImpl @Inject constructor(
         var managedMessage: Message? = null
         realm.executeTransaction {
             managedMessage = realm.copyToRealmOrUpdate(message)
-            val conversation = realm.where(Conversation::class.java).equalTo("id", message.threadId).findFirst()
-            conversation?.lastMessage = managedMessage
+            var conversation = realm.where(Conversation::class.java).equalTo("id", message.threadId).findFirst()
+            if (conversation == null) {
+                conversation = realm.createObject(Conversation::class.java, message.threadId)
+                val contacts = realm.where(Contact::class.java).findAll()
+                var recipient = realm.where(Recipient::class.java)
+                        .findAll()
+                        .firstOrNull { phoneNumberUtils.compare(it.address, address) }
+                if (recipient == null) {
+                    val nextId = (realm.where(Recipient::class.java).max("id")?.toLong() ?: 0L) + 1L
+                    recipient = realm.createObject(Recipient::class.java, nextId).apply {
+                        this.address = address
+                        this.lastUpdate = System.currentTimeMillis()
+                    }
+                }
+                recipient.contact = contacts.firstOrNull { contact ->
+                    contact.numbers.any { phoneNumberUtils.compare(address, it.address) }
+                }
+                if (!conversation.recipients.contains(recipient)) {
+                    conversation.recipients.add(recipient)
+                }
+            }
+            conversation.lastMessage = managedMessage
         }
 
         // Immediately trigger main looper Realm refresh so the UI updates with 0 delay

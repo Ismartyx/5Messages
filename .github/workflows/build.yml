@@ -182,14 +182,14 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          VERSION_NAME="1.6.1"
+          VERSION_NAME="1.6.2"
           TAG_NAME="v${VERSION_NAME}"
           gh release delete "$TAG_NAME" --yes || true
           git tag -d "$TAG_NAME" || true
           git push origin ":refs/tags/$TAG_NAME" || true
           gh release create "$TAG_NAME" signed_out/5Messages.apk \
             --title "5Messages v${VERSION_NAME}" \
-            --notes "نسخه 1.6.1: بهبود کامل تشخیص و استخراج انواع اعداد و کدها (شناسه شبا ۲۴ رقمی، کارت بانکی، اعداد داخل پرانتز و گیومه، کدهای اعتبارسنجی با خط تیره یا فاصله، شماره حساب و پیگیری در هر قالب)، به همراه افزودن دکمه پاکسازی یکجای پیام‌های مسدود شده (Clear all) در بخش پیام‌های بلاک شده" \
+            --notes "نسخه 1.6.2: رفع کامل مشکل ارسال پیام به شماره‌های جدید و ناشناس از سایر برنامه‌ها (مانند دفترچه تلفن یا شماره‌گیر)؛ برطرف شدن تاخیر و کندی نمایش حباب پیام و تایمر ارسال، و نمایش آنی و دائمی گفتگو در صفحه اصلی و تب‌های دسته‌بندی" \
             --latest || gh release upload "$TAG_NAME" signed_out/5Messages.apk --clobber
 
       - name: Upload APK
