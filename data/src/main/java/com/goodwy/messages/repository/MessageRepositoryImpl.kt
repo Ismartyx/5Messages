@@ -504,27 +504,26 @@ class MessageRepositoryImpl @Inject constructor(
         var managedMessage: Message? = null
         realm.executeTransaction {
             managedMessage = realm.copyToRealmOrUpdate(message)
-            var conversation = realm.where(Conversation::class.java).equalTo("id", message.threadId).findFirst()
-            if (conversation == null) {
-                conversation = realm.createObject(Conversation::class.java, message.threadId)
-                val contacts = realm.where(Contact::class.java).findAll()
-                var recipient = realm.where(Recipient::class.java)
-                        .findAll()
-                        .firstOrNull { phoneNumberUtils.compare(it.address, address) }
-                if (recipient == null) {
-                    val nextId = (realm.where(Recipient::class.java).max("id")?.toLong() ?: 0L) + 1L
-                    recipient = realm.createObject(Recipient::class.java, nextId).apply {
-                        this.address = address
-                        this.lastUpdate = System.currentTimeMillis()
+            val conversation = realm.where(Conversation::class.java).equalTo("id", message.threadId).findFirst()
+                    ?: realm.createObject(Conversation::class.java, message.threadId).also { newConv ->
+                        val contacts = realm.where(Contact::class.java).findAll()
+                        val recipient = realm.where(Recipient::class.java)
+                                .findAll()
+                                .firstOrNull { phoneNumberUtils.compare(it.address, address) }
+                                ?: run {
+                                    val nextId = (realm.where(Recipient::class.java).max("id")?.toLong() ?: 0L) + 1L
+                                    realm.createObject(Recipient::class.java, nextId).apply {
+                                        this.address = address
+                                        this.lastUpdate = System.currentTimeMillis()
+                                    }
+                                }
+                        recipient.contact = contacts.firstOrNull { contact ->
+                            contact.numbers.any { phoneNumberUtils.compare(address, it.address) }
+                        }
+                        if (!newConv.recipients.contains(recipient)) {
+                            newConv.recipients.add(recipient)
+                        }
                     }
-                }
-                recipient.contact = contacts.firstOrNull { contact ->
-                    contact.numbers.any { phoneNumberUtils.compare(address, it.address) }
-                }
-                if (!conversation.recipients.contains(recipient)) {
-                    conversation.recipients.add(recipient)
-                }
-            }
             conversation.lastMessage = managedMessage
         }
 
@@ -594,27 +593,26 @@ class MessageRepositoryImpl @Inject constructor(
         var managedMessage: Message? = null
         realm.executeTransaction {
             managedMessage = realm.copyToRealmOrUpdate(message)
-            var conversation = realm.where(Conversation::class.java).equalTo("id", message.threadId).findFirst()
-            if (conversation == null) {
-                conversation = realm.createObject(Conversation::class.java, message.threadId)
-                val contacts = realm.where(Contact::class.java).findAll()
-                var recipient = realm.where(Recipient::class.java)
-                        .findAll()
-                        .firstOrNull { phoneNumberUtils.compare(it.address, address) }
-                if (recipient == null) {
-                    val nextId = (realm.where(Recipient::class.java).max("id")?.toLong() ?: 0L) + 1L
-                    recipient = realm.createObject(Recipient::class.java, nextId).apply {
-                        this.address = address
-                        this.lastUpdate = System.currentTimeMillis()
+            val conversation = realm.where(Conversation::class.java).equalTo("id", message.threadId).findFirst()
+                    ?: realm.createObject(Conversation::class.java, message.threadId).also { newConv ->
+                        val contacts = realm.where(Contact::class.java).findAll()
+                        val recipient = realm.where(Recipient::class.java)
+                                .findAll()
+                                .firstOrNull { phoneNumberUtils.compare(it.address, address) }
+                                ?: run {
+                                    val nextId = (realm.where(Recipient::class.java).max("id")?.toLong() ?: 0L) + 1L
+                                    realm.createObject(Recipient::class.java, nextId).apply {
+                                        this.address = address
+                                        this.lastUpdate = System.currentTimeMillis()
+                                    }
+                                }
+                        recipient.contact = contacts.firstOrNull { contact ->
+                            contact.numbers.any { phoneNumberUtils.compare(address, it.address) }
+                        }
+                        if (!newConv.recipients.contains(recipient)) {
+                            newConv.recipients.add(recipient)
+                        }
                     }
-                }
-                recipient.contact = contacts.firstOrNull { contact ->
-                    contact.numbers.any { phoneNumberUtils.compare(address, it.address) }
-                }
-                if (!conversation.recipients.contains(recipient)) {
-                    conversation.recipients.add(recipient)
-                }
-            }
             conversation.lastMessage = managedMessage
         }
 

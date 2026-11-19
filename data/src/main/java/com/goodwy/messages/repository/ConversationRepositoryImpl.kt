@@ -501,44 +501,40 @@ class ConversationRepositoryImpl @Inject constructor(
         val realm = Realm.getDefaultInstance()
         var managedConversation: Conversation? = null
         realm.executeTransaction { r ->
-            var conversation = r.where(Conversation::class.java).equalTo("id", threadId).findFirst()
-            if (conversation == null) {
-                conversation = r.createObject(Conversation::class.java, threadId)
-            }
+            val conversation = r.where(Conversation::class.java).equalTo("id", threadId).findFirst()
+                    ?: r.createObject(Conversation::class.java, threadId)
             val contacts = r.where(Contact::class.java).findAll()
             val recipientsList = RealmList<Recipient>()
             addresses.forEach { address ->
-                var recipient = r.where(Recipient::class.java)
+                val recipient = r.where(Recipient::class.java)
                         .findAll()
                         .firstOrNull { phoneNumberUtils.compare(it.address, address) }
-                if (recipient == null) {
-                    var recipientId: Long = 0L
-                    tryOrNull {
-                        val cursor = context.contentResolver.query(
-                                Uri.parse("content://mms-sms/canonical-addresses"),
-                                arrayOf("_id", "address"),
-                                "address = ?",
-                                arrayOf(address),
-                                null
-                        )
-                        cursor?.use {
-                            if (it.moveToFirst()) {
-                                recipientId = it.getLong(0)
+                        ?: run {
+                            var recipientId: Long = 0L
+                            tryOrNull {
+                                val cursor = context.contentResolver.query(
+                                        Uri.parse("content://mms-sms/canonical-addresses"),
+                                        arrayOf("_id", "address"),
+                                        "address = ?",
+                                        arrayOf(address),
+                                        null
+                                )
+                                cursor?.use {
+                                    if (it.moveToFirst()) {
+                                        recipientId = it.getLong(0)
+                                    }
+                                }
                             }
+                            if (recipientId == 0L) {
+                                val maxId = r.where(Recipient::class.java).max("id")?.toLong() ?: 0L
+                                recipientId = maxId + 1L
+                            }
+                            r.where(Recipient::class.java).equalTo("id", recipientId).findFirst()
+                                    ?: r.createObject(Recipient::class.java, recipientId).apply {
+                                        this.address = address
+                                        this.lastUpdate = System.currentTimeMillis()
+                                    }
                         }
-                    }
-                    if (recipientId == 0L) {
-                        val maxId = r.where(Recipient::class.java).max("id")?.toLong() ?: 0L
-                        recipientId = maxId + 1L
-                    }
-                    recipient = r.where(Recipient::class.java).equalTo("id", recipientId).findFirst()
-                    if (recipient == null) {
-                        recipient = r.createObject(Recipient::class.java, recipientId).apply {
-                            this.address = address
-                            this.lastUpdate = System.currentTimeMillis()
-                        }
-                    }
-                }
                 recipient.contact = contacts.firstOrNull { contact ->
                     contact.numbers.any { phoneNumberUtils.compare(address, it.address) }
                 }
