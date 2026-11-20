@@ -28,7 +28,7 @@ class BlockThreadReceiver : BroadcastReceiver() {
         blockingClient
                 .blockAddresses(conversation.recipients.map { it.address })
                 .andThen(markBlocked.buildObservable(MarkBlocked.Params(listOf(threadId), blockingManager, null)))
-                .subscribe { pendingResult.finish() }
+                .subscribe({ pendingResult.finish() }, { pendingResult.finish() })
     }
 
 }

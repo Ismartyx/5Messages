@@ -182,14 +182,14 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          VERSION_NAME="1.6.2"
+          VERSION_NAME="1.6.3"
           TAG_NAME="v${VERSION_NAME}"
           gh release delete "$TAG_NAME" --yes || true
           git tag -d "$TAG_NAME" || true
           git push origin ":refs/tags/$TAG_NAME" || true
           gh release create "$TAG_NAME" signed_out/5Messages.apk \
             --title "5Messages v${VERSION_NAME}" \
-            --notes "نسخه 1.6.2: رفع کامل مشکل ارسال پیام به شماره‌های جدید و ناشناس از سایر برنامه‌ها (مانند دفترچه تلفن یا شماره‌گیر)؛ برطرف شدن تاخیر و کندی نمایش حباب پیام و تایمر ارسال، و نمایش آنی و دائمی گفتگو در صفحه اصلی و تب‌های دسته‌بندی" \
+            --notes "نسخه 1.6.3: رفع خطای کرش هنگام مسدود کردن شماره‌ها و گفتگوها (رفع خطای تکراری شدن کلید اصلی Value already exists و کنترل ایمن خطاهای جریان‌های بلاک)" \
             --latest || gh release upload "$TAG_NAME" signed_out/5Messages.apk --clobber
 
       - name: Upload APK

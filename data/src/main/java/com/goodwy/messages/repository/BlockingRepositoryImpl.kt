@@ -13,41 +13,47 @@ class BlockingRepositoryImpl @Inject constructor(
 ) : BlockingRepository {
 
     override fun blockNumber(vararg addresses: String) {
+        if (addresses.isEmpty()) return
         Realm.getDefaultInstance().use { realm ->
             realm.refresh()
+            realm.executeTransaction { r ->
+                val existingBlocked = r.where(BlockedNumber::class.java).findAll()
+                var currentMaxId = r.where(BlockedNumber::class.java).max("id")?.toLong() ?: 0L
 
-            val blockedNumbers = realm.where(BlockedNumber::class.java).findAll()
-            val newAddresses = addresses.filter { address ->
-                blockedNumbers.none { number -> phoneNumberUtils.compare(number.address, address) }
-            }
-
-            val maxId = realm.where(BlockedNumber::class.java)
-                    .max("id")?.toLong() ?: -1
-
-            realm.executeTransaction {
-                realm.insert(newAddresses.mapIndexed { index, address ->
-                    BlockedNumber(maxId + 1 + index, address)
-                })
+                for (address in addresses) {
+                    if (address.isBlank()) continue
+                    val alreadyBlocked = existingBlocked.any { phoneNumberUtils.compare(it.address, address) }
+                    if (!alreadyBlocked) {
+                        currentMaxId++
+                        while (r.where(BlockedNumber::class.java).equalTo("id", currentMaxId).findFirst() != null) {
+                            currentMaxId++
+                        }
+                        r.insertOrUpdate(BlockedNumber(currentMaxId, address))
+                    }
+                }
             }
         }
     }
 
     override fun blockRegex(vararg regexps: String) {
+        if (regexps.isEmpty()) return
         Realm.getDefaultInstance().use { realm ->
             realm.refresh()
+            realm.executeTransaction { r ->
+                val existingRegexps = r.where(BlockedRegex::class.java).findAll()
+                var currentMaxId = r.where(BlockedRegex::class.java).max("id")?.toLong() ?: 0L
 
-            val blockedRegexps = realm.where(BlockedRegex::class.java).findAll()
-            val newRegexps = regexps.filter { regex ->
-                blockedRegexps.none { blockedRegex -> phoneNumberUtils.compare(blockedRegex.regex, regex) }
-            }
-
-            val maxId = realm.where(BlockedRegex::class.java)
-                .max("id")?.toLong() ?: -1
-
-            realm.executeTransaction {
-                realm.insert(newRegexps.mapIndexed { index, regex ->
-                    BlockedRegex(maxId + 1 + index, regex)
-                })
+                for (regex in regexps) {
+                    if (regex.isBlank()) continue
+                    val alreadyBlocked = existingRegexps.any { it.regex == regex }
+                    if (!alreadyBlocked) {
+                        currentMaxId++
+                        while (r.where(BlockedRegex::class.java).equalTo("id", currentMaxId).findFirst() != null) {
+                            currentMaxId++
+                        }
+                        r.insertOrUpdate(BlockedRegex(currentMaxId, regex))
+                    }
+                }
             }
         }
     }

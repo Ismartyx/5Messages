@@ -356,16 +356,18 @@ class BackupRepositoryImpl @Inject constructor(
             if (!backup?.blockedNumbers.isNullOrEmpty()) {
                 tryOrNull {
                     Realm.getDefaultInstance().use { realm ->
-                        val currentBlocked = realm.where(BlockedNumber::class.java).findAll()
-                        val toAdd = backup!!.blockedNumbers.filter { addr ->
-                            currentBlocked.none { it.address == addr }
-                        }
-                        if (toAdd.isNotEmpty()) {
-                            val maxId = realm.where(BlockedNumber::class.java).max("id")?.toLong() ?: -1L
-                            realm.executeTransaction {
-                                realm.insert(toAdd.mapIndexed { idx, addr ->
-                                    BlockedNumber(maxId + 1 + idx, addr)
-                                })
+                        realm.executeTransaction { r ->
+                            val currentBlocked = r.where(BlockedNumber::class.java).findAll()
+                            var currentMaxId = r.where(BlockedNumber::class.java).max("id")?.toLong() ?: 0L
+                            for (addr in backup!!.blockedNumbers) {
+                                if (addr.isBlank()) continue
+                                if (currentBlocked.none { it.address == addr }) {
+                                    currentMaxId++
+                                    while (r.where(BlockedNumber::class.java).equalTo("id", currentMaxId).findFirst() != null) {
+                                        currentMaxId++
+                                    }
+                                    r.insertOrUpdate(BlockedNumber(currentMaxId, addr))
+                                }
                             }
                         }
                     }
@@ -376,16 +378,18 @@ class BackupRepositoryImpl @Inject constructor(
             if (!backup?.blockedRegexps.isNullOrEmpty()) {
                 tryOrNull {
                     Realm.getDefaultInstance().use { realm ->
-                        val currentRegexps = realm.where(BlockedRegex::class.java).findAll()
-                        val toAdd = backup!!.blockedRegexps.filter { reg ->
-                            currentRegexps.none { it.regex == reg }
-                        }
-                        if (toAdd.isNotEmpty()) {
-                            val maxId = realm.where(BlockedRegex::class.java).max("id")?.toLong() ?: -1L
-                            realm.executeTransaction {
-                                realm.insert(toAdd.mapIndexed { idx, reg ->
-                                    BlockedRegex(maxId + 1 + idx, reg)
-                                })
+                        realm.executeTransaction { r ->
+                            val currentRegexps = r.where(BlockedRegex::class.java).findAll()
+                            var currentMaxId = r.where(BlockedRegex::class.java).max("id")?.toLong() ?: 0L
+                            for (reg in backup!!.blockedRegexps) {
+                                if (reg.isBlank()) continue
+                                if (currentRegexps.none { it.regex == reg }) {
+                                    currentMaxId++
+                                    while (r.where(BlockedRegex::class.java).equalTo("id", currentMaxId).findFirst() != null) {
+                                        currentMaxId++
+                                    }
+                                    r.insertOrUpdate(BlockedRegex(currentMaxId, reg))
+                                }
                             }
                         }
                     }
